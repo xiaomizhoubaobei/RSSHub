@@ -59605,7 +59605,8 @@
       "/:source?/:id?/:type?": {
         "path": "/:source?/:id?/:type?",
         "categories": [
-          "anime"
+          "anime",
+          "popular"
         ],
         "example": "/kemono",
         "parameters": {
@@ -110513,8 +110514,7 @@
       "/crowdfunding": {
         "path": "/crowdfunding",
         "categories": [
-          "shopping",
-          "popular"
+          "shopping"
         ],
         "example": "/xiaomiyoupin/crowdfunding",
         "parameters": {},
