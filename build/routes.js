@@ -1063,7 +1063,8 @@ export default {
       "/:type/:keyword{.*}?": {
         "path": "/:type/:keyword{.*}?",
         "categories": [
-          "multimedia"
+          "multimedia",
+          "popular"
         ],
         "name": "通用",
         "maintainers": [
@@ -5771,8 +5772,7 @@ export default {
       "/category/:category": {
         "path": "/category/:category",
         "categories": [
-          "new-media",
-          "popular"
+          "new-media"
         ],
         "example": "/aeon/category/philosophy",
         "parameters": {
@@ -6845,7 +6845,8 @@ export default {
         "example": "/aibase/news",
         "description": "获取 AI 资讯列表",
         "categories": [
-          "new-media"
+          "new-media",
+          "popular"
         ],
         "features": {
           "requireConfig": false,
@@ -13235,7 +13236,8 @@ export default {
           "channel": "channel, default to `top stories`"
         },
         "categories": [
-          "traditional-media"
+          "traditional-media",
+          "popular"
         ],
         "description": "Provides a better reading experience (full text articles) over the official ones.\n\n    Support major channels, refer to [BBC RSS feeds](https://www.bbc.co.uk/news/10628494). Eg, `business` for `https://feeds.bbci.co.uk/news/business/rss.xml`.\n\n    -   Channel contains sub-directories, such as `https://feeds.bbci.co.uk/news/world/asia/rss.xml`, replace `/` with `-`, `/bbc/world-asia`.",
         "location": "index.ts",
@@ -15500,8 +15502,7 @@ export default {
       "/announcement/:type/:lang?": {
         "path": "/announcement/:type/:lang?",
         "categories": [
-          "finance",
-          "popular"
+          "finance"
         ],
         "view": 0,
         "example": "/bitget/announcement/all/zh-CN",
@@ -29077,7 +29078,8 @@ export default {
       "/blog": {
         "path": "/blog",
         "categories": [
-          "new-media"
+          "new-media",
+          "popular"
         ],
         "example": "/deepmind/blog",
         "parameters": {},
@@ -35105,8 +35107,7 @@ export default {
       "/express-news": {
         "path": "/express-news",
         "categories": [
-          "finance",
-          "popular"
+          "finance"
         ],
         "view": 0,
         "example": "/fastbull/express-news",
@@ -40239,8 +40240,7 @@ export default {
       "/issue/:user/:repo/:state?/:labels?": {
         "path": "/issue/:user/:repo/:state?/:labels?",
         "categories": [
-          "programming",
-          "popular"
+          "programming"
         ],
         "view": 5,
         "example": "/github/issue/DIYgod/RSSHub/open",
@@ -41298,7 +41298,8 @@ export default {
       "/citations/:id": {
         "path": "/citations/:id",
         "categories": [
-          "journal"
+          "journal",
+          "popular"
         ],
         "example": "/google/citations/mlmE4JMAAAAJ",
         "parameters": {
@@ -55499,7 +55500,8 @@ export default {
       "/ranking/:type": {
         "path": "/ranking/:type",
         "categories": [
-          "new-media"
+          "new-media",
+          "popular"
         ],
         "example": "/ithome/ranking/24h",
         "parameters": {
@@ -57364,8 +57366,7 @@ export default {
       "/lives/:category?": {
         "path": "/lives/:category?",
         "categories": [
-          "finance",
-          "popular"
+          "finance"
         ],
         "view": 5,
         "example": "/jinse/lives",
@@ -80821,7 +80822,8 @@ export default {
       "/av/:catid?": {
         "path": "/av/:catid?",
         "categories": [
-          "bbs"
+          "bbs",
+          "popular"
         ],
         "example": "/playno1/av",
         "parameters": {
@@ -100213,8 +100215,7 @@ export default {
       "/:channel?/:original?": {
         "path": "/:channel?/:original?",
         "categories": [
-          "finance",
-          "popular"
+          "finance"
         ],
         "view": 0,
         "example": "/theblockbeats/newsflash",
@@ -101257,8 +101258,7 @@ export default {
       "/news/:type?": {
         "path": "/news/:type?",
         "categories": [
-          "new-media",
-          "popular"
+          "new-media"
         ],
         "example": "/timednews/news",
         "parameters": {
@@ -112285,7 +112285,8 @@ export default {
       "/post/popular_recent/:period?": {
         "path": "/post/popular_recent/:period?",
         "categories": [
-          "picture"
+          "picture",
+          "popular"
         ],
         "view": 2,
         "example": "/yande/post/popular_recent/1d",
@@ -113941,8 +113942,7 @@ export default {
       "/today": {
         "path": "/today",
         "categories": [
-          "multimedia",
-          "popular"
+          "multimedia"
         ],
         "view": 5,
         "example": "/yyets/today",
