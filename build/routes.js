@@ -33266,7 +33266,8 @@ export default {
       "/:endpoint": {
         "path": "/:endpoint",
         "categories": [
-          "traditional-media"
+          "traditional-media",
+          "popular"
         ],
         "view": 0,
         "example": "/economist/latest",
@@ -56780,8 +56781,7 @@ export default {
       "/home": {
         "path": "/home",
         "categories": [
-          "social-media",
-          "popular"
+          "social-media"
         ],
         "view": 0,
         "example": "/jianshu/home",
@@ -59606,7 +59606,8 @@ export default {
       "/:source?/:id?/:type?": {
         "path": "/:source?/:id?/:type?",
         "categories": [
-          "anime"
+          "anime",
+          "popular"
         ],
         "example": "/kemono",
         "parameters": {
