@@ -33264,8 +33264,7 @@ export default {
       "/:endpoint": {
         "path": "/:endpoint",
         "categories": [
-          "traditional-media",
-          "popular"
+          "traditional-media"
         ],
         "view": 0,
         "example": "/economist/latest",
@@ -75347,7 +75346,8 @@ export default {
           "DIYgod"
         ],
         "categories": [
-          "program-update"
+          "program-update",
+          "popular"
         ],
         "example": "/obsidian/plugins",
         "location": "plugins.ts",
