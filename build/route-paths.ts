@@ -57,6 +57,7 @@ export type RoutePath =
   | `/3dmgame/news/:category?`
   | `/3kns/:filters?/:order?`
   | `/423down/:category{.+}?`
+  | `/4chan/:board/catalog/:routeParams?`
   | `/4gamers/`
   | `/4gamers/category/:category`
   | `/4gamers/tag/:tag`
@@ -90,7 +91,7 @@ export type RoutePath =
   | `/81/81rc/:category{.+}?`
   | `/8264/list/:id?`
   | `/8kcos/`
-  | `/8kcos/cat/:cat{.+}?`
+  | `/8kcos/cat/:cat?`
   | `/8kcos/tag/:tag`
   | `/8world*`
   | `/91porn/:lang?`
@@ -222,6 +223,7 @@ export type RoutePath =
   | `/arcteryx/outlet/:country/:gender`
   | `/arcteryx/regear/new-arrivals`
   | `/artstation/:handle`
+  | `/aschmelyun/blog`
   | `/asiafruitchina/categories/:category?`
   | `/asiafruitchina/news`
   | `/asianfanfics/tag/:tag/:type`
@@ -1063,6 +1065,7 @@ export type RoutePath =
   | `/gamersky/ent/:category?`
   | `/gamersky/news/:type?`
   | `/gamersky/review/:type?`
+  | `/gamersky/user/:userId/:detail?`
   | `/gamme/:domain/:category?`
   | `/gamme/:domain/tag/:tag`
   | `/ganjingworld/channel/articles/:id`
@@ -1080,6 +1083,8 @@ export type RoutePath =
   | `/gcores/tags/:id/:tab?`
   | `/gcores/topics/:id/recommend`
   | `/gcores/topics/recommend`
+  | `/gcores/users/:id/radios`
+  | `/gcores/users/:id/talks`
   | `/gcores/videos`
   | `/gdsrx/:id?`
   | `/gdufs/news`
@@ -1541,6 +1546,7 @@ export type RoutePath =
   | `/ithome/tag/:name`
   | `/ithome/tw/feeds/:category`
   | `/ithome/zt/:id?`
+  | `/iwara/ranking/:type?/:sort?/:rating?`
   | `/iwara/subscriptions`
   | `/iwara/users/:username/:type?`
   | `/ixigua/user/video/:uid/:disableEmbed?`
@@ -1832,6 +1838,7 @@ export type RoutePath =
   | `/melonbooks/search/:query?`
   | `/mercari/:sort/:order/:status/:keyword`
   | `/mercari/search/:query`
+  | `/meritalk/articles`
   | `/meta/ai/blog`
   | `/metacritic/:type?/:sort?/:filter?`
   | `/meteoblue/weathernews`

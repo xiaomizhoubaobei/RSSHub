@@ -184,6 +184,9 @@
   "/423down/:category{.+}?": [
     "nczitzk"
   ],
+  "/4chan/:board/catalog/:routeParams?": [
+    "heisenshark"
+  ],
   "/4gamers/": [
     "TonyRL"
   ],
@@ -274,7 +277,9 @@
   "/7mmtv/:language?/:category?/:type?": [
     "nczitzk"
   ],
-  "/8kcos/cat/:cat{.+}?": [],
+  "/8kcos/cat/:cat?": [
+    "KotoriK"
+  ],
   "/8kcos/": [
     "KotoriK"
   ],
@@ -671,6 +676,9 @@
   ],
   "/artstation/:handle": [
     "TonyRL"
+  ],
+  "/aschmelyun/blog": [
+    "raxod502"
   ],
   "/asiafruitchina/categories/:category?": [
     "nczitzk"
@@ -3283,6 +3291,9 @@
   "/gamersky/review/:type?": [
     "yy4382"
   ],
+  "/gamersky/user/:userId/:detail?": [
+    "hualiong"
+  ],
   "/gamme/:domain/:category?": [],
   "/gamme/:domain/tag/:tag": [],
   "/ganjingworld/channel/articles/:id": [
@@ -3333,6 +3344,12 @@
   ],
   "/gcores/topics/recommend": [
     "nczitzk"
+  ],
+  "/gcores/users/:id/radios": [
+    "DzmingLi"
+  ],
+  "/gcores/users/:id/talks": [
+    "DzmingLi"
   ],
   "/gcores/videos": [
     "nczitzk"
@@ -4716,6 +4733,9 @@
   "/iwara/users/:username/:type?": [
     "Fatpandac"
   ],
+  "/iwara/ranking/:type?/:sort?/:rating?": [
+    "CaoMeiYouRen233"
+  ],
   "/iwara/subscriptions": [
     "FeCCC"
   ],
@@ -5576,6 +5596,9 @@
     "yana9i",
     "Tsuyumi25"
   ],
+  "/meritalk/articles": [
+    "superguyDiluc"
+  ],
   "/meta/ai/blog": [
     "TonyRL"
   ],
@@ -5928,7 +5951,8 @@
     "LyleLee"
   ],
   "/ncu/jwc": [
-    "ywh555hhh"
+    "ywh555hhh",
+    "jixiuweilan"
   ],
   "/ncwu/notice": [],
   "/ndss-symposium/ndss": [

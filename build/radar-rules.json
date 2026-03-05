@@ -1931,6 +1931,19 @@
       }
     ]
   },
+  "4chan.org": {
+    "_name": "4chan",
+    "boards": [
+      {
+        "title": "Board's catalog",
+        "docs": "https://docs.rsshub.app/routes/bbs",
+        "source": [
+          "/:board/"
+        ],
+        "target": "/4chan/:board/catalog"
+      }
+    ]
+  },
   "4gamers.com.tw": {
     "_name": "4Gamers",
     "www": [
@@ -2832,12 +2845,13 @@
     "_name": "8KCosplay",
     ".": [
       {
-        "title": "Unknown",
+        "title": "分类",
         "docs": "https://docs.rsshub.app/routes/picture",
         "source": [
-          "/"
+          "/category/:mainCategory/:cat/",
+          "/category/:cat/"
         ],
-        "target": "/8kcos/cat/:cat{.+}?"
+        "target": "/8kcos/cat/:cat"
       },
       {
         "title": "最新",
@@ -5766,6 +5780,19 @@
           "/:handle"
         ],
         "target": "/artstation/:handle"
+      }
+    ]
+  },
+  "aschmelyun.com": {
+    "_name": "Andrew Schmelyun",
+    ".": [
+      {
+        "title": "Blog",
+        "docs": "https://docs.rsshub.app/routes/blog",
+        "source": [
+          "/"
+        ],
+        "target": "/aschmelyun/blog"
       }
     ]
   },
@@ -17971,6 +17998,23 @@
         "target": "/gcores/gcores/topics/:id/recommend"
       },
       {
+        "title": "用户播客",
+        "docs": "https://docs.rsshub.app/routes/game",
+        "source": [
+          "/users/:id/content",
+          "/users/:id"
+        ],
+        "target": "/gcores/users/:id/radios"
+      },
+      {
+        "title": "用户动态",
+        "docs": "https://docs.rsshub.app/routes/game",
+        "source": [
+          "/users/:id/talks"
+        ],
+        "target": "/gcores/users/:id/talks"
+      },
+      {
         "title": "视频",
         "docs": "https://docs.rsshub.app/routes/game",
         "source": [
@@ -25360,6 +25404,15 @@
     "_name": "iwara",
     "www": [
       {
+        "title": "Ranking",
+        "docs": "https://docs.rsshub.app/routes/anime",
+        "source": [
+          "/videos",
+          "/images"
+        ],
+        "target": "/iwara(params,url)=>{const searchParams=new URL(url).searchParams;const type=url.includes(\"/videos\")?\"video\":\"image\";const sort=searchParams.get(\"sort\")||\"date\";const rating=searchParams.get(\"rating\")||\"ecchi\";return`/iwara/ranking/${type}/${sort}/${rating}`}"
+      },
+      {
         "title": "User Subscriptions",
         "docs": "https://docs.rsshub.app/routes/anime",
         "source": [
@@ -31875,6 +31928,19 @@
       }
     ]
   },
+  "meritalk.com": {
+    "_name": "MeriTalk",
+    ".": [
+      {
+        "title": "Latest Articles",
+        "docs": "https://docs.rsshub.app/routes/new-media",
+        "source": [
+          "/articles/"
+        ],
+        "target": "/meritalk/articles"
+      }
+    ]
+  },
   "meta.com": {
     "_name": "Meta",
     "ai": [
@@ -33323,8 +33389,7 @@
         "title": "教务通知",
         "docs": "https://docs.rsshub.app/routes/university",
         "source": [
-          "/",
-          "/jwtz/index.htm"
+          "/"
         ],
         "target": "/ncu/jwc"
       }
