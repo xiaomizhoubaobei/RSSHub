@@ -1,0 +1,211 @@
+# Instincts generated from https://github.com/xiaomizhoubaobei/RSSHub
+# Generated: 2026-08-24T08:06:53.574Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: RSSHub-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: chore, fix, feat, style
+
+## Evidence
+
+- 100 commits analyzed
+- Detected conventional commit pattern
+- Examples: chore: use mdast for route identification script, fix(routes/miyuki): format news titles with bracketed categories and keep full-text body-only (#21377)
+
+---
+id: RSSHub-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Commit Length
+
+## Action
+
+Write moderate-length commit messages (~60 characters)
+
+## Evidence
+
+- Average commit message length: 60 chars
+- Based on 100 commits
+
+---
+id: RSSHub-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: RSSHub-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: RSSHub-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Export Style
+
+## Action
+
+Prefer mixed exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: mixed
+
+---
+id: RSSHub-test-framework
+trigger: "when writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Test Framework
+
+## Action
+
+Use vitest as the test framework
+
+## Evidence
+
+- Test framework detected: vitest
+- File pattern: *.test.ts
+
+---
+id: RSSHub-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: RSSHub-test-mocking
+trigger: "when mocking dependencies in tests"
+confidence: 0.75
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Test Mocking
+
+## Action
+
+Use msw for mocking
+
+## Evidence
+
+- Mocking pattern detected: msw
+- Consistent across test files
+
+---
+id: RSSHub-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: yes
+
+---
+id: RSSHub-workflow-feature-development
+trigger: "when implementing a new feature"
+confidence: 0.75
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/xiaomizhoubaobei/RSSHub
+---
+
+# RSSHub Workflow Feature Development
+
+## Action
+
+Follow the feature-development workflow:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~5x per month
+- Files: lib/routes/miyuki/*, lib/routes/cognition/*, lib/routes/apple/*
+
