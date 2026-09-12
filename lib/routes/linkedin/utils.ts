@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import dayjs from 'dayjs';
 
-import { Job } from './models';
+import type { DataItem } from '@/types';
 
 /**
  * Constants
@@ -48,7 +48,7 @@ function parseParamsToSearchParams(params, map) {
         return '';
     } // Handle undefined params
 
-    const validParamValues = params.split('-').filter((v) => v in map);
+    const validParamValues = params.split('-').filter((v) => Object.hasOwn(map, v));
     return validParamValues.join(',');
 }
 
@@ -68,7 +68,7 @@ function parseParamsToString(params, map) {
 
     const validParamValues = params
         .split('-')
-        .filter((v) => v in map)
+        .filter((v) => Object.hasOwn(map, v))
         .map((v) => map[v]);
     return validParamValues.join(',');
 }
@@ -82,7 +82,7 @@ function parseParamsToString(params, map) {
  * Example page: https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=Software%20Engineer&location=United%20States&locationId=&geoId=103644278&sortBy=R&f_TPR=&position=1&pageNum=0
  *
  * @param {String} data HTML string of job search page
- * @returns {Job[]} Array of jobs with data filled
+ * @returns Array of jobs with data filled
  */
 function parseJobSearch(data) {
     const $ = load(data);
@@ -90,15 +90,15 @@ function parseJobSearch(data) {
     // Parse data
     const jobs = $('li')
         .toArray()
-        .map((elem) => {
+        .map((elem): DataItem & { company: string; location: string } => {
             const elemHtml = $(elem);
-            const link = elemHtml.find('a.base-card__full-link, a.base-card--link')?.attr('href')?.split('?')[0];
+            const link = elemHtml.find('a.base-card__full-link, a.base-card--link')?.attr('href')?.split('?', 1)[0];
             const title = elemHtml.find('h3.base-search-card__title')?.text()?.trim();
             const company = elemHtml.find('h4.base-search-card__subtitle')?.text()?.trim();
             const location = elemHtml.find('span.job-search-card__location')?.text()?.trim();
             const pubDate = elemHtml.find('time')?.attr('datetime');
 
-            return new Job(title, link, company, location, pubDate);
+            return { title, link, company, location, pubDate };
         });
     return jobs;
 }
@@ -108,20 +108,19 @@ function parseJobSearch(data) {
  * Example page: https://www.linkedin.com/jobs/view/software-engineer-backend-junior-at-genies-3429649821?trk=public_jobs_topcard-title
  *
  * @param {String} data HTML string of job detail page
- * @returns {Job} Job details
+ * @returns Job details
  */
 function parseJobDetail(data) {
-    const job = new Job();
     const $ = load(data);
 
-    job.recruiter = $('a.message-the-recruiter__cta').attr(`href`);
-    job.description = $('div.description__text description__text--rich').text();
-
-    return job;
+    return {
+        recruiter: $('a.message-the-recruiter__cta').attr('href'),
+        description: $('div.description__text description__text--rich').text(),
+    };
 }
 
 const parseRouteParam = (searchParam: string | null): string => {
-    if (!searchParam || typeof searchParam !== 'string') {
+    if (!searchParam) {
         return 'all';
     }
     return encodeURIComponent(searchParam.split(',').join('-'));

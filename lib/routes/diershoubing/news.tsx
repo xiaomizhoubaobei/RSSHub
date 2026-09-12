@@ -46,7 +46,7 @@ async function handler(ctx) {
                 acontent = contentData.imgs.split(',');
                 type = 'imgs';
             } else {
-                acontent = { img: contentData.video.split('|')[0], bvid: contentData.video.split('|')[1].replace('https://www.bilibili.com/video/', '') };
+                acontent = { img: contentData.video.split('|', 1)[0], bvid: contentData.video.split('|', 2)[1].replace('https://www.bilibili.com/video/', '') };
                 type = 'bilibili';
             }
         } else {
@@ -69,9 +69,9 @@ async function handler(ctx) {
     });
 
     return {
-        title: `二柄APP`,
-        link: `https://www.diershoubing.com`,
-        description: `二柄APP新闻`,
+        title: '二柄APP',
+        link: 'https://www.diershoubing.com',
+        description: '二柄APP新闻',
         item: items,
     };
 }
@@ -88,7 +88,7 @@ const DiershoubingDescription = ({ description, type, acontent }: { description:
         ) : type === 'bilibili' ? (
             <>
                 <img src={acontent.img} />
-                <iframe src={`https://player.bilibili.com/player.html?bvid=${acontent.bvid}&high_quality=1`} width="650" height="477" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+                <iframe src={`https://player.bilibili.com/player.html?bvid=${acontent.bvid}&high_quality=1`} width="650" height="477" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen></iframe>
             </>
         ) : null}
     </>

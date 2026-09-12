@@ -37,20 +37,20 @@ async function handler(ctx) {
     const link = `${baseUrl}/blog`;
     const response = await ofetch(link);
     const $ = load(response);
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 15;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 15;
 
     const list: DataItem[] = $('.blog_cms_list article.card_blog_list_wrap')
         .toArray()
         .slice(0, limit)
         .map((el) => {
             const $el = $(el);
-            const title = $el.find('.card_blog_list_title').text().trim();
+            const title = $el.find('.card_blog_list_title').text();
             const href = $el.find('a.clickable_link').attr('href') ?? '';
-            const pubDateText = $el.find('[fs-list-fieldtype="date"][fs-list-field="date"]').text().trim();
+            const pubDateText = $el.find('[fs-list-fieldtype="date"][fs-list-field="date"]').text();
             const category = $el
                 .find('[fs-list-field="category"]')
                 .toArray()
-                .map((c) => $(c).text().trim())
+                .map((c) => $(c).text())
                 .filter(Boolean);
 
             return {
@@ -70,9 +70,9 @@ async function handler(ctx) {
 
                 const content = $('.blog_post_content_wrap');
 
-                content.find('style, script').remove();
+                content.find('style').remove();
 
-                item.description = content.html() ?? undefined;
+                item.description = content.html();
 
                 return item;
             }),
@@ -83,7 +83,7 @@ async function handler(ctx) {
         title: 'Claude Blog',
         link,
         description: 'Product news and best practices for teams building with Claude.',
-        language: 'en',
+        language: 'en' as const,
         item: items,
     };
 }

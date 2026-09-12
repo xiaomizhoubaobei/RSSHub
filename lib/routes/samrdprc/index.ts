@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -11,21 +11,21 @@ import { parseDate } from '@/utils/parse-date';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = 'xwdt/gzdt' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '17', 10);
+    const limit = Number(ctx.req.query('limit') ?? '17');
 
     const baseUrl = 'https://www.samrdprc.org.cn';
     const targetUrl: string = new URL(id.endsWith('/') ? id : `${id}/`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = $('div.boxl_ul ul li')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
-            const $aEl: Cheerio<Element> = $el.find('a').first();
+            const $aEl: Cheerio<Element> = $el.find('a');
 
             const title: string = $aEl.text();
             const pubDateStr: string | undefined = $el.find('span').text();
@@ -50,11 +50,11 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
                 const title: string = $$('div.show_tit').text();
-                const description: string | undefined = $$('div.TRS_Editor div.TRS_Editor').html() ?? undefined;
+                const description = $$('div.TRS_Editor div.TRS_Editor').html();
                 const pubDateStr: string | undefined = $$('div.show_tit2').text().split(/：/).pop()?.trim();
                 const categories: string[] = $$('meta[name="keywords"]').attr('content')?.split(/,/) ?? [];
                 const upDatedStr: string | undefined = pubDateStr;
@@ -87,7 +87,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
         item: items,
         allowEmpty: true,
         image: new URL('images/logo_DPRC.png', baseUrl).href,
-        author: $('meta[name="keyword"]').attr('content')?.split(/,/)[0],
+        author: $('meta[name="keyword"]').attr('content')?.split(/,/, 1)[0],
         language,
         id: $('meta[property="og:url"]').attr('content'),
     };
@@ -150,31 +150,31 @@ export const route: Route = {
 <details>
   <summary>更多分类</summary>
 
-  #### 网站首页
+#### 网站首页
 
-  | [新闻动态](https://www.samrdprc.org.cn/xwdt/gzdt/) | [网站公告](https://www.samrdprc.org.cn/wzgg/) | [汽车召回](https://www.samrdprc.org.cn/qczh/) | [消费品召回](https://www.samrdprc.org.cn/xfpzh/) |
-  | -------------------------------------------------- | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
-  | [xwdt/gzdt](https://rsshub.app/samrdprc/xwdt/gzdt) | [wzgg](https://rsshub.app/samrdprc/wzgg)      | [qczh](https://rsshub.app/samrdprc/qczh)      | [xfpzh](https://rsshub.app/samrdprc/xfpzh)       |
+| [新闻动态](https://www.samrdprc.org.cn/xwdt/gzdt/) | [网站公告](https://www.samrdprc.org.cn/wzgg/) | [汽车召回](https://www.samrdprc.org.cn/qczh/) | [消费品召回](https://www.samrdprc.org.cn/xfpzh/) |
+| -------------------------------------------------- | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
+| [xwdt/gzdt](https://rsshub.app/samrdprc/xwdt/gzdt) | [wzgg](https://rsshub.app/samrdprc/wzgg)      | [qczh](https://rsshub.app/samrdprc/qczh)      | [xfpzh](https://rsshub.app/samrdprc/xfpzh)       |
 
-  #### 科学研究
+#### 科学研究
 
-  | [技术报告](https://www.samrdprc.org.cn/yjgz/jsyj/) | [SAC/TC463](https://www.samrdprc.org.cn/yjgz/sactc/) | [研究动态](https://www.samrdprc.org.cn/yjgz/yjfx/) |
-  | -------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------- |
-  | [yjgz/jsyj](https://rsshub.app/samrdprc/yjgz/jsyj) | [yjgz/sactc](https://rsshub.app/samrdprc/yjgz/sactc) | [yjgz/yjfx](https://rsshub.app/samrdprc/yjgz/yjfx) |
+| [技术报告](https://www.samrdprc.org.cn/yjgz/jsyj/) | [SAC/TC463](https://www.samrdprc.org.cn/yjgz/sactc/) | [研究动态](https://www.samrdprc.org.cn/yjgz/yjfx/) |
+| -------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------- |
+| [yjgz/jsyj](https://rsshub.app/samrdprc/yjgz/jsyj) | [yjgz/sactc](https://rsshub.app/samrdprc/yjgz/sactc) | [yjgz/yjfx](https://rsshub.app/samrdprc/yjgz/yjfx) |
 
-  #### 安全教育
+#### 安全教育
 
-  | [安全教育](https://www.samrdprc.org.cn/aqjy/) |
-  | --------------------------------------------- |
-  | [aqjy](https://rsshub.app/samrdprc/aqjy)      |
+| [安全教育](https://www.samrdprc.org.cn/aqjy/) |
+| --------------------------------------------- |
+| [aqjy](https://rsshub.app/samrdprc/aqjy)      |
 
-  #### 法律法规
+#### 法律法规
 
-  | [国内法规](https://www.samrdprc.org.cn/flfg/gnfg/) |
-  | -------------------------------------------------- |
-  | [flfg/gnfg](https://rsshub.app/samrdprc/flfg/gnfg) |
-</details>
-`,
+| [国内法规](https://www.samrdprc.org.cn/flfg/gnfg/) |
+| -------------------------------------------------- |
+| [flfg/gnfg](https://rsshub.app/samrdprc/flfg/gnfg) |
+
+</details>`,
     categories: ['government'],
     features: {
         requireConfig: false,

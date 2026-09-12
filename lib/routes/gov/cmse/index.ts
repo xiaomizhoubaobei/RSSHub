@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem } from '@/types';
 import cache from '@/utils/cache';
 import { getSubPath } from '@/utils/common-utils';
 import got from '@/utils/got';
@@ -9,14 +9,7 @@ import timezone from '@/utils/timezone';
 
 import { renderDescription } from './templates/description';
 
-export const route: Route = {
-    path: '/cmse/*',
-    name: 'Unknown',
-    maintainers: [],
-    handler,
-};
-
-async function handler(ctx) {
+export async function handler(ctx) {
     const path = getSubPath(ctx).replaceAll(/(^\/cmse|\/$)/g, '');
 
     const rootUrl = 'http://www.cmse.gov.cn';
@@ -32,14 +25,14 @@ async function handler(ctx) {
     let items = $('#list li a')
         .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 15)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
-            const pubDate = item.next().text();
-            const link = new URL(item.attr('href'), currentUrl).href;
+            const pubDate = $item.next().text();
+            const link = new URL($item.attr('href')!, currentUrl).href;
 
             return {
-                title: item.text(),
+                title: $item.text(),
                 pubDate: parseDate(pubDate),
                 link: link.endsWith('.html') ? link : `${link}#${pubDate}`,
             };
@@ -47,7 +40,7 @@ async function handler(ctx) {
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,
@@ -59,10 +52,10 @@ async function handler(ctx) {
 
                 const detailPubTimeMatches = detailResponse.data.match(/__\$pubtime='(.*?)';var/);
 
-                item.pubDate = detailPubTimeMatches ? timezone(parseDate(detailPubTimeMatches[1]), +8) : item.pubDate;
+                item.pubDate = detailPubTimeMatches ? timezone(parseDate(detailPubTimeMatches[1]), 8) : item.pubDate;
                 item.description = renderDescription({
-                    video: content('#con_video').html(),
-                    description: content('.TRS_Editor, #content').html(),
+                    video: content('#con_video').html() ?? undefined,
+                    description: content('.TRS_Editor, #content').html() ?? undefined,
                 });
 
                 return item;

@@ -50,19 +50,18 @@ export const route: Route = {
     name: '南信大信息公告栏',
     maintainers: ['gylidian', 'QianYu-u'],
     handler,
-    description: `
-| 参数 | 含义 |
-| :--- | :--- |
-| default | 全部 |
-| wjgg | 文件公告 |
-| kyxx | 科研信息 |
-| zbxx | 招标信息 |
-| jxks | 教学考试 |
-| dzsw | 党政事务 |
-| ... | (支持官网对应栏目的拼音简写) |
+    description: `| 参数    | 含义                         |
+| :------ | :--------------------------- |
+| default | 全部                         |
+| wjgg    | 文件公告                     |
+| kyxx    | 科研信息                     |
+| zbxx    | 招标信息                     |
+| jxks    | 教学考试                     |
+| dzsw    | 党政事务                     |
+| ...     | (支持官网对应栏目的拼音简写) |
 
 ::: warning
-  全文内容需使用 校园网或[VPN](http://vpn.nuist.edu.cn) 获取
+全文内容需使用 校园网或[VPN](http://vpn.nuist.edu.cn) 获取
 :::`,
 };
 
@@ -81,7 +80,7 @@ async function handler(ctx) {
             const item = $(element);
 
             // 从内部找 a 标签
-            const a = item.find('.btt a').first();
+            const a = item.find('.btt a');
             const href = a.attr('href');
 
             if (!href) {
@@ -111,7 +110,8 @@ async function handler(ctx) {
                 category,
             };
         })
-        .filter((item) => item && item.title && item.pubDate);
+        .filter((item) => item !== null)
+        .filter((item) => Boolean(item.title) && Boolean(item.pubDate));
 
     return {
         title: `${baseTitle} - ${info.title}`,

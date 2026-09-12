@@ -14,7 +14,7 @@ const config = {
 };
 
 export const route: Route = {
-    path: '/shenzhen/szlh/zwfw/zffw/:caty',
+    path: '/szlh/zwfw/zffw/:caty',
     categories: ['government'],
     example: '/gov/shenzhen/szlh/zwfw/zffw/tzgg',
     parameters: { caty: '信息类别' },
@@ -31,7 +31,7 @@ export const route: Route = {
             source: ['szlh.gov.cn/zwfw/zffw/:caty'],
         },
     ],
-    name: '深圳市罗湖区人民政府',
+    name: '罗湖区人民政府 政务服务',
     maintainers: ['lonn'],
     handler,
     description: `| 通知公告 |
@@ -54,14 +54,14 @@ async function handler(ctx) {
     const items = $('div.lists ul li')
         .toArray()
         .map((item) => {
-            item = $(item);
-            const a = item.find('a').first();
+            const $item = $(item);
+            const a = $item.find('a');
 
             // Extract the date from <i>
-            const date = a.find('i').text().trim();
+            const date = a.find('i').text();
 
-            // Clone and remove <i> to get only the visible text
-            const textOnly = a.clone().find('i').remove().end().text().trim();
+            // Remove <i> to get only the visible text
+            const textOnly = a.find('i').remove().end().text();
 
             return {
                 title: textOnly,

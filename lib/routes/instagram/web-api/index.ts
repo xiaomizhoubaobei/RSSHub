@@ -29,7 +29,6 @@ export const route: Route = {
 You may need to setup cookie for a less restrictive rate limit and private profiles.
 :::
 
-
 | User timeline | Hashtag |
 | ------------- | ------- |
 | user          | tags    |`,
@@ -46,7 +45,7 @@ async function handler(ctx) {
         throw new InvalidParameterError('Such feed is not supported.');
     }
 
-    let cookieJar = await cache.get('instagram:cookieJar');
+    let cookieJar: any = await cache.get('instagram:cookieJar');
     // const wwwClaimV2 = await cache.get('instagram:wwwClaimV2');
     const cacheMiss = !cookieJar;
 

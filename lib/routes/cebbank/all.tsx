@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import got from '@/utils/got';
 import md5 from '@/utils/md5';
 import { parseDate } from '@/utils/parse-date';
@@ -11,7 +11,6 @@ export const route: Route = {
     path: '/quotation/all',
     categories: ['other'],
     example: '/cebbank/quotation/all',
-    parameters: {},
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -25,14 +24,14 @@ export const route: Route = {
             source: ['cebbank.com/site/ygzx/whpj/index.html', 'cebbank.com/eportal/ui', 'cebbank.com/'],
         },
     ],
-    name: 'Unknown',
+    name: '外汇牌价 - 总览',
     maintainers: ['linbuxiao'],
     handler,
     url: 'cebbank.com/site/ygzx/whpj/index.html',
 };
 
 async function handler(ctx) {
-    const link = 'https://www.cebbank.com/eportal/ui?pageId=477257';
+    const link = 'http://www.cebbank.com/eportal/ui?pageId=477257';
     const content = await got({
         method: 'get',
         url: link,
@@ -46,7 +45,7 @@ async function handler(ctx) {
             if (i < 2) {
                 return null;
             }
-            const c = load(e, { decodeEntities: false });
+            const c = load(e);
             return {
                 title: c('td:nth-child(1)').text(),
                 description: renderToString(<CebbankRateDescription fcer={c('td:nth-child(2)').text()} pmc={c('td:nth-child(3)').text()} exrt={c('td:nth-child(4)').text()} mc={c('td:nth-child(5)').text()} />),
@@ -59,12 +58,13 @@ async function handler(ctx) {
         title: '中国光大银行',
         description: '中国光大银行 外汇牌价',
         link,
-        item: items,
+        item: items as DataItem[],
     };
 
+    const pubDate = parseDate($('#t_id span').text().slice(5), 'YYYY-MM-DD HH:mm', true);
     ctx.set('json', {
         ...ret,
-        pubDate: timezone(parseDate($('#t_id span').text().slice(5), 'YYYY-MM-DD HH:mm', true), 0),
+        pubDate: timezone(pubDate, 0),
     });
     return ret;
 }

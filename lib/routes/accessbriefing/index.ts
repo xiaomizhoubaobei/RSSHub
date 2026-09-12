@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -9,7 +9,7 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx) => {
     const { category = 'latest/news' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'https://www.accessbriefing.com';
     const currentUrl = new URL(category, rootUrl).href;
@@ -32,7 +32,7 @@ export const handler = async (ctx) => {
 
     const $ = load(currentResponse);
 
-    const language = $('html').prop('lang');
+    const language = $('html').prop('lang') as Language;
 
     let items = response.slice(0, limit).map((item) => {
         const title = item.Article_Headline;
@@ -79,7 +79,7 @@ export const handler = async (ctx) => {
                 const description =
                     item.description +
                     renderDescription({
-                        description: $$('div.khl-article-page-storybody').html(),
+                        description: $$('div.khl-article-page-storybody').html() ?? undefined,
                     });
 
                 item.title = title;
@@ -99,7 +99,7 @@ export const handler = async (ctx) => {
         )
     );
 
-    const image = new URL($('a.navbar-brand img').prop('src'), rootUrl).href;
+    const image = new URL($('a.navbar-brand img').prop('src')!, rootUrl).href;
 
     return {
         title: $('title').text(),
@@ -122,7 +122,7 @@ export const route: Route = {
     example: '/accessbriefing/latest/news',
     parameters: { category: 'Category, Latest News by default' },
     description: `::: tip
-  If you subscribe to [Latest News](https://www.accessbriefing.com/latest/news)，where the URL is \`https://www.accessbriefing.com/latest/news\`, extract the part \`https://www.accessbriefing.com/\` to the end, and use it as the parameter to fill in. Therefore, the route will be [\`/accessbriefing/latest/news\`](https://rsshub.app/accessbriefing/latest/news).
+If you subscribe to [Latest News](https://www.accessbriefing.com/latest/news)，where the URL is \`https://www.accessbriefing.com/latest/news\`, extract the part \`https://www.accessbriefing.com/\` to the end, and use it as the parameter to fill in. Therefore, the route will be [\`/accessbriefing/latest/news\`](https://rsshub.app/accessbriefing/latest/news).
 :::
 
 #### Latest
@@ -143,8 +143,7 @@ export const route: Route = {
 | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | [Interviews](https://www.accessbriefing.com/insight/interviews)                   | [insight/interviews](https://rsshub.app/target/site/insight/interviews)                   |
 | [Longer reads](https://www.accessbriefing.com/insight/longer-reads)               | [insight/longer-reads](https://rsshub.app/target/site/insight/longer-reads)               |
-| [Videos and podcasts](https://www.accessbriefing.com/insight/videos-and-podcasts) | [insight/videos-and-podcasts](https://rsshub.app/target/site/insight/videos-and-podcasts) |
-  `,
+| [Videos and podcasts](https://www.accessbriefing.com/insight/videos-and-podcasts) | [insight/videos-and-podcasts](https://rsshub.app/target/site/insight/videos-and-podcasts) |`,
     categories: ['new-media'],
 
     features: {

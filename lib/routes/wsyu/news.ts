@@ -71,7 +71,7 @@ async function handler(ctx) {
 
     const out = await Promise.all(
         urlList.map(async (itemUrl, index) => {
-            itemUrl = new URL(itemUrl, baseUrl).href;
+            itemUrl = new URL(itemUrl!, baseUrl).href;
             if (itemUrl.includes('.htm')) {
                 const cacheIn = await cache.get(itemUrl);
                 if (cacheIn) {
@@ -88,15 +88,14 @@ async function handler(ctx) {
                 };
                 cache.set(itemUrl, JSON.stringify(single));
                 return single;
-            } else {
-                const single = {
-                    title: titleList[index],
-                    link: itemUrl,
-                    description: '此链接为文件，请点击下载',
-                    pubDate: dateList[index],
-                };
-                return single;
             }
+            const single = {
+                title: titleList[index],
+                link: itemUrl,
+                description: '此链接为文件，请点击下载',
+                pubDate: dateList[index],
+            };
+            return single;
         })
     );
 

@@ -3,6 +3,7 @@ import { load } from 'cheerio';
 import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
+import { PRESETS } from '@/utils/header-generator';
 import { parseDate } from '@/utils/parse-date';
 
 import { renderDescription } from './templates/description';
@@ -41,7 +42,7 @@ async function handler(ctx) {
         },
     });
     const page2 =
-        channel === `bestoftheyear`
+        channel === 'bestoftheyear'
             ? await got({
                   method: 'get',
                   url: `${url}/page:2/sort:date/format:detail`,
@@ -56,16 +57,16 @@ async function handler(ctx) {
 
     const description = await Promise.all(
         list.toArray().map((item) => {
-            item = $(item);
-            const link = item.find('.more').attr('href');
-            return cache.tryGet(link, async () => {
+            const $item = $(item);
+            const link = $item.find('.more').attr('href');
+            return cache.tryGet(link!, async () => {
                 const response2 = await got({
                     method: 'get',
                     url: `https://vimeo.com${link}/description?breeze=1`,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_0 like Mac OS X)  ',
                     },
+                    headerGeneratorOptions: PRESETS.MODERN_IOS,
                 });
                 const articledata = response2.data;
                 const $2 = load(articledata);
@@ -78,17 +79,17 @@ async function handler(ctx) {
         title: `${channel} | Vimeo channel`,
         link: url,
         item: list.toArray().map((item, index) => {
-            item = $(item);
-            const title = item.find('.title a').text();
-            const author = item.find('.meta a').text();
+            const $item = $(item);
+            const title = $item.find('.title a').text();
+            const author = $item.find('.meta a').text();
             return {
                 title,
                 description: renderDescription({
-                    videoUrl: item.find('.more').attr('href'),
+                    videoUrl: $item.find('.more').attr('href')!,
                     vdescription: description[index] || '',
                 }),
-                pubDate: parseDate(item.find('time').attr('datetime')),
-                link: `https://vimeo.com${item.find('.more').attr('href')}`,
+                pubDate: parseDate($item.find('time').attr('datetime')!),
+                link: `https://vimeo.com${$item.find('.more').attr('href')}`,
                 author,
             };
         }),

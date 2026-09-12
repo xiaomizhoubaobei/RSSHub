@@ -32,18 +32,18 @@ export const route: Route = {
             target: '/www/:type',
         },
     ],
-    description: `| 板块 | 参数 |
-| ------- | ------- |
-| 学术动态 | xsdt_4662 |
-| 三创·人物 | 4527 |
-| 通知公告 | 4528 |
-| 美誉工大 | 5389 |
-| 智库工大 | 5390 |
-| 工大校历 | 4520 |
-| 校区班车 | xqbc |`,
+    description: `| 板块       | 参数       |
+| ---------- | ---------- |
+| 学术动态   | xsdt\\_4662 |
+| 三创・人物 | 4527       |
+| 通知公告   | 4528       |
+| 美誉工大   | 5389       |
+| 智库工大   | 5390       |
+| 工大校历   | 4520       |
+| 校区班车   | xqbc       |`,
 };
 
-async function handler(ctx) {
+async function handler(ctx): Promise<Data> {
     const type = ctx.req.param('type');
     const response = await ofetch(rootUrl + type + '/list.htm');
     const $ = load(response);
@@ -55,7 +55,7 @@ async function handler(ctx) {
             const a = cheerioItem.find('a');
 
             try {
-                const title = a.text() || '';
+                const title = a.text();
                 let link = a.attr('href');
                 if (!link) {
                     link = '';
@@ -71,7 +71,7 @@ async function handler(ctx) {
                         pubDate: Date.now(),
                     };
                 }
-                const pubDate = timezone(parseDate(dateText), +8);
+                const pubDate = timezone(parseDate(dateText), 8);
 
                 return {
                     title,
@@ -102,7 +102,7 @@ async function handler(ctx) {
                     } else {
                         const response = await ofetch(item.link);
                         const $ = load(response);
-                        newItem.description = $('div.wp_articlecontent').html() || '';
+                        newItem.description = $('div.wp_articlecontent').html() ?? '';
                     }
                 } else {
                     // 涉及到其他站点，不方便做统一的 html 解析，直接返回链接
@@ -117,5 +117,5 @@ async function handler(ctx) {
         title: $('head > title').text() + ' - 浙江工业大学',
         link: rootUrl + type,
         item: items,
-    } as Data;
+    };
 }

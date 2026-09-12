@@ -42,7 +42,9 @@ async function handler(ctx) {
         title: `轻小说文库 ${$('#title').text()} 最新卷`,
         link,
         item: await cache.tryGet(volumeUrl, async () =>
-            [...(await get(volumeUrl)).matchAll(/\s{2}(\S.*)\r?\n([\S\s]+?)\r?\n\r?\n/g)]
+            (await get(volumeUrl))
+                .matchAll(/\s{2}(\S.*)\r?\n([\s\S]+?)\r?\n\r?\n/g)
+                .toArray()
                 .map((chapter, index) => ({
                     title: chapter[1],
                     description: chapter[2]
@@ -59,4 +61,7 @@ async function handler(ctx) {
     };
 }
 
-const get = async (url: string) => decode(await got(url).buffer(), 'gbk');
+const get = async (url: string) => {
+    const { data } = await got(url, { responseType: 'buffer' });
+    return decode(data, 'gbk');
+};

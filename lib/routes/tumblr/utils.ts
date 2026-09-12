@@ -47,11 +47,13 @@ const processPost: (post: any) => DataItem = (post) => {
             description += `<p><a href="${post.blog.url}">${post.blog_name}</a> answers:</p>`;
             description += post.answer;
             break;
-        case 'photo':
-            for (const photo of post.photos ?? []) {
+        case 'photo': {
+            const photos = post.photos ?? [];
+            for (const photo of photos) {
                 description += `<img src="${photo.original_size.url}"/><br/>`;
             }
             break;
+        }
         case 'link':
             description = post.url;
             break;
@@ -107,7 +109,7 @@ if (config.tumblr && config.tumblr.clientId && config.tumblr.clientSecret && con
         // We may be able to restore the new token if the app is restarted. This will avoid reusing the old token and have a failing request.
         // Keep it for a year (not clear how long the refresh token lasts).
         const cacheEntry = { startToken: config.tumblr.refreshToken, currentToken: newRefreshToken };
-        await cache.set(`tumblr:refreshToken`, JSON.stringify(cacheEntry), 31_536_000);
+        await cache.set('tumblr:refreshToken', JSON.stringify(cacheEntry), 31_536_000);
 
         return accessToken;
     };

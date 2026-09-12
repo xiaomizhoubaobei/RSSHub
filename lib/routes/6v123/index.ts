@@ -4,7 +4,7 @@ import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 import iconv from 'iconv-lite';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -12,7 +12,7 @@ import { parseDate } from '@/utils/parse-date';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { category = 'dy' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '25', 10);
+    const limit = Number(ctx.req.query('limit') ?? '25');
 
     const encoding = 'gb2312';
 
@@ -23,12 +23,12 @@ export const handler = async (ctx: Context): Promise<Data> => {
         responseType: 'arrayBuffer',
     });
     const $: CheerioAPI = load(iconv.decode(Buffer.from(response), encoding));
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = $('ul.list li')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('a').text();
@@ -60,7 +60,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link, {
+                const detailResponse = await ofetch(item.link!, {
                     responseType: 'arrayBuffer',
                 });
                 const $$: CheerioAPI = load(iconv.decode(Buffer.from(detailResponse), encoding));
@@ -73,7 +73,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 $$('div#endText div.downtps').remove();
 
                 const title: string = $$('h1').text();
-                const description: string | undefined = $$('div#endText').html() ?? undefined;
+                const description = $$('div#endText').html();
                 const pubDateStr: string | undefined = item.link?.match(/\/(\d{4}-\d{2}-\d{2})\/\d+\.html/)?.[1];
                 const categoryEls: Element[] = $$('div#endText p a').toArray();
                 const categories: string[] = [...new Set(categoryEls.map((el) => $$(el).text()?.trim()).filter(Boolean))];
@@ -309,8 +309,7 @@ export const route: Route = {
 | [国产电影](https://www.hao6v.me/s/guochandianying/)  | [s/guochandianying](https://rsshub.app/6v123/s/guochandianying)   |
 | [欧洲电影](https://www.hao6v.me/s/xijudianying/)     | [s/xijudianying](https://rsshub.app/6v123/s/xijudianying)         |
 
-</details>
-`,
+</details>`,
     categories: ['multimedia'],
     features: {
         requireConfig: false,

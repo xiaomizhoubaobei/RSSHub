@@ -86,25 +86,25 @@ async function handler(ctx) {
                 const pageNumber = Number.parseInt(detailResponse.data.match(/var page_num = '(\d+)'/)[1]);
 
                 item.description = content('#J-contain_detail_cnt').html();
-                item.pubDate = timezone(parseDate(content('meta[property="og:release_date"]').attr('content')), +8);
+                item.pubDate = timezone(parseDate(content('meta[property="og:release_date"]').attr('content')!), 8);
 
                 if (pageNumber > 1) {
-                    const links = [];
+                    const links: any[] = [];
 
                     for (let i = 2; i <= pageNumber; i++) {
-                        links.push(item.link.replace(/\.html/, `-${i}.html`));
+                        links.push(item.link.replace(/\.html/, () => `-${i}.html`));
                     }
 
                     for (const link of links) {
-                        cache.tryGet(link, async () => {
+                        cache.tryGet<any>(link, async () => {
                             const pageResponse = await got({
                                 method: 'get',
                                 url: link,
                             });
                             const subContent = load(pageResponse.data);
 
-                            subContent('img').each(function () {
-                                subContent(this).attr('src', subContent(this).attr('data-url'));
+                            subContent('img').each((_, el) => {
+                                subContent(el).attr('src', subContent(el).attr('data-url'));
                             });
 
                             item.description += subContent('#J-contain_detail_cnt').html();

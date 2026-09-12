@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -29,7 +29,7 @@ export const route: Route = {
     handler,
     description: `| CCF 新闻    | CCF 聚焦 | ACM 信息  |
 | ----------- | -------- | --------- |
-| Media_list | Focus    | ACM_News |`,
+| Media\\_list | Focus    | ACM\\_News |`,
 };
 
 async function handler(ctx) {
@@ -43,17 +43,17 @@ async function handler(ctx) {
 
     const list = $('.tit a')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
             return {
-                title: item.text(),
-                link: `${rootUrl}${item.attr('href')}`,
+                title: $item.text(),
+                link: `${rootUrl}${$item.attr('href')}`,
             };
         });
 
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got(item.link);
                 const content = load(detailResponse.data);
 

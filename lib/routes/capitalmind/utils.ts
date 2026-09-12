@@ -7,6 +7,12 @@ import ofetch from '@/utils/ofetch';
 
 export const baseUrl = 'https://www.capitalmind.in';
 
+interface PodcastData {
+    mediaUrl?: string;
+    itunes_duration?: number;
+    image?: string;
+}
+
 export async function fetchArticles(path) {
     const url = `${baseUrl}/${path}/page/1`;
     const response = await ofetch(url);
@@ -24,13 +30,13 @@ export async function fetchArticles(path) {
                     .text()
                     .trim();
                 const image = $element.find('img').attr('src');
-                const imageUrl = image?.startsWith('/_next/image') ? image.split('url=')[1].split('&')[0] : image;
+                const imageUrl = image?.startsWith('/_next/image') ? image.split('url=', 2)[1].split('&', 1)[0] : image;
                 const decodedImageUrl = imageUrl ? decodeURIComponent(imageUrl) : '';
 
                 // Fetch full article content
                 const articleResponse = await ofetch(link);
                 const $articlePage = load(articleResponse);
-                const $article = $articlePage('article').clone();
+                const $article = $articlePage('article');
 
                 // Extract tags from footer
                 const tags: string[] = $article
@@ -52,13 +58,13 @@ export async function fetchArticles(path) {
                     pubDate = $time.attr('datetime') || $time.text().trim();
                 }
 
-                const $content = $article.find('section[aria-label="Post content"]').clone();
+                const $content = $article.find('section[aria-label="Post content"]');
 
                 // Remove footer
                 $content.find('footer').remove();
 
                 // Process Libsyn podcast iframe (assuming only one)
-                let podcastData: { mediaUrl?: string; itunes_duration?: number; image?: string } = {};
+                let podcastData: PodcastData = {};
 
                 const $iframe = $content.find('iframe[src*="libsyn.com/embed/episode/id/"]');
                 if ($iframe.length) {
@@ -98,9 +104,6 @@ export async function fetchArticles(path) {
                         if (urlMatch && urlMatch[1]) {
                             const originalUrl = decodeURIComponent(urlMatch[1]);
                             $img.attr('src', originalUrl);
-                        } else if (src.startsWith('/')) {
-                            // Handle other relative URLs
-                            $img.attr('src', baseUrl + src);
                         }
                     }
                 });

@@ -1,6 +1,8 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
+import type { Language } from '@/types';
+import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -23,27 +25,27 @@ const renderDescription = (content, cover, enclousure) =>
     );
 
 /**
- * Retrieves information from a given URL using a provided tryGet function.
+ * Retrieves information from a given URL.
  *
  * @param {string} url - The URL to fetch information from.
- * @param {Function} tryGet - The tryGet function that handles the retrieval process.
  * @returns {Promise<Object>} - A Promise that resolves to an object containing the retrieved information.
  */
-const getData = (url, tryGet) =>
-    tryGet(url, async () => {
+const getData = (url) =>
+    cache.tryGet(url, async () => {
         const { data: response } = await got(url);
 
         const $ = load(response);
 
         const icon = new URL('favicon.ico', rootUrl).href;
         const author = $('meta[property="og:site_name"]').prop('content');
+        const language = $('html').prop('lang') as Language;
 
         return {
             data: {
-                title: $('span.bg-clip-text').text() || `${author}·${$('meta[property="og:title"]').prop('content').split('-')[0]}`,
+                title: $('span.bg-clip-text').text() || `${author}·${$('meta[property="og:title"]').prop('content').split('-', 1)[0]}`,
                 link: url,
                 description: $('meta[property="og:description"]').prop('content'),
-                language: $('html').prop('lang'),
+                language,
                 image: $('meta[property="og:image"]').prop('content'),
                 icon,
                 logo: icon,
@@ -61,10 +63,9 @@ const getData = (url, tryGet) =>
  * Process items asynchronously.
  *
  * @param {Array<Object>} items - The array of items to process.
- * @param {function} tryGet - The tryGet function that handles the retrieval process.
  * @returns {Promise<Array<Object>>} Returns a Promise that resolves to an array of processed items.
  */
-const processItems = async (items, tryGet) => {
+const processItems = async (items) => {
     items = items.map((item) => ({
         title: item.title,
         link: item.web_url,
@@ -82,7 +83,7 @@ const processItems = async (items, tryGet) => {
 
     return await Promise.all(
         items.map((item) =>
-            tryGet(item.guid, async () => {
+            cache.tryGet(item.guid, async () => {
                 const apiUrl = new URL(`mod/api/v2/media/${item.enclosure_url}?appKey=${appKey}`, rootApiUrl).href;
 
                 const { data: detailResponse } = await got(apiUrl);

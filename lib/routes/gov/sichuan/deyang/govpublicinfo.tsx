@@ -31,7 +31,7 @@ const getInfoUrlList = async (rootUrl, infoBasicUrl) => {
     const infoList = $('.list_div li')
         .toArray()
         .map((item) => ({
-            title: $('a', item).attr('title'),
+            title: $('a', item).attr('title')!,
             url: `${rootUrl}${$('a', item).attr('href')}`,
         }));
     return infoList;
@@ -50,15 +50,15 @@ const getInfoContent = (rootUrl, item) =>
                     name: $(item).text(),
                     url: `${rootUrl}/${$(item).attr('href')}`,
                 }));
-            const rawDate = $('#attribute > span:nth-child(3)').text().split('：')[1].trim();
+            const rawDate = $('#attribute > span:nth-child(3)').text().split('：', 2)[1].trim();
             return {
                 title: $('h1').text().trim(),
-                id: $('#attribute > span:nth-child(1)').text().split('：')[1].trim(),
-                infoNum: $('#attribute > span:nth-child(2)').text().split('：')[1].trim(),
-                pubDate: parseDate(timezone(rawDate, +8)),
+                id: $('#attribute > span:nth-child(1)').text().split('：', 2)[1].trim(),
+                infoNum: $('#attribute > span:nth-child(2)').text().split('：', 2)[1].trim(),
+                pubDate: parseDate(timezone(rawDate, 8)),
                 date: rawDate,
-                keyWord: $('#attribute > span:nth-child(6)').text().split('：')[1].trim(),
-                source: $('#attribute > span:nth-child(5)').text().split('：')[1].trim(),
+                keyWord: $('#attribute > span:nth-child(6)').text().split('：', 2)[1].trim(),
+                source: $('#attribute > span:nth-child(5)').text().split('：', 2)[1].trim(),
                 content: $('body > section > article').html(),
                 file: fileList,
                 link: item.url,
@@ -74,7 +74,7 @@ const getInfoContent = (rootUrl, item) =>
     });
 
 export const route: Route = {
-    path: '/sichuan/deyang/govpublicinfo/:countyName/:infoType?',
+    path: '/deyang/govpublicinfo/:countyName/:infoType?',
     categories: ['government'],
     example: '/gov/sichuan/deyang/govpublicinfo/绵竹市',
     parameters: { countyName: '区县名（**其他区县整改中，暂时只支持`绵竹市`**）。德阳市、绵竹市、广汉市、什邡市、中江县、罗江区、旌阳区、高新区', infoType: '信息类型。默认值:fdzdnr-“法定主动内容”' },
@@ -110,7 +110,7 @@ async function handler(ctx) {
             description: renderToString(
                 item._isCompleteInfo ? (
                     <>
-                        <table border="1" cellpadding="2" cellspacing="0" align="center">
+                        <table border={1} cellpadding={2} cellspacing={0} align="center">
                             <tbody>
                                 <tr>
                                     <td>索引号</td>

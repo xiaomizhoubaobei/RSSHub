@@ -22,13 +22,13 @@ export const route: Route = {
         supportScihub: false,
     },
     description: `| 行业资讯 | 协会动态 | 重要通知 | 政策法规 |
-| --- | --- | --- | --- |
-| 434 | 436 | 438 | 440 |`,
+| -------- | -------- | -------- | -------- |
+| 434      | 436      | 438      | 440      |`,
     name: '资讯信息',
     maintainers: ['hualiong'],
     handler: async (ctx) => {
         const baseURL = 'https://www.samd.org.cn/home';
-        const typeId = ctx.req.param('typeId');
+        const typeId = ctx.req.param('typeId')!;
 
         const { rows } = await ofetch('/GetNewsByTagId', {
             baseURL,
@@ -56,7 +56,7 @@ export const route: Route = {
 
                     const content = $('.content');
                     item.author = content.find('.author span').text();
-                    item.pubDate = timezone(parseDate(content.find('.time').text(), '发布时间：YYYY-MM-DD HH:mm:ss'), +8);
+                    item.pubDate = timezone(parseDate(content.find('.time').text(), '发布时间：YYYY-MM-DD HH:mm:ss'), 8);
 
                     content.children('.titles').remove();
                     content.children('.auxi').remove();
@@ -70,7 +70,7 @@ export const route: Route = {
         return {
             title: `${dict[typeId]} - 深圳市医疗器械行业协会`,
             link: 'https://www.samd.org.cn/home/newsList',
-            item: items as DataItem[],
+            item: items,
         };
     },
 };

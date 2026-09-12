@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -13,7 +13,10 @@ const alias = new Map([
 ]);
 
 export const route: Route = {
-    path: ['/jwb/:type?'],
+    path: '/jwb/:type?',
+    categories: ['university'],
+    example: '/shu/jwb/notice',
+    parameters: { type: '消息类型,默认为`notice`' },
     radar: [
         {
             source: ['www.shu.edu.cn/index'],
@@ -23,9 +26,9 @@ export const route: Route = {
     name: '教务部',
     maintainers: ['tuxinghuan', 'GhhG123'],
     handler,
-    description: `| 通知通告 | 新闻 | 政策文件(bug) |
-| -------- | ---- | -------- |
-| notice   | news | policy   |`,
+    description: `| 通知通告 | 新闻 | 政策文件 (bug) |
+| -------- | ---- | -------------- |
+| notice   | news | policy         |`,
 };
 
 async function handler(ctx) {
@@ -38,9 +41,9 @@ async function handler(ctx) {
         .find('li')
         .slice(0, 10)
         .toArray()
-        .map((ele) => ({
+        .map((ele): DataItem & { date: string; link: string } => ({
             title: $(ele).find('a').text(),
-            link: new URL($(ele).find('a').attr('href'), host).href,
+            link: new URL($(ele).find('a').attr('href')!, host).href,
             date: $(ele).children('span').text(),
         }));
 

@@ -2,7 +2,6 @@ import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import ConfigNotFoundError from '@/errors/types/config-not-found';
 import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { Route } from '@/types';
 import cache from '@/utils/cache';
@@ -25,10 +24,21 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
+    radar: [
+        {
+            source: ['china.kyodonews.net/news/:keyword', 'china.kyodonews.net/'],
+            target: '/china/:keyword?',
+        },
+        {
+            source: ['tchina.kyodonews.net/news/:keyword', 'tchina.kyodonews.net/'],
+            target: '/tchina/:keyword?',
+        },
+    ],
     name: '最新报道',
     maintainers: ['Rongronggg9'],
     handler,
-    description: `\`keyword\` 为关键词，由于共同网有许多关键词并不在主页列出，此处不一一列举，可从关键词页的 URL 的最后一级路径中提取。如 \`日中关系\` 的关键词页 URL 为 \`https://china.kyodonews.net/news/japan-china_relationship\`, 则将 \`japan-china_relationship\` 填入 \`keyword\`。特别地，当填入 \`rss\` 时，将从共同网官方 RSS 中抓取文章；略去时，将从首页抓取最新报道 (注意：首页更新可能比官方 RSS 稍慢)。`,
+    description:
+        '`keyword` 为关键词，由于共同网有许多关键词并不在主页列出，此处不一一列举，可从关键词页的 URL 的最后一级路径中提取。如 `日中关系` 的关键词页 URL 为 `https://china.kyodonews.net/news/japan-china_relationship`, 则将 `japan-china_relationship` 填入 `keyword`。特别地，当填入 `rss` 时，将从共同网官方 RSS 中抓取文章；略去时，将从首页抓取最新报道 (注意：首页更新可能比官方 RSS 稍慢)。',
 };
 
 async function handler(ctx) {
@@ -37,23 +47,24 @@ async function handler(ctx) {
 
     // raise error for invalid languages
     if (!['china', 'tchina'].includes(language)) {
-        throw new ConfigNotFoundError('Invalid language');
+        throw new InvalidParameterError('Invalid language');
     }
 
     const rootUrl = `https://${language}.kyodonews.net`;
-    const currentUrl = `${rootUrl}/${keyword ? (keyword === 'rss' ? 'rss/news.xml' : `news/${keyword}`) : ''}`;
+    const currentUrl = `${rootUrl}/${keyword ? (keyword === 'rss' ? 'list/feed/rss4news' : `news/${keyword}`) : ''}`;
 
     let response;
     try {
         response = await got(currentUrl);
     } catch (error) {
-        throw error.response && error.response.statusCode === 404 ? new InvalidParameterError('Invalid keyword') : error;
+        const err = error as { response?: { statusCode: number } };
+        throw err.response && err.response.statusCode === 404 ? new InvalidParameterError('Invalid keyword') : error;
     }
 
     const $ = load(response.data, { xmlMode: keyword === 'rss' });
 
     let title, description, image, items;
-    image = `${rootUrl}/apple-touch-icon-180x180.png`;
+    image = `https://${language}-kyodo.ismcdn.jp/common/images/apple-touch-icon-180x180.png`;
 
     if (keyword === 'rss') {
         title = $('channel > title').text();
@@ -73,11 +84,11 @@ async function handler(ctx) {
         title = $('head > title').text();
         description = $('meta[name="description"]').attr('content');
         image = resolveRelativeLink($('head > link[rel="apple-touch-icon"]').attr('href'), rootUrl) || image;
-        items = $('div.sec-latest > ul > li')
+        items = $('.m-article-wrap:first-of-type .m-article-item__link')
             .toArray()
             .map((item) => {
-                item = $(item);
-                const link = item.find('a').attr('href');
+                const $item = $(item);
+                const link = $item.attr('href');
                 return {
                     link: resolveRelativeLink(link, rootUrl),
                 };
@@ -94,18 +105,7 @@ async function handler(ctx) {
                 item.author = $('meta[name="author"]').attr('content');
 
                 // add main pic
-                const mainPicArea = $('div.mainpic');
-                mainPicArea.find('div').each((_, elem) => {
-                    elem = $(elem);
-                    elem.css('text-align', 'center');
-                });
-                // moving `data-src` to `src`
-                mainPicArea.find('img').each((_, img) => {
-                    img = $(img);
-                    img.attr('src', img.attr('data-src'));
-                    img.removeAttr('data-src');
-                    img.wrap('<div>');
-                });
+                const mainPicArea = $('.article-header-img');
                 let mainPic = mainPicArea.html();
                 mainPic = mainPic ? mainPic.trim() : '';
 
@@ -116,28 +116,22 @@ async function handler(ctx) {
                 // render description
                 item.description = renderToString(
                     <>
-                        {mainPic ? (
-                            <>
-                                {raw(mainPic)}
-                                <br />
-                                <br />
-                            </>
-                        ) : null}
+                        {mainPic ? raw(mainPic) : null}
                         {articleBody ? raw(articleBody) : null}
                     </>
                 );
 
-                const ldJson = $('script[type="application/ld+json"]').html();
-                const pubDate_match = ldJson && ldJson.match(/"datePublished":"([\d\s-:]*?)"/);
-                const updated_match = ldJson && ldJson.match(/"dateModified":"([\d\s-:]*?)"/);
-                if (pubDate_match) {
-                    item.pubDate = timezone(parseDate(pubDate_match[1]), 9);
+                const ldJson = JSON.parse($('script[type="application/ld+json"]').text() || '[]').find((obj) => obj['@type'] === 'NewsArticle');
+                const pubDateMatch = ldJson && ldJson.datePublished;
+                const updatedMatch = ldJson && ldJson.dateModified;
+                if (pubDateMatch) {
+                    item.pubDate = timezone(parseDate(pubDateMatch), 9);
                 }
-                if (updated_match) {
-                    item.updated = timezone(parseDate(updated_match[1]), 9);
+                if (updatedMatch) {
+                    item.updated = timezone(parseDate(updatedMatch), 9);
                 }
 
-                item.category = $('p.credit > a')
+                item.category = $('.article-header-cate__link')
                     .toArray()
                     .map((a) => $(a).text());
                 return item;

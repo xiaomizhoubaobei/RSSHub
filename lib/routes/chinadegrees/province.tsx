@@ -2,10 +2,10 @@ import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
 import { config } from '@/config';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import { parseDate } from '@/utils/parse-date';
-import puppeteer from '@/utils/puppeteer';
+import playwright from '@/utils/playwright';
 
 const baseUrl = 'http://www.chinadegrees.com.cn';
 
@@ -82,19 +82,19 @@ async function handler(ctx) {
     const data = await cache.tryGet(
         url,
         async () => {
-            const browser = await puppeteer();
-            const page = await browser.newPage();
-            await page.setRequestInterception(true);
-            page.on('request', (request) => {
-                request.resourceType() === 'document' || request.resourceType() === 'script' ? request.continue() : request.abort();
+            const context = await playwright();
+            const page = await context.newPage();
+            await page.route('**/*', (route) => {
+                const request = route.request();
+                request.resourceType() === 'document' || request.resourceType() === 'script' ? route.continue() : route.abort();
             });
             await page.goto(url, {
                 waitUntil: 'domcontentloaded',
             });
             await page.waitForSelector('.datalist');
 
-            const html = await page.evaluate(() => document.documentElement.innerHTML);
-            await browser.close();
+            const html = await page.evaluate(() => document.documentElement.getHTML());
+            await context.close();
 
             const $ = load(html);
             return {
@@ -102,10 +102,10 @@ async function handler(ctx) {
                 items: $('.datalist tr')
                     .toArray()
                     .slice(1)
-                    .map((item) => {
-                        item = $(item);
-                        const title = item.find('td').eq(1).text();
-                        const pubDate = item.find('td').eq(2).text();
+                    .map((item): DataItem => {
+                        const $item = $(item);
+                        const title = $item.find('td').eq(1).text();
+                        const pubDate = $item.find('td').eq(2).text();
                         return {
                             title,
                             pubDate,
@@ -121,7 +121,7 @@ async function handler(ctx) {
 
     const items = data.items.map((item) => {
         item.description = renderDescription(item.title, item.pubDate);
-        item.pubDate = parseDate(item.pubDate, 'YYYY-MM-DD');
+        item.pubDate = parseDate(item.pubDate!, 'YYYY-MM-DD');
         return item;
     });
 

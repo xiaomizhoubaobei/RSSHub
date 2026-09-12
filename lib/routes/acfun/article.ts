@@ -45,7 +45,7 @@ export const route: Route = {
     parameters: {
         categoryId: {
             description: '分区 ID',
-            options: Object.keys(categoryMap).map((id) => ({ value: id, label: categoryMap[id].title })),
+            options: Object.entries(categoryMap).map(([id, value]) => ({ value: id, label: value.title })),
         },
         sortType: {
             description: '排序',
@@ -94,7 +94,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { categoryId, sortType = 'createTime', timeRange = 'all' } = ctx.req.param();
-    if (!categoryMap[categoryId]) {
+    if (!Object.hasOwn(categoryMap, categoryId)) {
         throw new InvalidParameterError(`Invalid category Id: ${categoryId}`);
     }
     if (!sortTypeEnum.has(sortType)) {
@@ -133,7 +133,7 @@ async function handler(ctx) {
                 const $ = load(response.data);
                 const articleInfo = $('.main script')
                     .text()
-                    .match(/window.articleInfo = (.*);\n\s*window.likeDomain/)[1];
+                    .match(/window.articleInfo = (.*);\n\s*window.likeDomain/)![1];
                 const data = JSON.parse(articleInfo);
 
                 item.description = data.parts[0].content;

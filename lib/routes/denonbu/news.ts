@@ -15,25 +15,24 @@ export const route: Route = {
         area: 'The id of the area or category; values are as follows.',
     },
     description: `**Area**
-| ID            | Group name/Area name                             |
-| ------------- | ------------------------------------------------ |
-| akiba         | 外神田文芸高校                                   |
-| harajuku      | 神宮前参道學園                                   |
-| azabu         | 港白金女学院                                     |
-| shibuya       | 帝音国際学院                                     |
-| kabuki        | 真新宿GR学園                                     |
-| deep-okubo    | Bellemule（深大久保DJ＆ダンスアカデミー）        |
-| deep-okubo-k  | 輝きノスタルジア（深大久保DJ＆ダンスアカデミー） |
-| shinsaibashi  | OKINI☆PARTY'S（心斎橋演芸高校）                  |
-| ikebukuro     | 池袋電音部（池袋空乗院高校）                     |
-| neotokyo      | 東京電脳（東京電脳学園）                         |
-| neonakano     | 中野電脳（中野電脳学園）                         |
-| shimokitazawa | Ma'Scar'Piece（北沢音箱高校）                    |
+
+| ID            | Group name/Area name                              |
+| ------------- | ------------------------------------------------- |
+| akiba         | 外神田文芸高校                                    |
+| harajuku      | 神宮前参道學園                                    |
+| azabu         | 港白金女学院                                      |
+| shibuya       | 帝音国際学院                                      |
+| kabuki        | 真新宿 GR 学園                                    |
+| deep-okubo    | Bellemule（深大久保 DJ＆ダンスアカデミー）        |
+| deep-okubo-k  | 輝きノスタルジア（深大久保 DJ＆ダンスアカデミー） |
+| shinsaibashi  | OKINI☆PARTY'S（心斎橋演芸高校）                   |
+| ikebukuro     | 池袋電音部（池袋空乗院高校）                      |
+| neotokyo      | 東京電脳（東京電脳学園）                          |
+| neonakano     | 中野電脳（中野電脳学園）                          |
+| shimokitazawa | Ma'Scar'Piece（北沢音箱高校）                     |
 
 **Category**
-Working category IDs include \`news\` (the default), \`event\`, \`goods\`, \`comic\`, \`movie\`, \`music\` or \`livearchives\`.
-
-`,
+Working category IDs include \`news\` (the default), \`event\`, \`goods\`, \`comic\`, \`movie\`, \`music\` or \`livearchives\`.`,
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -118,15 +117,32 @@ async function getToken(): Promise<string> {
         return cacheToken;
     }
 
-    const payload = await ofetch(String(new URL('auths/token/get', BASE_URL)), {
-        headers: COMMON_HEADERS,
-    }).then((x) => x.payload);
+    const payload = (
+        await ofetch(new URL('auths/token/get', BASE_URL).href, {
+            headers: COMMON_HEADERS,
+        })
+    ).payload;
     const { token, expires } = payload;
     if (!token) {
         throw new Error('Failed to get token');
     }
     cache.set(CACHE_TOKEN_KEY, token, expires ? expires - Number(Date.now()) / 1000 - 1 : 3600);
     return token;
+}
+
+interface NewsItem {
+    source_type: string;
+    id: number;
+    sid?: number;
+    uid?: string;
+    title?: string;
+    body: string;
+    post_date: string;
+    media?: string[];
+    account?: {
+        account_id?: string;
+    };
+    category: Array<{ name: string }>;
 }
 
 function buildLink(body: any): string | null {
@@ -160,32 +176,28 @@ async function handler(ctx: Context): Promise<Data> {
     const { area: _area } = ctx.req.param();
     const area = _area ?? 'news';
     const token = await getToken();
-    const data = await ofetch(String(new URL(`contents/search/${area}?limit=20&offset=0`, BASE_URL)), {
-        headers: {
-            ...COMMON_HEADERS,
-            Authorization: `Bearer ${token}`,
-        },
-    }).then((x) => x.payload.items);
+    const data = (
+        await ofetch(new URL(`contents/search/${area}?limit=20&offset=0`, BASE_URL).href, {
+            headers: {
+                ...COMMON_HEADERS,
+                Authorization: `Bearer ${token}`,
+            },
+        })
+    ).payload.items;
 
-    const items = data.map((item) => {
+    const items = data.map((item: NewsItem) => {
         const { title, body, post_date, category, media } = item;
         const link = buildLink(item);
         const result: DataItem = {
-            title: title ?? body.split('\n')[0],
+            title: title ?? body.split('\n', 1)[0],
             description: body,
-            pubDate: timezone(parseDate(post_date), +9),
+            pubDate: timezone(parseDate(post_date), 9),
             category: category.map((x) => x.name),
+            link: link ?? undefined,
         };
 
         if (media?.[0]) {
-            const firstMedia = media[0];
-            const imageUrl = typeof firstMedia === 'string' ? firstMedia : firstMedia?.url;
-            if (typeof imageUrl === 'string') {
-                result.image = imageUrl;
-            }
-        }
-        if (link) {
-            result.link = link;
+            result.image = media[0];
         }
 
         return result;

@@ -3,7 +3,7 @@ import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 import MarkdownIt from 'markdown-it';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
@@ -45,18 +45,18 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { type, id, locale = 'zh-CN' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
-    const searchParams = {
+    const searchParams = new URLSearchParams({
         locale,
-        page: 0,
-        pagesize: limit,
-    };
+        page: '0',
+        pagesize: String(limit),
+    });
 
     if (type === 'wiki' && id) {
-        searchParams.subCatalogId = id;
+        searchParams.set('subCatalogId', id);
     } else if (type && id) {
-        searchParams[type] = id;
+        searchParams.set(type, id);
     }
 
     const rootUrl = 'https://farmatters.com';
@@ -83,7 +83,7 @@ async function handler(ctx) {
         author: item.author,
         category: [item.catalogName, item.subCatalogName ?? undefined, ...(item.tags?.map((t) => t.tagName) ?? [])].filter(Boolean),
         guid: `farmatters-${item.id}`,
-        pubDate: timezone(parseDate(item.createdAt), +8),
+        pubDate: timezone(parseDate(item.createdAt), 8),
     }));
 
     const { data: currentResponse } = await got(currentUrl);
@@ -95,11 +95,11 @@ async function handler(ctx) {
 
     return {
         item: items,
-        title: `${$('title').text().split(/-/)[0].trim()} - ${subtitle}`,
+        title: `${$('title').text().split(/-/, 1)[0].trim()} - ${subtitle}`,
         link: currentUrl,
         description: $('meta[name="description"]').prop('content'),
-        language: $('html').prop('lang'),
-        image: new URL($('img').first().prop('src'), rootUrl).href,
+        language: $('html').prop('lang') as Language,
+        image: new URL($('img').first().prop('src')!, rootUrl).href,
         icon,
         logo: icon,
         subtitle,

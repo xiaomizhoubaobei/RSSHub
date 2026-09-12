@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,19 +13,19 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = 'tzgg' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '10', 10);
+    const limit = Number(ctx.req.query('limit') ?? '10');
 
     const baseUrl = 'https://hitgs.hit.edu.cn';
     const targetUrl: string = new URL(`${id}/list.htm`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = $('li.news, div.tbt17')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('div.news_title, span.div.news_title, div.bttb2').text();
@@ -59,12 +59,12 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
                 const title: string = $$('h1.arti_title').text() + $$('h2.arti_title').text();
                 const description: string | undefined = renderDescription({
-                    description: $$('div.wp_articlecontent').html(),
+                    description: $$('div.wp_articlecontent').html() ?? undefined,
                 });
                 const pubDateStr: string | undefined = $$('span.arti_update').text().split(/：/).pop()?.trim();
                 const upDatedStr: string | undefined = pubDateStr;
@@ -180,19 +180,18 @@ export const route: Route = {
 <details>
   <summary>更多栏目</summary>
 
-| 栏目 | ID |
-| - | - |
-| [通知公告](https://hitgs.hit.edu.cn/tzgg/list.htm) | [tzgg](https://rsshub.app/hit/hitgs/tzgg) |
-| [综合新闻](https://hitgs.hit.edu.cn/zhxw/list.htm) | [zhxw](https://rsshub.app/hit/hitgs/zhxw) |
+| 栏目                                                                 | ID                                                    |
+| -------------------------------------------------------------------- | ----------------------------------------------------- |
+| [通知公告](https://hitgs.hit.edu.cn/tzgg/list.htm)                   | [tzgg](https://rsshub.app/hit/hitgs/tzgg)             |
+| [综合新闻](https://hitgs.hit.edu.cn/zhxw/list.htm)                   | [zhxw](https://rsshub.app/hit/hitgs/zhxw)             |
 | [高水平课程与学术交流](https://hitgs.hit.edu.cn/gspkcyxsjl/list.htm) | [gspkcyxsjl](https://rsshub.app/hit/hitgs/gspkcyxsjl) |
-| [国家政策](https://hitgs.hit.edu.cn/gjzc/list.htm) | [gjzc](https://rsshub.app/hit/hitgs/gjzc) |
-| [规章制度](https://hitgs.hit.edu.cn/17546/list.htm) | [17546](https://rsshub.app/hit/hitgs/17546) |
-| [办事流程](https://hitgs.hit.edu.cn/17547/list.htm) | [17547](https://rsshub.app/hit/hitgs/17547) |
-| [常见问题](https://hitgs.hit.edu.cn/17548/list.htm) | [17548](https://rsshub.app/hit/hitgs/17548) |
-| [常见下载](https://hitgs.hit.edu.cn/17549/list.htm) | [17549](https://rsshub.app/hit/hitgs/17549) |
+| [国家政策](https://hitgs.hit.edu.cn/gjzc/list.htm)                   | [gjzc](https://rsshub.app/hit/hitgs/gjzc)             |
+| [规章制度](https://hitgs.hit.edu.cn/17546/list.htm)                  | [17546](https://rsshub.app/hit/hitgs/17546)           |
+| [办事流程](https://hitgs.hit.edu.cn/17547/list.htm)                  | [17547](https://rsshub.app/hit/hitgs/17547)           |
+| [常见问题](https://hitgs.hit.edu.cn/17548/list.htm)                  | [17548](https://rsshub.app/hit/hitgs/17548)           |
+| [常见下载](https://hitgs.hit.edu.cn/17549/list.htm)                  | [17549](https://rsshub.app/hit/hitgs/17549)           |
 
-</details>
-`,
+</details>`,
     categories: ['university'],
     features: {
         requireConfig: false,

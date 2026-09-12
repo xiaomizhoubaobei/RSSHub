@@ -1,5 +1,4 @@
 import type { Route } from '@/types';
-import cache from '@/utils/cache';
 import got from '@/utils/got';
 
 import { renderDescription } from '../templates/description';
@@ -21,7 +20,7 @@ export const route: Route = {
     name: '南都客户端（按记者）',
     maintainers: ['TimWu007'],
     handler,
-    description: `记者的 UID 可通过 \`m.mp.oeeee.com\` 下的文章页面获取。点击文章下方的作者头像，进入该作者的个人主页，即可从 url 中获取。`,
+    description: '记者的 UID 可通过 `m.mp.oeeee.com` 下的文章页面获取。点击文章下方的作者头像，进入该作者的个人主页，即可从 url 中获取。',
 };
 
 async function handler(ctx) {
@@ -41,7 +40,7 @@ async function handler(ctx) {
 
     const author = response.data.info ? response.data.info.name : '';
 
-    const items = await Promise.all(list.map((item) => parseArticle(item, cache.tryGet)));
+    const items = await Promise.all(list.map((item) => parseArticle(item)));
 
     return {
         title: `南方都市报奥一网 - ${author}`,

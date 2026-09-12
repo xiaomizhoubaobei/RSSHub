@@ -75,9 +75,8 @@ export const route: Route = {
     },
     name: '最新资源',
     maintainers: ['hualiong'],
-    description: `
-::: tip
-每个采集站提供的影视类别ID是不同的，即参数中的 \`type\` 是不同的。**可以先访问一次站点提供的采集接口，然后从返回结果中的 \`class\` 字段中的 \`type_id\`获取相应的类别ID**
+    description: `::: tip
+每个采集站提供的影视类别 ID 是不同的，即参数中的 \`type\` 是不同的。**可以先访问一次站点提供的采集接口，然后从返回结果中的 \`class\` 字段中的 \`type_id\`获取相应的类别 ID**
 :::
 
 | 站名                | 域名                                             | 站名             | 域名                                               | 站名           | 域名                                            |
@@ -102,7 +101,7 @@ export const route: Route = {
             image: each.vod_pic,
             link: `https://${domain}/vod/${each.vod_id}/`,
             guid: each.vod_play_url?.match(/https:\/\/.+?\.m3u8/g)?.at(-1),
-            pubDate: timezone(parseDate(each.vod_time, 'YYYY-MM-DD HH:mm:ss'), +8),
+            pubDate: timezone(parseDate(each.vod_time, 'YYYY-MM-DD HH:mm:ss'), 8),
             category: [each.type_name, ...each.vod_class!.split(',')],
             description: render(each, `https://${domain}/vod/${each.vod_id}/`) + each.vod_content,
         }));

@@ -47,19 +47,19 @@ async function handler() {
     const items =
         list &&
         list.map((item) => {
-            item = $(item);
-            const itemPicUrl = item.find('.lazy').first().attr('data-original');
-            const tags = item.find('.tag-info-list').children();
+            const $item = $(item);
+            const itemPicUrl = $item.find('.lazy').first().attr('data-original');
+            const tags = $item.find('.tag-info-list').children();
             const taginfo = tags.toArray().map((elem) => $(elem).text());
             return {
-                title: item.attr('title'),
-                link: `${host}${item.attr('href')}`,
+                title: $item.attr('title')!,
+                link: `${host}${$item.attr('href')}`,
                 description: renderDescription(itemPicUrl, taginfo),
             };
         });
 
     return {
-        title: `月幕 Galgame - 本月新作`,
+        title: '月幕 Galgame - 本月新作',
         link: `${host}/release-list/${year}/${month}`,
         description: '月幕 Galgame - 本月新作',
         item: items,

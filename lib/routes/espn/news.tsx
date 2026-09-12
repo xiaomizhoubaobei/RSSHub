@@ -1,4 +1,5 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
+import type { Element } from 'domhandler';
 import { renderToString } from 'hono/jsx/dom/server';
 
 import type { Route } from '@/types';
@@ -60,16 +61,17 @@ export const route: Route = {
     categories: ['traditional-media'],
     parameters: { sport: 'sport category, can be nba, nfl, mlb, nhl etc.' },
     description: `Get the news feed of the sport you love on ESPN.
-| Sport                |  sport  |  Sport         |  sport  |
-|----------------------|---------|----------------|---------|
-| 🏀 NBA                | nba     | 🎾 Tennis       | tennis  |
-| 🏀 WNBA               | wnba    | ⛳️ Golf         | golf    |
-| 🏈 NFL                | nfl     | 🏏 Cricket      | cricket |
-| ⚾️ MLB                | mlb     | ⚽️ Soccer       | soccer  |
-| 🏒 NHL                | nhl     | 🏎️ F1           | f1      |
-| ⛹️ College Basketball | ncb      | 🥊 MMA          | mma     |
-| 🏟️️ College Football   | ncf     | 🏈 UFL          | ufl     |
-| 🏉 Rugby              | rugby   | 🃏 Poker        | poker   |`,
+
+| Sport                 | sport | Sport      | sport   |
+| --------------------- | ----- | ---------- | ------- |
+| 🏀 NBA                | nba   | 🎾 Tennis  | tennis  |
+| 🏀 WNBA               | wnba  | ⛳️ Golf    | golf    |
+| 🏈 NFL                | nfl   | 🏏 Cricket | cricket |
+| ⚾️ MLB                | mlb   | ⚽️ Soccer  | soccer  |
+| 🏒 NHL                | nhl   | 🏎️ F1      | f1      |
+| ⛹️ College Basketball | ncb   | 🥊 MMA     | mma     |
+| 🏟️️ College Football   | ncf   | 🏈 UFL     | ufl     |
+| 🏉 Rugby              | rugby | 🃏 Poker   | poker   |`,
     radar: [
         {
             source: ['espn.com/:sport*'],
@@ -111,14 +113,15 @@ export const route: Route = {
                             },
                         });
 
-                        const $ = cheerio.load(article.content.story, null, false);
+                        const $ = load(article.content.story, null, false);
                         $('*').each((_, ele) => {
-                            if (junkPattern.test(ele.name)) {
+                            const { name } = ele as Element;
+                            if (junkPattern.test(name)) {
                                 $(ele).remove();
                             }
-                            if (mediaPattern.test(ele.name)) {
-                                const mediaType = ele.name.match(mediaPattern)[1] === 'photo' ? 'images' : 'video';
-                                const mediaIndex = Number.parseInt(ele.name.match(mediaPattern)[2]) - 1;
+                            if (mediaPattern.test(name)) {
+                                const mediaType = name.match(mediaPattern)![1] === 'photo' ? 'images' : 'video';
+                                const mediaIndex = Number.parseInt(name.match(mediaPattern)![2]) - 1;
                                 const media = article.content[mediaType][mediaIndex];
                                 if (media) {
                                     $(ele).replaceWith(renderMedia(media));

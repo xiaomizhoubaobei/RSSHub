@@ -1,15 +1,28 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import { destr } from 'destr';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 import type { JSX } from 'hono/jsx/jsx-runtime';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
 const topics = new Set(['style', 'watches', 'lifestyle', 'health', 'money-investment', 'gear', 'people', 'watch', 'mens-talk']);
+
+interface ArticleTag {
+    name: string;
+}
+
+interface Article {
+    status?: string;
+    intro: { raw: string };
+    subpages: unknown[];
+    date: { published: string; lastModified: string };
+    author: { name: string };
+    tags: { topic: ArticleTag[]; normal: ArticleTag[] };
+}
 
 const handler = async (ctx) => {
     let { id = 'Fashion' } = ctx.req.param();
@@ -25,28 +38,28 @@ const handler = async (ctx) => {
 
     const response = await ofetch(currentUrl);
 
-    const $ = cheerio.load(response);
+    const $ = load(response);
     const list = [
         ...$('div[class^="max-w-[100%]"] > div > div:nth-child(2) > a')
             .toArray()
             .map((item) => {
-                item = $(item);
+                const $item = $(item);
                 return {
-                    title: item.text().trim(),
-                    link: new URL(item.attr('href'), currentUrl).href,
+                    title: $item.text().trim(),
+                    link: new URL($item.attr('href')!, currentUrl).href,
                 };
             }),
         ...$('div.list-item > div > div:nth-child(2) > a')
             .toArray()
             .map((item) => {
-                item = $(item);
+                const $item = $(item);
                 return {
-                    title: item.text().trim(),
-                    link: new URL(item.attr('href'), currentUrl).href,
+                    title: $item.text().trim(),
+                    link: new URL($item.attr('href')!, currentUrl).href,
                 };
             }),
     ]
-        .map((item) => ({
+        .map((item): DataItem & { slug: string; link: string } => ({
             ...item,
             slug: item.link.replace(rootUrl, ''),
         }))
@@ -56,7 +69,7 @@ const handler = async (ctx) => {
         list.map((item) =>
             cache.tryGet(item.link, async () => {
                 const resp = await ofetch(`https://api.esquirehk.com${item.slug}`);
-                const response = destr(resp) as any;
+                const response = destr<Article>(resp);
                 if (response.status === '404') {
                     return item;
                 }
@@ -96,7 +109,7 @@ const renderSubpages = (subpages): string =>
                         break;
                     }
                     case 'video_block': {
-                        const videoId = page.source?.split('&')[0];
+                        const videoId = page.source?.split('&', 1)[0];
                         blocks.push(
                             <iframe
                                 key={`video-${index}`}

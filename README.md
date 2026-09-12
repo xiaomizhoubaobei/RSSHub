@@ -14,16 +14,32 @@
 
 [![Telegram group](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.swo.moe%2Fstats%2Ftelegram%2Frsshub&query=count&color=2CA5E0&label=Telegram%20Group&logo=telegram&cacheSeconds=3600&style=flat-square)](https://t.me/rsshub) [![Telegram channel](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.swo.moe%2Fstats%2Ftelegram%2FawesomeRSSHub&query=count&color=2CA5E0&label=Telegram%20Channel&logo=telegram&cacheSeconds=3600&style=flat-square)](https://t.me/awesomeRSSHub) [![X (Twitter)](https://img.shields.io/badge/any_text-Follow-blue?color=2CA5E0&label=Twitter&logo=X&cacheSeconds=3600&style=flat-square)](https://x.com/intent/follow?screen_name=_RSSHub)
 
+<table>
+<tr>
+<td align="center" valign="top" width="50%">
+<a href="https://folo.is/"><img src="https://github.com/user-attachments/assets/68c66528-8c79-4a8a-8e43-ade7d936ab80" alt="Folo" width="419"></a>
+<br>
+RSSHub pairs especially well with <a href="https://folo.is/">Folo</a>, an AI RSS reader for feed discovery and modern reading workflows. The project is also open source on <a href="https://github.com/RSSNext/Folo">GitHub</a>.
+</td>
+<td align="center" valign="top" width="50%">
+<a href="https://stardesk.onelink.me/p0R7/1v2u6fld"><img src="https://github.com/user-attachments/assets/f23cb580-ab92-46cb-8b5b-277fc8933775" alt="StarDesk" width="419"></a>
+<br>
+RSSHub keeps me informed, and <a href="https://stardesk.onelink.me/p0R7/1v2u6fld">StarDesk</a> lets me fix routes or feeds remotely, even run terminal commands from my phone. It’s fast, convenient, and free.
+</td>
+</tr>
+</table>
+
 ## Introduction
 
 RSSHub is the world's largest RSS network, consisting of over 5,000 global instances.
 
 RSSHub delivers millions of contents aggregated from all kinds of sources, our vibrant open source community is ensuring the deliver of RSSHub's new routes, new features and bug fixes.
 
-[Documentation](https://docs.rsshub.app) | [Telegram Group](https://t.me/rsshub) | [Telegram Channel](https://t.me/awesomeRSSHub) | [X (Twitter)](https://x.com/intent/follow?screen_name=_RSSHub)
+[Documentation](https://docs.rsshub.app) | [Folo](https://folo.is/) | [Telegram Group](https://t.me/rsshub) | [Telegram Channel](https://t.me/awesomeRSSHub) | [X (Twitter)](https://x.com/intent/follow?screen_name=_RSSHub)
 
 ## Related Projects
 
+- [Folo](https://folo.is/) | An AI RSS reader that works especially well with RSSHub. Source code: [GitHub](https://github.com/RSSNext/Folo).
 - [RSSHub Radar](https://github.com/DIYgod/RSSHub-Radar) | A browser extension that can help you quickly discover and subscribe to the RSS and RSSHub of current websites.
 - [RSSBud](https://github.com/Cay-Zhang/RSSBud) | RSSHub Radar for iOS platform, designed specifically for mobile ecosystem optimization.
 - [RSSAid](https://github.com/LeetaoGoooo/RSSAid) | RSSHub Radar for Android platform built with Flutter.

@@ -4,13 +4,13 @@ import { parseDate } from '@/utils/parse-date';
 
 type Mapping = Record<string, string>;
 
-const JP: Mapping = {
+const JP = {
     '0': 'すべて',
     '1': 'お知らせ',
     '2': 'イベント',
     '3': 'メインテナンス',
     '4': '重要',
-};
+} satisfies Mapping;
 
 const mkTable = (mapping: Mapping): string => {
     const heading: string[] = [];
@@ -59,7 +59,7 @@ const ja: Route['handler'] = async (ctx) => {
     return {
         title: `アズールレーン - ${JP[type]}`,
         link: 'https://www.azurlane.jp/news',
-        language: 'ja-JP',
+        language: 'ja',
         image: 'https://play-lh.googleusercontent.com/9QTLYD2_Jd6OIKHwRHkEBnFAgPmVKJwf2xmHjzPk-5w0SRLZumsCoQZGlO8d_kB3Gdld=w480-h960-rw',
         icon: 'https://play-lh.googleusercontent.com/9QTLYD2_Jd6OIKHwRHkEBnFAgPmVKJwf2xmHjzPk-5w0SRLZumsCoQZGlO8d_kB3Gdld=w480-h960-rw',
         logo: 'https://play-lh.googleusercontent.com/9QTLYD2_Jd6OIKHwRHkEBnFAgPmVKJwf2xmHjzPk-5w0SRLZumsCoQZGlO8d_kB3Gdld=w480-h960-rw',

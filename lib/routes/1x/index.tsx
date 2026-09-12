@@ -2,12 +2,12 @@ import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 
 export const handler = async (ctx) => {
     const { category = 'latest/awarded' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'https://1x.com';
     const currentUrl = new URL(`gallery/${category}`, rootUrl).href;
@@ -16,7 +16,7 @@ export const handler = async (ctx) => {
 
     const $ = load(currentResponse);
 
-    const language = $('html').prop('lang');
+    const language = $('html').prop('lang') as Language;
     const apiUrl = new URL(`backend/lm2.php?style=normal&mode=${$('input#lm_mode').prop('value')}`, rootUrl).href;
 
     const { data: response } = await got(apiUrl);
@@ -27,11 +27,11 @@ export const handler = async (ctx) => {
         .slice(0, limit)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const title = item.find('span.photos-feed-data-title').first().text() || 'Untitled';
-            const image = item.find('img').prop('src');
-            const author = item.find('span.photos-feed-data-name').first().text();
+            const title = $item.find('span.photos-feed-data-title').first().text() || 'Untitled';
+            const image = $item.find('img').prop('src');
+            const author = $item.find('span.photos-feed-data-name').first().text();
 
             const text = `${title} by ${author}`;
 
@@ -46,7 +46,7 @@ export const handler = async (ctx) => {
                 </>
             );
 
-            const id = item.find('img[id]').prop('id').split(/-/).pop();
+            const id = $item.find('img[id]').prop('id').split(/-/).pop();
             const guid = `1x-${id}`;
 
             return {
@@ -69,7 +69,7 @@ export const handler = async (ctx) => {
             };
         });
 
-    const image = new URL($('img.themedlogo').prop('src'), rootUrl).href;
+    const image = new URL($('img.themedlogo').prop('src')!, rootUrl).href;
 
     return {
         title: $('title').text(),

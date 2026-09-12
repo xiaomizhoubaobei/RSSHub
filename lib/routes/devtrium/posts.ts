@@ -33,7 +33,7 @@ async function handler() {
 
     return {
         title: 'Devtrium',
-        language: 'en-us',
+        language: 'en-us' as const,
         item: items,
         link: 'https://devtrium.com',
     };

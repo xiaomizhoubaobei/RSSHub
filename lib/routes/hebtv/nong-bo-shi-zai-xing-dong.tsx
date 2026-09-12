@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -53,7 +53,7 @@ export const route: Route = {
 };
 
 async function handler(ctx) {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 40;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 40;
 
     const apiRootUrl = 'http://api.cmc.hebtv.com';
     const apiUrl = new URL('cmsback/api/article/getMyArticleDetail', apiRootUrl).href;
@@ -66,9 +66,9 @@ async function handler(ctx) {
         .first()
         .children()
         .toArray()
-        .map((item) => {
-            item = $(item);
-            const a = item.find('a').first();
+        .map((item): DataItem => {
+            const $item = $(item);
+            const a = $item.find('a').first();
             const timeMatch = a.text().match(/\d+/);
             const timestr = timeMatch ? timeMatch[0] : '';
 
@@ -76,18 +76,18 @@ async function handler(ctx) {
                 title: a.text(),
                 // `link` 需要一个绝对 URL，但 `a.attr('href')` 返回一个相对 URL。
                 link: `${baseUrl}/../${a.attr('href')}`,
-                pubDate: timestr ? timezone(parseDate(timestr, 'YYYYMMDD'), +8) : null,
+                pubDate: timestr ? timezone(parseDate(timestr, 'YYYYMMDD'), 8) : null,
                 author: '时间|' + timestr,
             };
         });
 
     const items = await Promise.all(
         list.slice(0, limit).map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const { data: detailResponse } = await got(item.link);
 
                 const tenantId = detailResponse.match(/tenantid = '(\w+)';/)[1];
-                const articleId = item.link.match(/\/nbszxd\/(\d+)/)[1];
+                const articleId = item.link!.match(/\/nbszxd\/(\d+)/)![1];
 
                 const { data: apiResponse } = await got(apiUrl, {
                     searchParams: {
@@ -106,8 +106,8 @@ async function handler(ctx) {
                 item.title = data.title;
                 item.author = data.source;
                 item.guid = `hebtv-nbszxd-${articleId}`;
-                item.pubDate = timezone(parseDate(data.publishDate), +8);
-                item.updated = timezone(parseDate(data.modifyTime), +8);
+                item.pubDate = timezone(parseDate(data.publishDate), 8);
+                item.updated = timezone(parseDate(data.modifyTime), 8);
 
                 if (videoData) {
                     item.itunes_item_image = videoData.poster;
@@ -134,15 +134,16 @@ async function handler(ctx) {
     );
 
     const description = $('meta[name="description"]').prop('content');
-    const author = description.split(/,/)[0];
+    const author = description.split(/,/, 1)[0];
     const icon = $('link[rel="shortcut icon"]').prop('href');
+    const language = $('html').prop('lang') as Language;
 
     return {
         item: items,
         title: $('title').text(),
         link: baseUrl,
         description,
-        language: $('html').prop('lang'),
+        language,
         image: $('div.logo a img').prop('src'),
         icon,
         logo: icon,

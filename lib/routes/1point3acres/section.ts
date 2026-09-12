@@ -1,5 +1,4 @@
 import type { Route } from '@/types';
-import cache from '@/utils/cache';
 
 import { apiRootUrl, ProcessThreads, rootUrl, types } from './utils';
 
@@ -48,13 +47,13 @@ export const route: Route = {
 | 海外求职 | 38  |
 | 签证移民 | 265 |
 
-  分类
+分类
 
 | 热门帖子 | 最新帖子 |
 | -------- | -------- |
 | hot      | new      |
 
-  排序方式
+排序方式
 
 | 最新回复 | 最新发布 |
 | -------- | -------- |
@@ -73,6 +72,6 @@ async function handler(ctx) {
     return {
         title: `一亩三分地 - ${Object.hasOwn(sections, id) ? sections[id] : id}${types[type]}`,
         link: currentUrl,
-        item: await ProcessThreads(cache.tryGet, apiUrl, order),
+        item: await ProcessThreads(apiUrl, order),
     };
 }

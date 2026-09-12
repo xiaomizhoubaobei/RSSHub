@@ -4,7 +4,7 @@ import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import { getPuppeteerPage } from '@/utils/puppeteer';
+import { getPlaywrightPage } from '@/utils/playwright';
 import timezone from '@/utils/timezone';
 
 const host = 'https://yjsy.cjlu.edu.cn/';
@@ -13,22 +13,6 @@ const titleMap = new Map([
     ['yjstz', '中量大研究生院 —— 研究生通知'],
     ['jstz', '中量大研究生院 —— 教师通知'],
 ]);
-const headers = {
-    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-    'Cache-Control': 'max-age=0',
-    Connection: 'keep-alive',
-    Referer: 'https://yjsy.cjlu.edu.cn',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',
-    'sec-ch-ua': '"Microsoft Edge";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-};
 
 const allowedResourceTypes = new Set(['document', 'script']);
 
@@ -77,32 +61,30 @@ export const route: Route = {
     maintainers: ['chrisis58'],
     handler,
     description: `| 研究生通知 | 教师通知 |
-| -------- | -------- |
-| yjstz    | jstz     |`,
+| ---------- | -------- |
+| yjstz      | jstz     |`,
 };
 
 async function handler(ctx) {
     const cate = ctx.req.param('cate');
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 10;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 10;
     const url = `${host}index/${cate}.htm`;
 
-    const { page, destory, browser } = await getPuppeteerPage(url, {
+    const { page, destroy } = await getPlaywrightPage(url, {
         onBeforeLoad: async (page) => {
-            await page.setExtraHTTPHeaders(headers);
-            await page.setUserAgent(headers['User-Agent']);
-            await page.setRequestInterception(true);
-            page.on('request', (request) => {
-                allowedResourceTypes.has(request.resourceType()) ? request.continue() : request.abort();
+            await page.route('**/*', (route) => {
+                const request = route.request();
+                allowedResourceTypes.has(request.resourceType()) ? route.continue() : route.abort();
             });
         },
-        gotoConfig: { waitUntil: 'networkidle2' },
+        gotoConfig: { waitUntil: 'networkidle' },
     });
 
-    const cookies = await browser.cookies();
+    const cookies = await page.context().cookies();
     const cookieString = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
     const response = await page.content();
-    await destory();
+    await destroy();
 
     const $ = load(response);
 
@@ -121,7 +103,7 @@ async function handler(ctx) {
 
             return {
                 title: a.attr('title') ?? titleMap.get(cate) ?? '中量大研究生院通知',
-                pubDate: timezone(parseDate(timeStr, 'YYYY/MM/DD'), +8),
+                pubDate: timezone(parseDate(timeStr, 'YYYY/MM/DD'), 8),
                 link: `${host}${route}`,
                 description: '',
             };
@@ -137,7 +119,6 @@ async function handler(ctx) {
                 const res = await ofetch(item.link, {
                     responseType: 'text',
                     headers: {
-                        ...headers,
                         Cookie: cookieString,
                         Referer: url,
                     },
@@ -154,7 +135,7 @@ async function handler(ctx) {
     );
 
     return {
-        title: titleMap.get(cate),
+        title: titleMap.get(cate)!,
         link: `https://yjsy.cjlu.edu.cn/index/${cate}.htm`,
         item: items,
     };

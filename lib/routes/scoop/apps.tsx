@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Context } from 'hono';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -34,7 +34,7 @@ const filters = {
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { query = 's=2&d=1&n=true&dm=true&o=true' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '50', 10);
+    const limit = Number(ctx.req.query('limit') ?? '50');
 
     const baseUrl = 'https://scoop.sh';
     const apiBaseUrl = 'https://scoopsearch.search.windows.net';
@@ -43,7 +43,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
 
     const scriptRegExp = /<script type="module" crossorigin src="(.*?)"><\/script>/;
     const scriptUrl: string = scriptRegExp.test(targetResponse) ? new URL(targetResponse.match(scriptRegExp)?.[1], baseUrl).href : '';
@@ -222,7 +222,7 @@ export const route: Route = {
         },
     },
     description: `::: tip
-To subscribe to [Apps](https://scoop.sh/#/apps?s=2&d=1&n=true&dm=true&o=true), where the source URL is \`https://scoop.sh/#/apps?s=2&d=1&n=true&dm=true&o=true\`, extract the certain parts from this URL to be used as parameters, resulting in the route as [\`/scoop/apps/s=2&d=1&n=true&dm=true&o=true\`](https://rsshub.app/scoop/apps/s=2&d=1&n=true&dm=true&o=true).
+To subscribe to [Apps](https://scoop.sh/#/apps?s=2\\&d=1\\&n=true\\&dm=true\\&o=true), where the source URL is \`https://scoop.sh/#/apps?s=2&d=1&n=true&dm=true&o=true\`, extract the certain parts from this URL to be used as parameters, resulting in the route as [\`/scoop/apps/s=2&d=1&n=true&dm=true&o=true\`](https://rsshub.app/scoop/apps/s=2\\&d=1\\&n=true\\&dm=true\\&o=true).
 :::`,
     categories: ['program-update'],
     features: {

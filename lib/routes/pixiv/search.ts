@@ -2,7 +2,6 @@ import { config } from '@/config';
 import ConfigNotFoundError from '@/errors/types/config-not-found';
 import type { Route } from '@/types';
 import { ViewType } from '@/types';
-import cache from '@/utils/cache';
 import { parseDate } from '@/utils/parse-date';
 
 import searchIllust from './api/search-illust';
@@ -88,7 +87,7 @@ async function handler(ctx) {
     const mode = ctx.req.param('mode');
     const includeAI = ctx.req.param('include_ai');
 
-    const token = await getToken(cache.tryGet);
+    const token = await getToken();
     if (!token) {
         throw new ConfigNotFoundError('pixiv not login');
     }
@@ -117,6 +116,7 @@ async function handler(ctx) {
                 pubDate: parseDate(illust.create_date),
                 description: `${illust.caption}<br><p>画师：${illust.user.name} - 阅览数：${illust.total_view} - 收藏数：${illust.total_bookmarks}</p>${images.join('')}`,
                 link: `https://www.pixiv.net/artworks/${illust.id}`,
+                category: illust.tags.map((tag) => tag.name),
             };
         }),
         allowEmpty: true,

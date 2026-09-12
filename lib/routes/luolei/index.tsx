@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -36,13 +36,13 @@ const renderDescription = ({ images, videos }: { images?: DescriptionImage[]; vi
 
 const unblurImages = ($: CheerioAPI) => {
     $('img[data-original-src]').each((_, el) => {
-        el = $(el);
+        const $el = $(el);
 
-        el.replaceWith(
+        $el.replaceWith(
             renderDescription({
                 images: [
                     {
-                        src: el.prop('data-original-src'),
+                        src: $el.prop('data-original-src'),
                     },
                 ],
             })
@@ -53,7 +53,7 @@ const unblurImages = ($: CheerioAPI) => {
 };
 
 export const handler = async (ctx) => {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const rootUrl = 'https://luolei.org';
 
@@ -61,16 +61,16 @@ export const handler = async (ctx) => {
 
     const $ = load(response);
 
-    const language = $('html').prop('lang');
+    const language = $('html').prop('lang') as Language;
     const themeEl = $('link[rel="modulepreload"]')
         .toArray()
-        .findLast((l) => /theme\..*\.js$/.test($(l).prop('href')));
-    const themeUrl = themeEl ? new URL($(themeEl).prop('href'), rootUrl).href : undefined;
+        .findLast((l) => /theme\..*\.js$/.test($(l).prop('href')!));
+    const themeUrl = themeEl ? new URL($(themeEl).prop('href')!, rootUrl).href : undefined;
 
     const { data: themeResponse } = await got(themeUrl);
 
     let items = themeResponse
-        .match(/{"title":".*?"string":".*?"}}/g)
+        .match(/\{"title":".*?"string":".*?"\}\}/g)
         .slice(0, limit)
         .map((item) => {
             item = JSON.parse(
@@ -132,7 +132,7 @@ export const handler = async (ctx) => {
         )
     );
 
-    const image = new URL($('img.logo').prop('src'), rootUrl).href;
+    const image = new URL($('img.logo').prop('src')!, rootUrl).href;
 
     return {
         title: $('title').first().text(),

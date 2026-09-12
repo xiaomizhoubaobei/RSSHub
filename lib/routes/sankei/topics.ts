@@ -7,7 +7,7 @@ import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
 export const route: Route = {
-    path: ['/topics/:topic'],
+    path: '/topics/:topic',
     categories: ['traditional-media'],
     example: '/sankei/topics/etc_100',
     parameters: {
@@ -48,7 +48,7 @@ async function handler(ctx: Context): Promise<Data> {
                 const detail = await got(link);
                 const $ = load(detail.body);
                 $('.inline-gptAd, .figure_image_sizer').remove();
-                const articleHTML = $('div.article-body').html() || '';
+                const articleHTML = $('div.article-body').html();
 
                 return {
                     title,

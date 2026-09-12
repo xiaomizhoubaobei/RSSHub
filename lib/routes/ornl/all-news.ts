@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -12,19 +12,19 @@ import { parseDate } from '@/utils/parse-date';
 import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '10', 10);
+    const limit = Number(ctx.req.query('limit') ?? '10');
 
     const baseUrl = 'https://www.ornl.gov';
     const targetUrl: string = new URL('all-news', baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
 
     let items: DataItem[] = $('div.view-rows-main div.list-item-wrapper')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
             const $aEl: Cheerio<Element> = $el.find('div.list-item-title h2 a');
             const $imgEl: Cheerio<Element> = $el.find('div.list-item-thumbnail-wrapper img');
@@ -73,7 +73,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
                 const $$imgEl: Cheerio<Element> = $$('div.image-landscape img');
 
@@ -90,17 +90,19 @@ export const handler = async (ctx: Context): Promise<Data> => {
                               },
                           ]
                         : undefined,
-                    description: $$('div.image-description').html(),
+                    description: $$('div.image-description').html() ?? undefined,
                 });
                 const pubDateStr: string | undefined = $$('div.publish-date time').attr('datetime');
                 const authorEls: Element[] = $$('div.related-researcher-container').toArray();
                 const authors: DataItem['author'] = authorEls.map((authorEl) => {
                     const $$authorEl: Cheerio<Element> = $$(authorEl).find('div.related-researcher-name a');
+                    const authorHref: string | undefined = $$authorEl.attr('href');
+                    const authorAvatar: string | undefined = $$authorEl.find('div.related-researcher-photo img').attr('src');
 
                     return {
                         name: $$authorEl.text(),
-                        url: $$authorEl.attr('href') ? new URL($$authorEl.attr('href') as string, baseUrl).href : undefined,
-                        avatar: $$authorEl.find('div.related-researcher-photo img').attr('src') ? new URL($$authorEl.find('div.related-researcher-photo img').attr('src') as string, baseUrl).href : undefined,
+                        url: authorHref ? new URL(authorHref, baseUrl).href : undefined,
+                        avatar: authorAvatar ? new URL(authorAvatar, baseUrl).href : undefined,
                     };
                 });
                 const upDatedStr: string | undefined = pubDateStr;

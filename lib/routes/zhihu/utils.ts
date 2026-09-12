@@ -1,17 +1,17 @@
 import { load } from 'cheerio';
 
 import { config } from '@/config';
-import cache from '@/utils/cache';
-import md5 from '@/utils/md5';
+import { isWorker } from '@/utils/is-worker';
 import ofetch from '@/utils/ofetch';
 
-import g_encrypt from './execlib/x-zse-96-v3';
+import type { createBrowserClient } from './browser';
+import { getSignedHeaders } from './sign';
 
 export const header = {
     'x-api-version': '3.0.91',
 };
 
-const fixImageUrl = (url: string) => url.split('?')[0].replace('_b.jpg', '.jpg').replace('_r.jpg', '.jpg').replace('_720w.jpg', '.jpg');
+const fixImageUrl = (url: string) => url.split('?', 1)[0].replace('_b.jpg', '.jpg').replace('_r.jpg', '.jpg').replace('_720w.jpg', '.jpg');
 
 export const processImage = (content: string) => {
     const $ = load(content, null, false);
@@ -58,90 +58,59 @@ export const processImage = (content: string) => {
     return $.html();
 };
 
-export const getCookieValueByKey = (key: string) =>
-    config.zhihu.cookies
+const getCookieValueFrom = (cookieStr: string | undefined, key: string) =>
+    cookieStr
         ?.split(';')
         .map((e) => e.trim())
         .find((e) => e.startsWith(key + '='))
         ?.slice(key.length + 1) || '';
 
-export const getSignedHeader = async (url: string, apiPath: string) => {
-    if (config?.zhihu?.cookies) {
-        const dc0 = getCookieValueByKey('d_c0');
+export const getCookieValueByKey = (key: string) => getCookieValueFrom(config.zhihu.cookies, key);
 
-        const xzse93 = '101_3_3.0';
-        const f = `${xzse93}+${apiPath}+${dc0}`;
-        const xzse96 = '2.0_' + g_encrypt(md5(f));
+export type ZhihuClient = {
+    get<T = any>(apiPath: string): Promise<T>;
+    getPage(): Promise<string>;
+};
 
-        // If __zse_ck is absent from ZHIHU_COOKIES, fetch it automatically from
-        // Zhihu's public static JS. The value is site-wide (not user-specific)
-        // and requires no login, but it expires and must be kept up to date.
-        let cookieStr = config.zhihu.cookies;
-        if (!getCookieValueByKey('__zse_ck')) {
-            const zseCk = await cache.tryGet('zhihu:zse_ck', async () => {
-                const response = await ofetch.raw('https://static.zhihu.com/zse-ck/v3.js');
-                const script = await response._data.text();
-                return script.match(/__g\.ck\|\|"([\w+/=\\]*?)",_=/)?.[1] || '';
-            });
-            if (zseCk) {
-                cookieStr = `${cookieStr}; __zse_ck=${zseCk}`;
-            }
-        }
+export const withZhihuClient = async <T>(pageUrl: string, callback: (client: ZhihuClient) => Promise<T>): Promise<T> => {
+    const configured = config.zhihu.cookies || '';
+    const dc0 = getCookieValueFrom(configured, 'd_c0');
+    const hasConfiguredSession = !!dc0 && !!getCookieValueFrom(configured, '__zse_ck');
+    if (!isWorker && !hasConfiguredSession) {
+        const { createJSDOMClient } = await import('./jsdom');
+        return callback(createJSDOMClient(pageUrl, configured, dc0));
+    }
 
-        return {
-            cookie: cookieStr,
-            'x-zse-96': xzse96,
-            'x-app-za': 'OS=Web',
-            'x-zse-93': xzse93,
-        };
-    } else {
-        // NOTICE: this method is out of date.
-        // Because the API of zhihu.com has changed, we must use the value of `d_c0` (extracted from cookies) to calculate
-        // `x-zse-96`. So first get `d_c0`, then get the actual data of a ZhiHu question. In this way, we don't need to
-        // require users to set the cookie in environmental variables anymore.
+    let browserPromise: ReturnType<typeof createBrowserClient> | undefined;
+    const startBrowser = async (apiPath?: string) => {
+        const { createBrowserClient } = await import('./browser');
+        // Column APIs can initialize directly; other routes need their page session.
+        return createBrowserClient(pageUrl, dc0 ? configured : '', apiPath?.startsWith('/api/v4/columns/') ? apiPath : undefined);
+    };
+    const getBrowser = (apiPath?: string) => (browserPromise ??= startBrowser(apiPath));
 
-        // fisrt: get cookie(dc_0) from zhihu.com
-        const { dc0, zseCk } = await cache.tryGet('zhihu:cookies:d_c0', async () => {
-            if (getCookieValueByKey('d_c0') && getCookieValueByKey('__zse_ck')) {
-                return { dc0: getCookieValueByKey('d_c0'), zseCk: getCookieValueByKey('__zse_ck') };
-            }
-            const response1 = await ofetch.raw('https://static.zhihu.com/zse-ck/v3.js');
-            const script = await response1._data.text();
-            const zseCk = script.match(/__g\.ck\|\|"([\w+/=\\]*?)",_=/)?.[1];
-            const response2 = zseCk
-                ? await ofetch.raw(url, {
-                      headers: {
-                          cookie: `${response1.headers
-                              .getSetCookie()
-                              .map((s) => s.split(';')[0])
-                              .join('; ')}; __zse_ck=${zseCk}`,
-                      },
-                  })
-                : null;
-
-            const dc0 =
-                (response2 || response1).headers
-                    .getSetCookie()
-                    .find((s) => s.startsWith('d_c0='))
-                    ?.split(';')[0]
-                    .trim()
-                    .slice('d_c0='.length) || '';
-
-            return { dc0, zseCk };
+    try {
+        return await callback({
+            get: async <Result = any>(apiPath: string): Promise<Result> => {
+                if (!apiPath.startsWith('/api/')) {
+                    throw new Error('zhihu: expected an API path');
+                }
+                if (hasConfiguredSession) {
+                    return ofetch<Result>(`https://www.zhihu.com${apiPath}`, {
+                        headers: { ...getSignedHeaders(apiPath, dc0), cookie: configured, Referer: pageUrl },
+                    });
+                }
+                return (await getBrowser(apiPath)).get<Result>(apiPath);
+            },
+            getPage: async () => (hasConfiguredSession ? ofetch<string>(pageUrl, { headers: { cookie: configured, Referer: pageUrl }, parseResponse: (text) => text }) : (await getBrowser()).getPage()),
         });
-
-        // calculate x-zse-96, refer to https://github.com/srx-2000/spider_collection/issues/18
-        const xzse93 = '101_3_3.0';
-        const f = `${xzse93}+${apiPath}+${dc0}`;
-        const xzse96 = '2.0_' + g_encrypt(md5(f));
-
-        const zc0 = getCookieValueByKey('z_c0');
-
-        return {
-            cookie: `__zse_ck=${zseCk}; d_c0=${dc0}${zc0 ? `;z_c0=${zc0}` : ''}`,
-            'x-zse-96': xzse96,
-            'x-app-za': 'OS=Web',
-            'x-zse-93': xzse93,
-        };
+    } finally {
+        let browser: Awaited<ReturnType<typeof createBrowserClient>> | undefined;
+        try {
+            browser = await browserPromise;
+        } catch {
+            // Failed initialization already closes its browser before rejecting.
+        }
+        await browser?.close();
     }
 };

@@ -50,7 +50,7 @@ async function handler(ctx) {
     const mobileBaseUrl = 'https://mobile.tingtingfm.com';
 
     const params = {
-        version: 'h5_5.16',
+        version: 'h5_6.3.2',
         client: getClientVal(30),
         h_program_id: programId,
     };
@@ -132,7 +132,7 @@ async function handler(ctx) {
         title: `${radioInfo.title} - ${radioInfo.belong_radio}${radioInfo.belong_fm}`,
         description: radioInfo.description,
         link: `${mobileBaseUrl}/v3/program/${programId}`,
-        image: radioInfo.cover.split('?x-oss')[0],
+        image: radioInfo.cover.split('?x-oss', 1)[0],
         itunes_author: radioInfo.anchor.join(', '),
         itunes_category: radioInfo.category,
         itunes_explicit: false,

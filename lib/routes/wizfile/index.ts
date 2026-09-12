@@ -46,7 +46,7 @@ async function handler() {
                 $(item)
                     .find('span')
                     .text()
-                    .match(/\((.*?)\)/)[1]
+                    .match(/\((.*?)\)/)![1]
             );
 
             const description = $(item).next().html();
@@ -60,7 +60,7 @@ async function handler() {
         });
 
     return {
-        title: `WziFile - 更新日志`,
+        title: 'WziFile - 更新日志',
         link: currentUrl,
         item: items,
     };

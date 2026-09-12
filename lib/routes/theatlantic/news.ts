@@ -24,13 +24,13 @@ export const route: Route = {
         },
     ],
     name: 'News',
-    maintainers: ['EthanWng97', 'pseudoyu'],
+    maintainers: ['IvanWng97', 'pseudoyu'],
     handler,
     description: `| Popular      | Latest | Politics | Technology | Business |
 | ------------ | ------ | -------- | ---------- | -------- |
 | most-popular | latest | politics | technology | business |
 
-  More categories (except photo) can be found within the navigation bar at [https://www.theatlantic.com](https://www.theatlantic.com)`,
+More categories (except photo) can be found within the navigation bar at <https://www.theatlantic.com>`,
 };
 
 async function handler(ctx) {
@@ -40,9 +40,9 @@ async function handler(ctx) {
     const response = await ofetch(url);
     const $ = load(response);
     const contents = JSON.parse($('script#__NEXT_DATA__').text()).props.pageProps.urqlState;
-    const keyWithContent = Object.keys(contents).filter((key) => contents[key].data.includes(category));
+    const keyWithContent = Object.keys(contents).find((key) => contents[key].data.includes(category))!;
     const data = JSON.parse(contents[keyWithContent].data);
-    let list = Object.values(data)[0].river.edges;
+    let list = Object.values<any>(data)[0].river.edges;
     list = list.filter((item) => !item.node.url.startsWith('https://www.theatlantic.com/photo'));
     list = list.map((item) => {
         const data = { link: item.node.url, pubDate: item.node.datePublished };

@@ -7,7 +7,7 @@ export const SUB_NAME_PREFIX = '8KCosplay';
 export const SUB_URL = 'https://www.8kcosplay.com';
 
 export const getPosts = async (limit: number, options?: { categories?: number; tags?: number }) => {
-    const data = await ofetch(`https://www.8kcosplay.com/wp-json/wp/v2/posts`, {
+    const data = await ofetch('https://www.8kcosplay.com/wp-json/wp/v2/posts', {
         query: {
             per_page: limit,
             _embed: '',
@@ -19,14 +19,14 @@ export const getPosts = async (limit: number, options?: { categories?: number; t
         description: item.content.rendered,
         link: item.link,
         pubDate: parseDate(item.date_gmt),
-        author: item._embedded?.['author']?.map((a) => a.name).join(', '),
+        author: item._embedded?.author?.map((a) => a.name).join(', '),
         category: item._embedded?.['wp:term']?.flatMap((terms) => terms.map((t) => t.name)),
     })) satisfies DataItem[];
 };
 
 export const getCategoryInfo = (category: string) =>
     cache.tryGet(`8kcosplay:category:${category}`, async () => {
-        const data = await ofetch(`https://www.8kcosplay.com/wp-json/wp/v2/categories`, {
+        const data = await ofetch('https://www.8kcosplay.com/wp-json/wp/v2/categories', {
             query: {
                 slug: category,
             },
@@ -45,7 +45,7 @@ export const getCategoryInfo = (category: string) =>
 
 export const getTagInfo = (tag: string) =>
     cache.tryGet(`8kcosplay:tag:${tag}`, async () => {
-        const data = await ofetch(`https://www.8kcosplay.com/wp-json/wp/v2/tags`, {
+        const data = await ofetch('https://www.8kcosplay.com/wp-json/wp/v2/tags', {
             query: {
                 slug: tag,
             },

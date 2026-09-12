@@ -89,8 +89,8 @@ async function handler(ctx) {
         title: `Search ${q} - Pixabay`,
         description: 'Download & use free nature stock photos in high resolution ✓ New free images everyday ✓ HD to 4K ✓ Best nature pictures for all devices on Pixabay',
         link: `${baseUrl}/images/search/${q}/${order === 'latest' ? '?order=latest' : ''}`,
-        image: `https://pixabay.com/apple-touch-icon.png`,
-        language: 'en',
+        image: 'https://pixabay.com/apple-touch-icon.png',
+        language: 'en' as const,
         item: items,
     };
 }

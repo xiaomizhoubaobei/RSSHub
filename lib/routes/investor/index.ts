@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -11,19 +11,19 @@ import { parseDate } from '@/utils/parse-date';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = 'home/zxdt' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '20', 10);
+    const limit = Number(ctx.req.query('limit') ?? '20');
 
     const baseUrl = 'https://www.investor.org.cn';
     const targetUrl: string = new URL(id.endsWith('/') ? id : `${id}/`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = $('div.right_content_item a')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('div.title').text();
@@ -49,11 +49,11 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
-                const title: string = $$('div.text_content_detail_title h1').text() ?? item.title;
-                const description: string | undefined = $$('div.trs_editor_view').html() ?? undefined;
+                const title: string = $$('div.text_content_detail_title h1').text();
+                const description = $$('div.trs_editor_view').html();
                 const pubDateStr: string | undefined = $$('div.base_info_left span')
                     .toArray()
                     .some((el) => $$(el).text().includes('时间'))
@@ -90,14 +90,15 @@ export const handler = async (ctx: Context): Promise<Data> => {
     );
 
     const title: string = $('title').text();
+    const imageSrc: string | undefined = $('div.fl a img').attr('src');
 
     return {
         title,
-        description: title.split(/\|/)?.[0],
+        description: title.split(/\|/, 1)?.[0],
         link: targetUrl,
         item: items,
         allowEmpty: true,
-        image: $('div.fl a img').attr('src') ? new URL($('div.fl a img').attr('src') as string, baseUrl).href : undefined,
+        image: imageSrc ? new URL(imageSrc, baseUrl).href : undefined,
         author: title.split(/\|/).pop(),
         language,
         id: targetUrl,
@@ -233,44 +234,43 @@ export const route: Route = {
 <details>
   <summary>更多分类</summary>
 
-  #### [政策资讯](https://www.investor.org.cn/zczx/)
+#### [政策资讯](https://www.investor.org.cn/zczx/)
 
-  | 栏目                                                                | ID                                                                                   |
-  | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-  | [政策资讯](https://www.investor.org.cn/zczx/)                       | [zczx](https://rsshub.app/investor/zczx)                                             |
-  | [权威资讯](https://www.investor.org.cn/zczx/qwzx/)                  | [zczx/qwzx](https://rsshub.app/investor/zczx/qwzx)                                   |
-  | [证监会发布](https://www.investor.org.cn/zczx/qwzx/zjhfb/)          | [zczx/qwzx/zjhfb](https://rsshub.app/investor/zczx/qwzx/zjhfb)                       |
-  | [证券交易所发布](https://www.investor.org.cn/zczx/qwzx/hsjysfb/)    | [zczx/qwzx/hsjysfb](https://rsshub.app/investor/zczx/qwzx/hsjysfb)                   |
-  | [期货交易所发布](https://www.investor.org.cn/zczx/qwzx/qhjysfb_1/)  | [zczx/qwzx/qhjysfb_1](https://rsshub.app/investor/zczx/qwzx/qhjysfb_1)               |
-  | [协会发布](https://www.investor.org.cn/zczx/qwzx/hyxhfb/)           | [zczx/qwzx/hyxhfb](https://rsshub.app/investor/zczx/qwzx/hyxhfb)                     |
-  | [市场资讯](https://www.investor.org.cn/zczx/market_news/)           | [zczx/market_news](https://rsshub.app/investor/zczx/market_news)                     |
-  | [政策解读](https://www.investor.org.cn/zczx/policy_interpretation/) | [zczx/policy_interpretation](https://rsshub.app/investor/zczx/policy_interpretation) |
-  | [法律法规](https://www.investor.org.cn/zczx/flfg/)                  | [zczx/flfg](https://rsshub.app/investor/zczx/flfg)                                   |
-  | [法律](https://www.investor.org.cn/zczx/flfg/fljsfjs/)              | [zczx/flfg/fljsfjs](https://rsshub.app/investor/zczx/flfg/fljsfjs)                   |
-  | [行政法规及司法解释](https://www.investor.org.cn/zczx/flfg/xzfg/)   | [zczx/flfg/xzfg](https://rsshub.app/investor/zczx/flfg/xzfg)                         |
-  | [部门规章及规范性文件](https://www.investor.org.cn/zczx/flfg/bmgz/) | [zczx/flfg/bmgz](https://rsshub.app/investor/zczx/flfg/bmgz)                         |
-  | [投服中心业务规则](https://www.investor.org.cn/zczx/flfg/tfzxzd/)   | [zczx/flfg/tfzxzd](https://rsshub.app/investor/zczx/flfg/tfzxzd)                     |
-  | [工作交流](https://www.investor.org.cn/zczx/gzjl/)                  | [zczx/gzjl](https://rsshub.app/investor/zczx/gzjl)                                   |
+| 栏目                                                                | ID                                                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [政策资讯](https://www.investor.org.cn/zczx/)                       | [zczx](https://rsshub.app/investor/zczx)                                              |
+| [权威资讯](https://www.investor.org.cn/zczx/qwzx/)                  | [zczx/qwzx](https://rsshub.app/investor/zczx/qwzx)                                    |
+| [证监会发布](https://www.investor.org.cn/zczx/qwzx/zjhfb/)          | [zczx/qwzx/zjhfb](https://rsshub.app/investor/zczx/qwzx/zjhfb)                        |
+| [证券交易所发布](https://www.investor.org.cn/zczx/qwzx/hsjysfb/)    | [zczx/qwzx/hsjysfb](https://rsshub.app/investor/zczx/qwzx/hsjysfb)                    |
+| [期货交易所发布](https://www.investor.org.cn/zczx/qwzx/qhjysfb_1/)  | [zczx/qwzx/qhjysfb\\_1](https://rsshub.app/investor/zczx/qwzx/qhjysfb_1)               |
+| [协会发布](https://www.investor.org.cn/zczx/qwzx/hyxhfb/)           | [zczx/qwzx/hyxhfb](https://rsshub.app/investor/zczx/qwzx/hyxhfb)                      |
+| [市场资讯](https://www.investor.org.cn/zczx/market_news/)           | [zczx/market\\_news](https://rsshub.app/investor/zczx/market_news)                     |
+| [政策解读](https://www.investor.org.cn/zczx/policy_interpretation/) | [zczx/policy\\_interpretation](https://rsshub.app/investor/zczx/policy_interpretation) |
+| [法律法规](https://www.investor.org.cn/zczx/flfg/)                  | [zczx/flfg](https://rsshub.app/investor/zczx/flfg)                                    |
+| [法律](https://www.investor.org.cn/zczx/flfg/fljsfjs/)              | [zczx/flfg/fljsfjs](https://rsshub.app/investor/zczx/flfg/fljsfjs)                    |
+| [行政法规及司法解释](https://www.investor.org.cn/zczx/flfg/xzfg/)   | [zczx/flfg/xzfg](https://rsshub.app/investor/zczx/flfg/xzfg)                          |
+| [部门规章及规范性文件](https://www.investor.org.cn/zczx/flfg/bmgz/) | [zczx/flfg/bmgz](https://rsshub.app/investor/zczx/flfg/bmgz)                          |
+| [投服中心业务规则](https://www.investor.org.cn/zczx/flfg/tfzxzd/)   | [zczx/flfg/tfzxzd](https://rsshub.app/investor/zczx/flfg/tfzxzd)                      |
+| [工作交流](https://www.investor.org.cn/zczx/gzjl/)                  | [zczx/gzjl](https://rsshub.app/investor/zczx/gzjl)                                    |
 
-  #### [投保动态](https://www.investor.org.cn/qybh/)
+#### [投保动态](https://www.investor.org.cn/qybh/)
 
-  | 栏目                                                             | ID                                                                 |
-  | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
-  | [投保动态](https://www.investor.org.cn/qybh/)                    | [qybh](https://rsshub.app/investor/qybh)                           |
-  | [持股行权](https://www.investor.org.cn/qybh/cgxq/)               | [qybh/cgxq](https://rsshub.app/investor/qybh/cgxq)                 |
-  | [行权动态](https://www.investor.org.cn/qybh/cgxq/xqdt/)          | [qybh/cgxq/xqdt](https://rsshub.app/investor/qybh/cgxq/xqdt)       |
-  | [个案行权](https://www.investor.org.cn/qybh/cgxq/gaxq/)          | [qybh/cgxq/gaxq](https://rsshub.app/investor/qybh/cgxq/gaxq)       |
-  | [典型案例](https://www.investor.org.cn/qybh/cgxq/xqal/)          | [qybh/cgxq/xqal](https://rsshub.app/investor/qybh/cgxq/xqal)       |
-  | [维权诉讼](https://www.investor.org.cn/qybh/wqfw/)               | [qybh/wqfw](https://rsshub.app/investor/qybh/wqfw)                 |
-  | [投服中心维权](https://www.investor.org.cn/qybh/wqfw/tfzxwq/)    | [qybh/wqfw/tfzxwq](https://rsshub.app/investor/qybh/wqfw/tfzxwq)   |
-  | [维权路径与机构](https://www.investor.org.cn/qybh/wqfw/wqljyjg/) | [qybh/wqfw/wqljyjg](https://rsshub.app/investor/qybh/wqfw/wqljyjg) |
-  | [纠纷调解](https://www.investor.org.cn/qybh/tjfw/)               | [qybh/tjfw](https://rsshub.app/investor/qybh/tjfw)                 |
-  | [调解动态](https://www.investor.org.cn/qybh/tjfw/tjdt/)          | [qybh/tjfw/tjdt](https://rsshub.app/investor/qybh/tjfw/tjdt)       |
-  | [调解组织](https://www.investor.org.cn/qybh/tjfw/tjzz/)          | [qybh/tjfw/tjzz](https://rsshub.app/investor/qybh/tjfw/tjzz)       |
-  | [调解案例](https://www.investor.org.cn/qybh/tjfw/tjal/)          | [qybh/tjfw/tjal](https://rsshub.app/investor/qybh/tjfw/tjal)       |
+| 栏目                                                             | ID                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [投保动态](https://www.investor.org.cn/qybh/)                    | [qybh](https://rsshub.app/investor/qybh)                           |
+| [持股行权](https://www.investor.org.cn/qybh/cgxq/)               | [qybh/cgxq](https://rsshub.app/investor/qybh/cgxq)                 |
+| [行权动态](https://www.investor.org.cn/qybh/cgxq/xqdt/)          | [qybh/cgxq/xqdt](https://rsshub.app/investor/qybh/cgxq/xqdt)       |
+| [个案行权](https://www.investor.org.cn/qybh/cgxq/gaxq/)          | [qybh/cgxq/gaxq](https://rsshub.app/investor/qybh/cgxq/gaxq)       |
+| [典型案例](https://www.investor.org.cn/qybh/cgxq/xqal/)          | [qybh/cgxq/xqal](https://rsshub.app/investor/qybh/cgxq/xqal)       |
+| [维权诉讼](https://www.investor.org.cn/qybh/wqfw/)               | [qybh/wqfw](https://rsshub.app/investor/qybh/wqfw)                 |
+| [投服中心维权](https://www.investor.org.cn/qybh/wqfw/tfzxwq/)    | [qybh/wqfw/tfzxwq](https://rsshub.app/investor/qybh/wqfw/tfzxwq)   |
+| [维权路径与机构](https://www.investor.org.cn/qybh/wqfw/wqljyjg/) | [qybh/wqfw/wqljyjg](https://rsshub.app/investor/qybh/wqfw/wqljyjg) |
+| [纠纷调解](https://www.investor.org.cn/qybh/tjfw/)               | [qybh/tjfw](https://rsshub.app/investor/qybh/tjfw)                 |
+| [调解动态](https://www.investor.org.cn/qybh/tjfw/tjdt/)          | [qybh/tjfw/tjdt](https://rsshub.app/investor/qybh/tjfw/tjdt)       |
+| [调解组织](https://www.investor.org.cn/qybh/tjfw/tjzz/)          | [qybh/tjfw/tjzz](https://rsshub.app/investor/qybh/tjfw/tjzz)       |
+| [调解案例](https://www.investor.org.cn/qybh/tjfw/tjal/)          | [qybh/tjfw/tjal](https://rsshub.app/investor/qybh/tjfw/tjal)       |
 
-</details>
-`,
+</details>`,
     categories: ['finance'],
     features: {
         requireConfig: false,

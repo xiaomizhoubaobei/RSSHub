@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,19 +13,19 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { lang = 'en' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const baseUrl = 'https://www.deepl.com';
     const targetUrl: string = new URL(`${lang}/blog`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? lang;
+    const language = ($('html').attr('lang') ?? lang) as Language;
 
     let items: DataItem[] = $('h4, h6')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el).parent().parent();
 
             const title: string = $el.find('h4, h6').text();
@@ -77,14 +77,14 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
                 const title: string = $$('h1[data-contentful-field-id="title"]').text();
                 const description: string | undefined =
                     item.description +
                     renderDescription({
-                        description: $$('div.my-redesign-3').html(),
+                        description: $$('div.my-redesign-3').html() ?? undefined,
                     });
                 const pubDateStr: string | undefined = $$('time').first().attr('datetime');
                 const authorsArr: string[] = $$('span[data-contentful-field-id="author"] span').last().text().split(/,\s/);
@@ -252,8 +252,7 @@ To subscribe to [Blog](https://www.deepl.com/en/blog), where the source URL is \
 | [Українська](https://www.deepl.com/uk/blog)            | [uk](https://rsshub.app/deepl/blog/uk)       |
 | [العربية](https://www.deepl.com/ar/blog)               | [ar](https://rsshub.app/deepl/blog/ar)       |
 
-</details>
-`,
+</details>`,
     categories: ['new-media'],
     features: {
         requireConfig: false,
@@ -414,7 +413,6 @@ To subscribe to [Blog](https://www.deepl.com/en/blog), where the source URL is \
 | [Українська](https://www.deepl.com/uk/blog)            | [uk](https://rsshub.app/deepl/blog/uk)       |
 | [العربية](https://www.deepl.com/ar/blog)               | [ar](https://rsshub.app/deepl/blog/ar)       |
 
-</details>
-`,
+</details>`,
     },
 };

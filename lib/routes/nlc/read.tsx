@@ -29,7 +29,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { type = '电子图书' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 15;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 15;
 
     const author = '中国国家图书馆';
 
@@ -44,16 +44,16 @@ async function handler(ctx) {
         .slice(0, limit)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const title = item.find('span').first().text();
+            const title = $item.find('span').first().text();
 
             return {
                 title,
-                link: item.prop('onclick').match(/openOutRes\('1','(.*?)','1',/)[1],
+                link: $item.prop('onclick').match(/openOutRes\('1','(.*?)','1',/)![1],
                 description: renderToString(
                     <>
-                        {item
+                        {$item
                             .find('div.pic img')
                             .toArray()
                             .map((img) => {
@@ -66,29 +66,29 @@ async function handler(ctx) {
                                     </figure>
                                 ) : null;
                             })}
-                        {item.find('div.txt').prop('title') ? <p>{item.find('div.txt').prop('title')}</p> : null}
+                        {$item.find('div.txt').prop('title') ? <p>{$item.find('div.txt').prop('title')}</p> : null}
                     </>
                 ),
                 author,
                 category: [type],
                 guid: `nlc-read#${
-                    item
+                    $item
                         .prev()
                         .prop('onclick')
-                        .match(/\('(\d+)'\)/)[1]
+                        .match(/\('(\d+)'\)/)![1]
                 }`,
             };
         });
 
     const image = new URL('static/style/css/images/YMH_home_main_logo.png', rootUrl).href;
-    const icon = new URL($('link[rel="shortcut icon"]').prop('href'), rootUrl).href;
+    const icon = new URL($('link[rel="shortcut icon"]').prop('href')!, rootUrl).href;
 
     return {
         item: items,
         title: `${$('title').text()} - ${type}`,
         link: currentUrl,
         description: type,
-        language: 'zh',
+        language: 'zh' as const,
         image,
         icon,
         logo: icon,

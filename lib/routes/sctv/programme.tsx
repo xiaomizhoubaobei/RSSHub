@@ -23,9 +23,9 @@ export const route: Route = {
     maintainers: ['nczitzk'],
     handler,
     description: `::: tip
-  参数 **是否仅获取完整视频** 设置为 \`true\` \`yes\` \`t\` \`y\` 等值后，路由仅返回当期节目的完整视频，而不会返回节目所提供的节选视频。
+参数 **是否仅获取完整视频** 设置为 \`true\` \`yes\` \`t\` \`y\` 等值后，路由仅返回当期节目的完整视频，而不会返回节目所提供的节选视频。
 
-  查看更多电视节目请前往 [电视回放](https://www.sctv.com/column/list)
+查看更多电视节目请前往 [电视回放](https://www.sctv.com/column/list)
 :::
 
 | 节目                   | id      |
@@ -93,14 +93,12 @@ async function handler(ctx) {
         url: apiUrl,
     });
 
-    let items = [];
-
     const array = response.data.data.programmeArray.slice(0, limit).map((list) => ({
         guid: list.id,
         link: `${apiRootUrl}${list.programmeListUrl}`,
     }));
 
-    await Promise.all(
+    const itemsPerDate = await Promise.all(
         array.map((list) =>
             cache.tryGet(list.link, async () => {
                 const detailResponse = await got({
@@ -112,7 +110,7 @@ async function handler(ctx) {
                     guid: item.id,
                     title: item.programmeTitle,
                     link: item.programmeUrl,
-                    pubDate: timezone(parseDate(item.pubTime), +8),
+                    pubDate: timezone(parseDate(item.pubTime), 8),
                     description: renderToString(
                         <video poster={item.programmeImage} controls>
                             <source src={item.programmeUrl} type="video/mp4" />
@@ -120,16 +118,14 @@ async function handler(ctx) {
                     ),
                 }));
 
-                let currentFullItems = [];
+                const currentFullItems = isFull ? currentItems.filter((item) => /（\d{4}(?:\.\d{2}){2}）/.test(item.title)) : [];
 
-                if (isFull) {
-                    currentFullItems = currentItems.filter((item) => /（\d{4}(?:\.\d{2}){2}）/.test(item.title));
-                }
-
-                items = [...items, ...(currentFullItems.length === 0 ? currentItems : currentFullItems)];
+                return currentFullItems.length === 0 ? currentItems : currentFullItems;
             })
         )
     );
+
+    const items = itemsPerDate.flat();
 
     response = await got({
         method: 'get',
@@ -138,11 +134,13 @@ async function handler(ctx) {
 
     let name, cover;
     for (const p of response.data.data.programme_official) {
-        if (p.programmeId === id) {
-            name = p.programmeName;
-            cover = p.programmeCover;
-            break;
+        if (p.programmeId !== id) {
+            continue;
         }
+
+        name = p.programmeName;
+        cover = p.programmeCover;
+        break;
     }
 
     return {

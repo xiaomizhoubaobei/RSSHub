@@ -26,28 +26,33 @@ export const route: Route = {
 此路由僅支援 \`jp.mercari.com\`，不支援 \`tw.mercari.com\` 和 \`hk.mercari.com\`。
 
 **注意：** 不同站點的查詢參數格式不同
+
 - 日本: \`keyword=シャツ&order=desc&sort=created_time&status=on_sale\`
 - 台灣: \`keyword=シャツ&sort=new&status=in-stock&availability=1\`
+
 :::`,
 };
+
+const sortMap = new Map(Object.entries(MercariSort));
+const orderMap = new Map(Object.entries(MercariOrder));
+const statusMap = new Map([
+    ['on_sale', MercariStatus.onsale],
+    ['sold_out|trading', MercariStatus.soldout],
+]);
 
 function parseSearchQuery(queryString: string) {
     const params = new URLSearchParams(queryString);
 
     const keyword = params.get('keyword') || '';
-    const sort = MercariSort[params.get('sort') as keyof typeof MercariSort] || MercariSort.default;
-    const order = MercariOrder[params.get('order') as keyof typeof MercariOrder] || MercariOrder.desc;
+    const sort = sortMap.get(params.get('sort') ?? '') || MercariSort.default;
+    const order = orderMap.get(params.get('order') ?? '') || MercariOrder.desc;
 
-    const statusMap: Record<string, keyof typeof MercariStatus> = {
-        on_sale: 'onsale',
-        'sold_out|trading': 'soldout',
-    };
     const statusArray =
         params
             .get('status')
             ?.split(',')
-            .map((s) => MercariStatus[statusMap[s]])
-            .filter(Boolean) || [];
+            .map((s) => statusMap.get(s))
+            .filter((status) => status !== undefined) || [];
 
     const attributeIds = [
         '7bd3eacc-ae45-4d73-bc57-a611c9432014', // 色
@@ -87,7 +92,7 @@ async function handler(ctx) {
     const { keyword, sort, order, status, options } = parseSearchQuery(queryString);
     const searchItems = (await fetchSearchItems(sort, order, status, keyword, options)).items;
 
-    const items = await Promise.all(searchItems.map((item) => cache.tryGet(`mercari:${item.id}:${item.updated}`, async () => await fetchItemDetail(item.id, item.itemType).then((detail) => formatItemDetail(detail)))));
+    const items = await Promise.all(searchItems.map((item) => cache.tryGet(`mercari:${item.id}:${item.updated}`, async () => formatItemDetail(await fetchItemDetail(item.id, item.itemType)))));
 
     return {
         title: `${keyword} の検索結果`,

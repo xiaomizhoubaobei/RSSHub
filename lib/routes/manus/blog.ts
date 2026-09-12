@@ -50,16 +50,18 @@ async function handler() {
     let blogList;
     const lines = renderData.split('\n');
     for (const line of lines) {
-        if (line.includes('{"blogList":{"$typeName"')) {
-            const jsonStr = line.slice(Math.max(0, line.indexOf('{"blogList":{"$typeName"')));
-            const lastBrace = jsonStr.lastIndexOf('}');
-            try {
-                const parsed = JSON.parse(jsonStr.slice(0, Math.max(0, lastBrace + 1)));
-                blogList = parsed.blogList;
-                break;
-            } catch {
-                // Ignore parse errors and try next line if any
-            }
+        if (!line.includes('{"blogList":{"$typeName"')) {
+            continue;
+        }
+
+        const jsonStr = line.slice(Math.max(0, line.indexOf('{"blogList":{"$typeName"')));
+        const lastBrace = jsonStr.lastIndexOf('}');
+        try {
+            const parsed = JSON.parse(jsonStr.slice(0, Math.max(0, lastBrace + 1)));
+            blogList = parsed.blogList;
+            break;
+        } catch {
+            // Ignore parse errors and try next line if any
         }
     }
 
@@ -80,31 +82,30 @@ async function handler() {
     );
 
     const items: DataItem[] = await Promise.all(
-        list.map(
-            (item) =>
-                cache.tryGet(String(item.link), async () => {
-                    const contentUrl = item._contentUrl;
-                    let description = String(item.description);
-                    if (contentUrl) {
-                        try {
-                            let contentText = await ofetch(contentUrl, { responseType: 'text' });
-                            // Fix video embeds: Manus uses ![type=manus_video](url) which markdown-it renders as <img>
-                            contentText = contentText.replaceAll(/!\[.*?\]\((.+?\.(mp4|mov|webm))\)/gi, '<video controls preload="metadata"><source src="$1"></video>');
-                            // Parse markdown to HTML
-                            description = md.render(contentText);
-                        } catch {
-                            // Fallback to description from list if fetch fails
-                        }
+        list.map((item) =>
+            cache.tryGet<DataItem>(String(item.link), async () => {
+                const contentUrl = item._contentUrl;
+                let description = String(item.description);
+                if (contentUrl) {
+                    try {
+                        let contentText = await ofetch(contentUrl, { responseType: 'text' });
+                        // Fix video embeds: Manus uses ![type=manus_video](url) which markdown-it renders as <img>
+                        contentText = contentText.replaceAll(/!\[.*?\]\((.+?\.(mp4|mov|webm))\)/gi, '<video controls preload="metadata"><source src="$1"></video>');
+                        // Parse markdown to HTML
+                        description = md.render(contentText);
+                    } catch {
+                        // Fallback to description from list if fetch fails
                     }
+                }
 
-                    // Remove the temporary property to avoid pollution
-                    delete item._contentUrl;
+                // Remove the temporary property to avoid pollution
+                delete item._contentUrl;
 
-                    return {
-                        ...item,
-                        description,
-                    };
-                }) as Promise<DataItem>
+                return {
+                    ...item,
+                    description,
+                };
+            })
         )
     );
 

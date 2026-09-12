@@ -3,6 +3,7 @@ import type { Context } from 'hono';
 
 import { config } from '@/config';
 import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Data } from '@/types';
 import cache from '@/utils/cache';
 import logger from '@/utils/logger';
 import ofetch from '@/utils/ofetch';
@@ -15,7 +16,7 @@ const GHOST_API_BASE = 'https://production-initium-media.ghost.io/ghost/api/cont
 const GHOST_CONTENT_KEY = 'a44a0409c222328d39e2c75293';
 
 // Old channel slugs → Ghost tag slugs mapping
-const CHANNEL_TAG_MAP: Record<string, string> = {
+export const CHANNEL_TAG_MAP = {
     latest: '', // no filter = latest
     whatsnew: 'whatsnew',
     'news-brief': 'whatsnew',
@@ -29,13 +30,13 @@ const CHANNEL_TAG_MAP: Record<string, string> = {
     report: 'report',
     'daily-brief': 'daily-brief',
     weekly: 'weekly',
-};
+} satisfies Record<string, string>;
 
 // Ghost uses a language-based tagging system:
 //   - zh-hant (Traditional Chinese): uses base tag slug, e.g. "whatsnew", with internal tag #zh-hant
 //   - zh-hans (Simplified Chinese): uses suffixed tag slug, e.g. "whatsnew-zh-hans", with internal tag #zh-hans
 // When no language is specified, we return all posts (both zh-hans and zh-hant mixed).
-function applyLanguageToTagSlug(tagSlug: string, language: string): string {
+export function applyLanguageToTagSlug(tagSlug: string, language: string): string {
     if (language === 'zh-hans') {
         return `${tagSlug}-zh-hans`;
     }
@@ -64,7 +65,7 @@ interface GhostPost {
     primary_tag?: { name: string; slug: string };
 }
 
-interface GhostResponse {
+type GhostResponse = {
     posts: GhostPost[];
     meta: {
         pagination: {
@@ -74,15 +75,15 @@ interface GhostResponse {
             total: number;
         };
     };
-}
+};
 
-async function ghostFetch(endpoint: string, params: Record<string, string> = {}): Promise<any> {
+export async function ghostFetch(endpoint: string, params: Record<string, string> = {}): Promise<GhostResponse> {
     const url = new URL(`${GHOST_API_BASE}/${endpoint}/`);
     url.searchParams.set('key', GHOST_CONTENT_KEY);
     for (const [k, v] of Object.entries(params)) {
         url.searchParams.set(k, v);
     }
-    return await ofetch(url.href);
+    return await ofetch<GhostResponse>(url.href);
 }
 
 async function scrapeFullArticle(url: string, cookie: string): Promise<string | null> {
@@ -160,7 +161,7 @@ function cleanGhostHtml(html: string): string {
     return $.html();
 }
 
-async function postsToItems(posts: GhostPost[]) {
+export async function postsToItems(posts: GhostPost[]) {
     const memberCookie = config.initium?.memberCookie;
 
     const items = await Promise.all(
@@ -172,7 +173,7 @@ async function postsToItems(posts: GhostPost[]) {
 
             // For paid articles with truncated content, scrape full text if cookie available
             if (!post.access && memberCookie) {
-                const fullHtml = (await cache.tryGet(`theinitium:full:${post.slug}`, () => scrapeFullArticle(post.url, memberCookie), config.cache.contentExpire)) as string | null;
+                const fullHtml = (await cache.tryGet(`theinitium:full:${post.slug}`, () => scrapeFullArticle(post.url, memberCookie) as Promise<string>, config.cache.contentExpire)) as string | null;
                 if (fullHtml) {
                     description = cleanGhostHtml(fullHtml);
                 }
@@ -195,7 +196,7 @@ async function postsToItems(posts: GhostPost[]) {
     return items;
 }
 
-export const processFeed = async (model: string, ctx: Context) => {
+export const processFeed = async (model: string, ctx: Context): Promise<Data> => {
     const type = ctx.req.param('type') ?? 'latest';
     const language = ctx.req.param('language') ?? '';
 
@@ -240,21 +241,18 @@ export const processFeed = async (model: string, ctx: Context) => {
 
     const cacheKey = `theinitium:ghost:${model}:${type}:${language}`;
     // Use routeExpire (5 min default) and refresh=false so cache actually expires
-    const data = (await cache.tryGet(
+    const data = await cache.tryGet(
         cacheKey,
         async () => {
-            const params: Record<string, string> = {
+            const baseParams = {
                 include: 'tags,authors',
                 limit: '20',
             };
-            if (filter) {
-                params.filter = filter;
-            }
-            return await ghostFetch('posts', params);
+            return await ghostFetch('posts', filter ? { ...baseParams, filter } : baseParams);
         },
         config.cache.routeExpire,
         false
-    )) as GhostResponse;
+    );
 
     const items = await postsToItems(data.posts);
 

@@ -1,7 +1,6 @@
 import type { Context } from 'hono';
-import type { Genre, NovelTypeParam, Order, SearchParams } from 'narou';
+import type { SearchParams } from 'narou';
 import { GenreNotation, NarouNovelFetch, R18Site, SearchBuilder, SearchBuilderR18 } from 'narou';
-import type { Join } from 'narou/util/type';
 import queryString from 'query-string';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
@@ -18,7 +17,7 @@ export const route: Route = {
     parameters: {
         sub: {
             description: 'The target Syosetu subsite.',
-            options: Object.entries(SyosetuSub).map(([, value]) => ({
+            options: Object.values(SyosetuSub).map((value) => ({
                 value,
                 label: syosetuSubToJapanese[value],
             })),
@@ -79,10 +78,10 @@ function mapToSearchParams(query: string, limit: number): SearchParams {
         minlen: setIfExists(params.minlen),
         maxlen: setIfExists(params.maxlen),
 
-        type: setIfExists(params.type as NovelTypeParam),
-        order: setIfExists(params.order as Order),
-        genre: setIfExists(params.genre as Join<Genre> | Genre),
-        nocgenre: setIfExists(params.nocgenre as Join<R18Site> | R18Site),
+        type: setIfExists(params.type),
+        order: setIfExists(params.order),
+        genre: setIfExists(params.genre),
+        nocgenre: setIfExists(params.nocgenre),
     };
 
     if (params.mintime || params.maxtime) {
@@ -109,7 +108,7 @@ function createNovelSearchBuilder(sub: string, searchParams: SearchParams) {
             // If either 女性向け/BL is chosen, nocgenre will be in query string
             // If no specific genre selected, include both
             if (!r18Params.nocgenre) {
-                r18Params.nocgenre = [R18Site.MoonLight, R18Site.MoonLightBL].join('-') as Join<R18Site>;
+                r18Params.nocgenre = `${R18Site.MoonLight}-${R18Site.MoonLightBL}`;
             }
             break;
         case SyosetuSub.MIDNIGHT:
@@ -139,7 +138,7 @@ async function handler(ctx: Context): Promise<Data> {
         // pubDate: novel.general_lastup,
         author: novel.writer,
         // Split by whitespace characters(\s), slash(/), full-width slash(／)
-        category: novel.keyword.split(/[\s/\uFF0F]/).filter(Boolean),
+        category: novel.keyword.split(/[\s/\u{FF0F}]/u).filter(Boolean),
     }));
 
     const searchTerms: string[] = [];

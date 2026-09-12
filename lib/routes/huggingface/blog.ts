@@ -62,7 +62,7 @@ async function handler() {
             name: author.fullname || author.name,
         })),
         upvotes: blog.upvotes,
-        image: blog.thumbnail ? new URL(blog.thumbnail, 'https://huggingface.co').toString() : undefined,
+        image: blog.thumbnail ? new URL(blog.thumbnail, 'https://huggingface.co').href : undefined,
         category: blog.tags,
     }));
 
@@ -74,7 +74,7 @@ async function handler() {
                 $('.mb-4, .mb-6, .not-prose, h1').remove();
                 return {
                     ...item,
-                    description: $('.blog-content').html() ?? undefined,
+                    description: $('.blog-content').html(),
                 };
             })
         )

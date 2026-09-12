@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -34,7 +34,7 @@ export const route: Route = {
     url: '91porn.com/index.php',
     description: `| English | 简体中文 | 繁體中文 |
 | ------- | -------- | -------- |
-| en_US  | cn_CN   | zh_ZH   |`,
+| en\\_US  | cn\\_CN   | zh\\_ZH   |`,
 };
 
 async function handler(ctx) {
@@ -56,25 +56,25 @@ async function handler(ctx) {
 
     let items = $('.row .well')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { poster?: string } => {
+            const $item = $(item);
             return {
-                title: item.find('.video-title').text(),
-                link: item.find('a').attr('href'),
-                poster: item.find('.img-responsive').attr('src'),
+                title: $item.find('.video-title').text(),
+                link: $item.find('a').attr('href'),
+                poster: $item.find('.img-responsive').attr('src'),
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(`91porn:${lang}:${new URL(item.link).searchParams.get('viewkey')}`, async () => {
+            cache.tryGet(`91porn:${lang}:${new URL(item.link!).searchParams.get('viewkey')}`, async () => {
                 const { data } = await got(item.link);
                 const $ = load(data);
 
                 item.pubDate = parseDate($('.title-yakov').eq(0).text(), 'YYYY-MM-DD');
                 item.description = renderIndexDescription({
-                    link: item.link,
-                    poster: item.poster,
+                    link: item.link!,
+                    poster: item.poster!,
                 });
                 item.author = $('.title-yakov a span').text();
                 delete item.poster;

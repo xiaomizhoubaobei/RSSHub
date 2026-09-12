@@ -1,18 +1,19 @@
-import type { CheerioAPI } from 'cheerio';
+import type { Cheerio, CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
+import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 
 import { processItems, rootUrl } from './util';
 
-const actions: { [key: string]: string } = {
-    questions: '101',
-    answers: '201',
-};
+const actions = new Map([
+    ['questions', '101'],
+    ['answers', '201'],
+]);
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id, type = 'questions' } = ctx.req.param();
@@ -21,7 +22,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
         throw new InvalidParameterError('请填入合法的类型 id，可选值为 `questions` 即 `主题` 或 `answer` 即 `回复`，默认为空，即全部');
     }
 
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const targetUrl: string = new URL(`/people/${id}`, rootUrl).href;
 
@@ -34,14 +35,14 @@ export const handler = async (ctx: Context): Promise<Data> => {
         throw new InvalidParameterError('请填入合法的用户 id，参见用户排名 https://www.jisilu.cn/users/');
     }
 
-    const apiUrl: string = new URL(`people/ajax/user_actions/uid-${userId}__actions-${actions[type]}__page-1`, rootUrl).href;
+    const apiUrl: string = new URL(`people/ajax/user_actions/uid-${userId}__actions-${actions.get(type)}__page-1`, rootUrl).href;
 
     const detailResponse = await ofetch(apiUrl);
     const $$: CheerioAPI = load(detailResponse);
 
-    const items: DataItem[] = await processItems($$, $$('*'), limit);
+    const items: DataItem[] = await processItems($$, $$('*') as Cheerio<Element>, limit);
 
-    const author = $('meta[name="keywords"]').prop('content').split(/,/)[0];
+    const author = $('meta[name="keywords"]').prop('content').split(/,/, 1)[0];
     const feedImage = $('div.aw-logo img').prop('src');
 
     return {
@@ -52,7 +53,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
         allowEmpty: true,
         image: feedImage,
         author,
-        language,
+        language: language as Language,
         id: targetUrl,
     };
 };
@@ -74,8 +75,7 @@ export const route: Route = {
 
 ::: tip
 前往 [用户排名](https://www.jisilu.cn/users/) 查看更多用户。
-:::
-`,
+:::`,
     categories: ['finance'],
     features: {
         requireConfig: false,

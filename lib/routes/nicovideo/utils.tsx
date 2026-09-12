@@ -7,13 +7,13 @@ import ofetch from '@/utils/ofetch';
 
 import type { Essential, Mylist, UserInfo, VideoItem } from './types';
 
-export const getUserInfoById = (id: string) => cache.tryGet(`nicovideo:user:${id}`, () => ofetch<UserInfo>(`https://embed.nicovideo.jp/users/${id}`)) as Promise<UserInfo>;
+export const getUserInfoById = (id: string) => cache.tryGet<UserInfo>(`nicovideo:user:${id}`, () => ofetch<UserInfo>(`https://embed.nicovideo.jp/users/${id}`));
 
 export const getUserVideosById = (id: string) =>
-    cache.tryGet(
+    cache.tryGet<VideoItem[]>(
         `nicovideo:user:${id}:videos`,
         async () => {
-            const { data } = await ofetch(`https://nvapi.nicovideo.jp/v3/users/${id}/videos`, {
+            const { data } = await ofetch<{ data: { items: VideoItem[] } }>(`https://nvapi.nicovideo.jp/v3/users/${id}/videos`, {
                 headers: {
                     'X-Frontend-Id': '6',
                 },
@@ -30,7 +30,7 @@ export const getUserVideosById = (id: string) =>
         },
         config.cache.routeExpire,
         false
-    ) as Promise<VideoItem[]>;
+    );
 
 export const getMylist = (id: string): Promise<Mylist> =>
     cache.tryGet<Mylist>(
@@ -64,7 +64,7 @@ export const renderVideo = (video: Essential, embed: boolean) =>
             {embed ? (
                 <iframe src={`https://embed.nicovideo.jp/watch/${video.id}`} style="top: 0; left: 0; width: 100%; height: 100%; position: absolute; border: 0;" allowfullscreen />
             ) : (
-                <img src={video.thumbnail.nHdUrl || video.thumbnail.largeUrl || video.thumbnail.middleUrl} />
+                <img src={(video.thumbnail.nHdUrl || video.thumbnail.largeUrl || video.thumbnail.middleUrl) ?? undefined} />
             )}
             <br />
             {video.shortDescription ? <>{raw(video.shortDescription)}</> : null}

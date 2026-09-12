@@ -30,11 +30,10 @@ export const route: Route = {
         const { id } = ctx.req.param();
         const baseUrl = 'https://comic-fuz.com';
         const openUrl = `${baseUrl}/magazine/${id}`;
-        const imgUrl = `https://img.comic-fuz.com`;
+        const imgUrl = 'https://img.comic-fuz.com';
 
         const response = await ofetch(openUrl, {
             headers: {
-                Referer: 'https://comic-fuz.com/',
                 'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
             },
         });
@@ -68,7 +67,7 @@ export const route: Route = {
                 thumb = `${imgUrl}${thumb}`;
             }
 
-            const rawDate = item.updatedDate ? item.updatedDate.replace(/\s*発売/, '').trim() : '';
+            const rawDate = item.updatedDate ? item.updatedDate.replace(/\s*発売/, '') : '';
 
             return {
                 title: `${magazineTitle} - ${item.magazineIssueName}`,

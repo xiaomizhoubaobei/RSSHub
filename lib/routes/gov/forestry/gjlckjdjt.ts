@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -8,7 +8,7 @@ import { parseDate } from '@/utils/parse-date';
 import { renderDescription } from './templates/description';
 
 export const route: Route = {
-    path: '/forestry/gjlckjdjt/:category?',
+    path: '/gjlckjdjt/:category?',
     categories: ['government'],
     example: '/gov/forestry/gjlckjdjt',
     parameters: { category: '分类，见下表，默认为全部' },
@@ -35,7 +35,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { category = 'gjlckjdjt' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'http://www.forestry.gov.cn';
     const currentUrl = new URL(`${category}.jhtml`, rootUrl).href;
@@ -47,11 +47,11 @@ async function handler(ctx) {
     let items = $('a.items')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { link: string; description: string } => {
+            const $item = $(item);
 
-            const title = item.find('p.name').text();
-            const link = new URL(item.prop('href'), rootUrl).href;
+            const title = $item.find('p.name').text();
+            const link = new URL($item.prop('href')!, rootUrl).href;
             const pubDateMatches = link.match(/\/\d{8}\//);
 
             return {
@@ -59,7 +59,7 @@ async function handler(ctx) {
                 link,
                 description: renderDescription({
                     image: {
-                        src: item.find('img').prop('src'),
+                        src: $item.find('img').prop('src'),
                         alt: title,
                     },
                 }),
@@ -75,19 +75,19 @@ async function handler(ctx) {
                 const content = load(detailResponse);
 
                 content('p').each((_, e) => {
-                    e = content(e);
-                    if (e.find('img, video, embed.edui-faked-video').length === 0 && /^\s*$/.test(e.text())) {
-                        e.remove();
+                    const $e = content(e);
+                    if ($e.find('img, video, embed.edui-faked-video').length === 0 && /^\s*$/.test($e.text())) {
+                        $e.remove();
                     }
                 });
 
                 content('video, embed.edui-faked-video').each((_, e) => {
-                    e = content(e);
+                    const $e = content(e);
 
-                    const src = e.prop('src');
-                    item.enclosure_url = item.enclosure_url ?? src;
+                    const src = $e.prop('src');
+                    item.enclosure_url ??= src;
 
-                    e.replaceWith(
+                    $e.replaceWith(
                         renderDescription({
                             video: {
                                 src,
@@ -110,11 +110,13 @@ async function handler(ctx) {
 
     const icon = new URL('favicon.ico', rootUrl).href;
 
+    const language = $('html').prop('lang') as Language;
+
     return {
         item: items,
         title: $('title').text(),
         link: currentUrl,
-        language: $('html').prop('lang'),
+        language,
         image: new URL('r/cms/www/default/zhuanti/2021djt/images/top.png', rootUrl).href,
         icon,
         logo: icon,

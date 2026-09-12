@@ -1,13 +1,13 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
 export const route: Route = {
-    path: ['/sh/wgj/:page?', '/shanghai/wgj/:page?'],
+    path: '/wgj/:page?',
     categories: ['government'],
     example: '/gov/sh/wgj',
     parameters: { page: '页数，默认第 1 页' },
@@ -22,10 +22,10 @@ export const route: Route = {
     radar: [
         {
             source: ['wsbs.wgj.sh.gov.cn/'],
-            target: '/sh/wgj',
+            target: '/wgj',
         },
     ],
-    name: '上海市文旅局审批公告',
+    name: '文旅局审批公告',
     maintainers: ['gideonsenku'],
     handler,
     url: 'wsbs.wgj.sh.gov.cn/',
@@ -48,16 +48,16 @@ async function handler(ctx) {
     const $ = load(response.data);
     const list = $('#div_md > table > tbody > tr > td:nth-child(1) > a')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
             return {
-                title: item.prop('innerText').replaceAll(/\s/g, ''),
-                link: item.attr('href'),
+                title: $item.prop('innerText')!.replaceAll(/\s/g, ''),
+                link: $item.attr('href'),
             };
         });
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: baseUrl + item.link,

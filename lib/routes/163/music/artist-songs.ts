@@ -12,10 +12,17 @@ export const route: Route = {
         requireConfig: false,
         requirePuppeteer: false,
         antiCrawler: false,
+        supportRadar: true,
         supportBT: false,
         supportPodcast: false,
         supportScihub: false,
     },
+    radar: [
+        {
+            source: ['music.163.com/artist'],
+            target: '/music/artist/songs/:id',
+        },
+    ],
     name: '歌手歌曲',
     maintainers: ['ZhongMingKun'],
     handler,
@@ -24,10 +31,7 @@ export const route: Route = {
 async function handler(ctx) {
     const id = ctx.req.param('id');
 
-    const { data } = await got(`https://music.163.com/api/v1/artist/songs`, {
-        headers: {
-            Referer: 'https://music.163.com/',
-        },
+    const { data } = await got('https://music.163.com/api/v1/artist/songs', {
         searchParams: {
             id,
             private_cloud: 'true',

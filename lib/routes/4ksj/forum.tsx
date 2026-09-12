@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import md5 from '@/utils/md5';
 import ofetch from '@/utils/ofetch';
@@ -60,9 +60,9 @@ export const route: Route = {
     example: '/4ksj/4k-uhd-1',
     parameters: { id: '分类 id，默认为最新4K电影' },
     description: `::: tip
-  若订阅 [最新 4K 电影](https://www.4ksj.com/4k-uhd-1.html)，网址为 \`https://www.4ksj.com/4k-uhd-1.html\`。截取 \`https://www.4ksj.com/\` 到末尾 \`.html\` 的部分 \`4k-uhd-1\` 作为参数，此时路由为 [\`/4ksj/4k-uhd-1\`](https://rsshub.app/4ksj/4k-uhd-1)。
+若订阅 [最新 4K 电影](https://www.4ksj.com/4k-uhd-1.html)，网址为 \`https://www.4ksj.com/4k-uhd-1.html\`。截取 \`https://www.4ksj.com/\` 到末尾 \`.html\` 的部分 \`4k-uhd-1\` 作为参数，此时路由为 [\`/4ksj/4k-uhd-1\`](https://rsshub.app/4ksj/4k-uhd-1)。
 
-  若订阅子分类 [Dolby Vision 动作 4K 电影](https://www.4ksj.com/4k-uhd-s7-display-3-dytypes-1-1.html)，网址为 \`https://www.4ksj.com/4k-uhd-s7-display-3-dytypes-1-1.html\`。截取 \`https://www.4ksj.com/forum-\` 到末尾 \`.html\` 的部分 \`4kdianying-s7-dianyingbiaozhun-3-dytypes-9-1\` 作为参数，此时路由为 [\`/4ksj/4k-uhd-s7-display-3-dytypes-1-1\`](https://rsshub.app/4ksj/4k-uhd-s7-display-3-dytypes-1-1)。
+若订阅子分类 [Dolby Vision 动作 4K 电影](https://www.4ksj.com/4k-uhd-s7-display-3-dytypes-1-1.html)，网址为 \`https://www.4ksj.com/4k-uhd-s7-display-3-dytypes-1-1.html\`。截取 \`https://www.4ksj.com/forum-\` 到末尾 \`.html\` 的部分 \`4kdianying-s7-dianyingbiaozhun-3-dytypes-9-1\` 作为参数，此时路由为 [\`/4ksj/4k-uhd-s7-display-3-dytypes-1-1\`](https://rsshub.app/4ksj/4k-uhd-s7-display-3-dytypes-1-1)。
 :::`,
     categories: ['multimedia'],
 };
@@ -92,17 +92,18 @@ async function handler(ctx) {
 
     const $ = load(decoder.decode(response));
 
-    const language = 'zh';
+    const language = 'zh' as const satisfies Language;
     const image = $('div.nexlogo img').prop('src');
 
     let items = $('div.nex_cmo_piv a')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { link: string } => {
+            const $item = $(item);
 
             return {
-                link: new URL(item.prop('href'), rootUrl).href,
+                link: new URL($item.prop('href')!, rootUrl).href,
+                title: '',
             };
         });
 
@@ -114,7 +115,7 @@ async function handler(ctx) {
             const scriptUrl = new URL(scriptPath, rootUrl).href;
 
             const scriptResponse = await ofetch(scriptUrl);
-            const key = scriptResponse.match(/{var key="(.*?)"/)?.[1];
+            const key = scriptResponse.match(/\{var key="(.*?)"/)?.[1];
             const value = scriptResponse.match(/",value="(.*?)"/)?.[1];
             const getPath = scriptResponse.match(/\.get\("(.*?&key=)"/)?.[1];
 
@@ -125,7 +126,7 @@ async function handler(ctx) {
             const cookieResponse = await ofetch.raw(`${rootUrl}${getPath}${key}&value=${md5(stringtoHex(value))}`);
             return cookieResponse.headers
                 .getSetCookie()
-                .map((c) => c.split(';')[0])
+                .map((c) => c.split(';', 1)[0])
                 .join('; ');
         });
 
@@ -137,7 +138,7 @@ async function handler(ctx) {
                 const detailResponse = await ofetch(item.link, {
                     responseType: 'arrayBuffer',
                     headers: {
-                        Cookie: cookie as string,
+                        Cookie: cookie,
                     },
                 });
 
@@ -145,28 +146,28 @@ async function handler(ctx) {
 
                 $$('div.nex_drama_intros em').first().remove();
                 $$('strong font').each((_, el) => {
-                    el = $$(el);
+                    const $el = $$(el);
 
-                    el.parent().remove();
+                    $el.parent().remove();
                 });
 
                 const title = $$('div.nex_drama_Top h5').text();
                 const description = $$('div.nex_drama_intros').html();
                 const picture =
                     $$('div.nex_drama_pic')
-                        .html()
+                        .html()!
                         .match(/background:url\((.*?)\)/)?.[1] ?? '';
 
                 const details = $$('li.nex_drama_Detail_li, li.nex_drama_Detail_lis dd')
                     .toArray()
                     .map((li) => {
-                        li = $$(li);
+                        const $li = $$(li);
 
-                        const key = li
+                        const key = $li
                             .find('em')
                             .text()
                             .replaceAll(/：|\s/g, '');
-                        const value = li.find('span').length === 0 ? li.contents().last().text().trim() : li.find('span').text().trim();
+                        const value = $li.find('span').length === 0 ? $li.contents().last().text().trim() : $li.find('span').text().trim();
 
                         return { [key]: value };
                     });
@@ -177,18 +178,18 @@ async function handler(ctx) {
                         ? $$('td.t_f strong')
                               .toArray()
                               .map((l) => {
-                                  l = $$(l);
+                                  const $l = $$(l);
 
-                                  const title = l.contents().first().text();
-                                  const link = l.next().prop('href') ?? l.nextUntil('a').next().prop('href');
+                                  const title = $l.contents().first().text();
+                                  const link = $l.next().prop('href') ?? $l.nextUntil('a').next().prop('href');
 
-                                  item.enclosure_url = item.enclosure_url ?? link;
-                                  item.enclosure_type = item.enclosure_type ?? 'application/x-bittorrent';
-                                  item.enclosure_title = item.enclosure_title ?? title;
+                                  item.enclosure_url ??= link;
+                                  item.enclosure_type ??= 'application/x-bittorrent';
+                                  item.enclosure_title ??= title;
 
                                   return {
                                       title,
-                                      tags: l
+                                      tags: $l
                                           .contents()
                                           .last()
                                           .text()
@@ -199,15 +200,15 @@ async function handler(ctx) {
                         : $$('div.newfujian')
                               .toArray()
                               .map((l) => {
-                                  l = $$(l);
+                                  const $l = $$(l);
 
                                   return {
-                                      title: l.find('p.filename').prop('title') || l.find('p.filename').text(),
-                                      tags: l
+                                      title: $l.find('p.filename').prop('title') || $l.find('p.filename').text(),
+                                      tags: $l
                                           .find('div.fileaq')
                                           .text()
                                           .match(/【(.*?)】/g),
-                                      link: l.find('div.down_2 a').prop('href'),
+                                      link: $l.find('div.down_2 a').prop('href'),
                                   };
                               });
 
@@ -237,8 +238,8 @@ async function handler(ctx) {
                     info: $$('div.nex_drama_sums').html(),
                     links,
                 });
-                item.pubDate = timezone(parseDate(pubDate, 'YYYY-M-D HH:mm:ss'), +8);
-                item.category = Object.values(mergedDetails)
+                item.pubDate = timezone(parseDate(pubDate, 'YYYY-M-D HH:mm:ss'), 8);
+                item.category = Object.values<string>(mergedDetails)
                     .flatMap((c) => c.split(/\s/))
                     .filter(Boolean);
                 item.author = mergedDetails['导演'];

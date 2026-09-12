@@ -56,11 +56,11 @@ interface Creator {
 }
 
 export function processWork(work: Work): DataItem | null {
-    if (!work || typeof work !== 'object' || work.private === true) {
+    if (!work || work.private === true) {
         return null;
     }
 
-    const imageUrl = work.thumbnail_image_urls?.srcset?.split(',').pop()?.trim().split(' ')[0] || '';
+    const imageUrl = work.thumbnail_image_urls?.srcset?.split(',').pop()?.trim().split(' ', 1)[0] || '';
     const body = work.body || '';
 
     const audioUrl = work.genre === 'music' || work.genre === 'voice' ? work.preview_url : null;
@@ -85,7 +85,7 @@ const skillMap = {
 };
 
 export function processCreator(creator: Creator): DataItem | null {
-    if (!creator || typeof creator !== 'object') {
+    if (!creator) {
         return null;
     }
 
@@ -132,14 +132,14 @@ export async function getFollowingsItems(username: string, path: 'friend_works' 
         false
     );
 
-    if (!followings_data || typeof followings_data !== 'object') {
+    if (!followings_data) {
         throw new Error('Failed to fetch followings data');
     }
 
     if (path === 'following_creators') {
-        return followings_data[path].map((item) => processCreator(item)).filter(Boolean) as DataItem[];
+        return followings_data[path].map((item) => processCreator(item)).filter((item) => item !== null);
     }
-    return followings_data[path].map((item) => processWork(item)).filter(Boolean) as DataItem[];
+    return followings_data[path].map((item) => processWork(item)).filter((item) => item !== null);
 }
 
 const SkebWorkDescription = ({ imageUrl, body, audioUrl }: { imageUrl?: string; body: string; audioUrl?: string | null }) => (

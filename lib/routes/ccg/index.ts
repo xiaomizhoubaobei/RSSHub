@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,19 +13,19 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { category = 'news' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '7', 10);
+    const limit = Number(ctx.req.query('limit') ?? '7');
 
     const baseUrl = 'http://www.ccg.org.cn';
     const targetUrl: string = new URL(category, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = $('ul.huodong-list li')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('h5').text();
@@ -70,7 +70,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
                 const title: string = $$('div.pinpai-page h3').text();
@@ -148,8 +148,7 @@ export const route: Route = {
 | 分类                                   | ID                                  |
 | -------------------------------------- | ----------------------------------- |
 | [新闻动态](http://www.ccg.org.cn/news) | [news](https://rsshub.app/ccg/news) |
-| [媒体报道](http://www.ccg.org.cn/mtbd) | [mtbd](https://rsshub.app/ccg/mtbd) |
-`,
+| [媒体报道](http://www.ccg.org.cn/mtbd) | [mtbd](https://rsshub.app/ccg/mtbd) |`,
     categories: ['new-media'],
     features: {
         requireConfig: false,

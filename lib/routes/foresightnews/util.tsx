@@ -3,8 +3,9 @@ import zlib from 'node:zlib';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
+import type { Page } from '@/utils/playwright';
+import { getPlaywrightPage } from '@/utils/playwright';
 
 const constants = {
     labelHot: '热门',
@@ -40,11 +41,31 @@ const processItems = async (apiUrl, limit, ...parameters) => {
         column: '',
     };
 
-    const { data: response } = await got(apiUrl, {
-        searchParams,
-    });
+    const requestUrl = new URL(apiUrl);
+    for (const [key, value] of Object.entries(searchParams)) {
+        requestUrl.searchParams.set(key, String(value));
+    }
 
-    let items = JSON.parse(String(zlib.inflateSync(Buffer.from(response.data?.list ?? response.data, 'base64'))));
+    // Cloudflare fingerprints the HTTP client, so browser-like headers alone are insufficient.
+    let responsePromise: ReturnType<Page['waitForResponse']> | undefined;
+    const { destroy } = await getPlaywrightPage(requestUrl.href, {
+        onBeforeLoad: async (page) => {
+            await page.route('**/*', (route) => {
+                route.request().resourceType() === 'document' ? route.continue() : route.abort();
+            });
+            responsePromise = page.waitForResponse(requestUrl.href);
+        },
+    });
+    let response;
+    try {
+        const apiResponse = await responsePromise!;
+        response = await apiResponse.json();
+    } finally {
+        await destroy();
+    }
+
+    const buffer = Buffer.from(response.data?.list ?? response.data, 'base64');
+    let items = JSON.parse(String(zlib.inflateSync(buffer)));
 
     items = (items?.list ?? items).slice(0, limit).map((item) => {
         const sourceType = item.source_type ?? (item.source_link ? (item.column?.title ? 'article' : 'news') : item.event_type ? 'event' : constants.defaultType);
@@ -52,7 +73,7 @@ const processItems = async (apiUrl, limit, ...parameters) => {
         item = item.source_type ? item[item.source_type] : item;
 
         const column = item.column?.title;
-        info.column = info.column || column;
+        info.column ||= column;
 
         const categories = [
             column,
@@ -80,12 +101,12 @@ const processItems = async (apiUrl, limit, ...parameters) => {
                     ) : null}
                     {item.img ? (
                         <figure>
-                            <img src={item.img.split('?')[0]} />
+                            <img src={item.img.split('?', 1)[0]} />
                         </figure>
                     ) : null}
                 </>
             ),
-            author: item.column?.title ?? item.author?.username ?? undefined,
+            author: item.column?.title ?? item.author?.username,
             category: categories,
             guid: `foresightnews-${sourceType}#${item.id}`,
             pubDate: item.published_at ? parseDate(item.published_at * 1000) : undefined,

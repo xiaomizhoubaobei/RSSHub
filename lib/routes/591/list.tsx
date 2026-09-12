@@ -24,7 +24,7 @@ function appendRentalAPIParams(urlString) {
 }
 
 async function getToken() {
-    const html = await client('https://rent.591.com.tw').text();
+    const { body: html } = await client('https://rent.591.com.tw');
 
     const $ = load(html);
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -39,12 +39,12 @@ async function getToken() {
 async function getHouseList(houseListURL) {
     const csrfToken = await getToken();
 
-    const data = await client({
+    const { data } = await client({
         url: houseListURL,
         headers: {
             'X-CSRF-TOKEN': csrfToken,
         },
-    }).json();
+    });
 
     const {
         data: { data: houseList },
@@ -173,7 +173,7 @@ export const route: Route = {
     maintainers: ['Yukaii'],
     handler,
     description: `::: tip
-  Copy the URL of the 591 filter housing page and remove the front part \`https://rent.591.com.tw/?\`, you will get the query parameters.
+Copy the URL of the 591 filter housing page and remove the front part \`https://rent.591.com.tw/?\`, you will get the query parameters.
 :::`,
 };
 

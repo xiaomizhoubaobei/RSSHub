@@ -35,21 +35,21 @@ async function handler(ctx: Context) {
     const response = await got(url, { headers: { cookie } });
     const $ = load(response.data);
 
-    let items = $('form table')
+    const threads = $('form table')
         .last()
         .find('tbody')
         .toArray()
         .slice(1) // skip first empty row
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
             return {
-                title: item.find('th em').text() + ' ' + item.find('span a').eq(0).text(),
-                link: new URL(item.find('span a').eq(0).attr('href'), `${config.sis001.baseUrl}/forum/`).href,
-                author: item.find('.author a').text(),
+                title: $item.find('th em').text() + ' ' + $item.find('span a').eq(0).text(),
+                link: new URL($item.find('span a').eq(0).attr('href')!, `${config.sis001.baseUrl}/forum/`).href,
+                author: $item.find('.author a').text(),
             };
         });
 
-    items = await Promise.all(items.map((item) => cache.tryGet(item.link, async () => await getThread(cookie, item))));
+    const items = await Promise.all(threads.map((item) => cache.tryGet(item.link, async () => await getThread(cookie, item))));
 
     return {
         title: $('head title').text(),

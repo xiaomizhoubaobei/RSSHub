@@ -1,5 +1,5 @@
-import type { Route } from '@/types';
-import puppeteer from '@/utils/puppeteer';
+import type { Language, Route } from '@/types';
+import playwright from '@/utils/playwright';
 
 import { baseUrl, parsePage } from './utils';
 
@@ -28,18 +28,18 @@ export const route: Route = {
 };
 
 async function handler(ctx) {
-    const browser = await puppeteer();
+    const context = await playwright();
 
-    const { $, items } = await parsePage('today', browser, ctx);
+    const { $, items } = await parsePage('today', context, ctx);
 
-    await browser.close();
+    await context.close();
 
     return {
         title: $('head title').text(),
         description: $('meta[name=description]').attr('content'),
         link: `${baseUrl}/today`,
         image: `${baseUrl}/assets_new/img/fbshare.jpg`,
-        language: $('meta[property="og:locale"]').attr('content'),
+        language: $('meta[property="og:locale"]').attr('content') as Language,
         item: items,
     };
 }

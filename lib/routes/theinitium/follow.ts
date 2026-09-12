@@ -3,7 +3,7 @@ import type { Route } from '@/types';
 export const route: Route = {
     path: '/follow/articles/:language?',
     name: '个人订阅追踪动态（已停用）',
-    maintainers: ['AgFlore'],
+    maintainers: ['AgFlore', 'pseudoyu'],
     parameters: {
         language: '语言',
     },
@@ -13,7 +13,7 @@ export const route: Route = {
     },
     example: '/theinitium/follow/articles',
     categories: ['new-media'],
-    description: `:::warning
+    description: `::: warning
 此路由已停用。端传媒已迁移到 Ghost CMS，不再支持通过 API 获取个人追踪内容。请改用标签或栏目订阅。
 :::`,
 };

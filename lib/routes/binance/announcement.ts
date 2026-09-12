@@ -23,23 +23,23 @@ interface ArticleListResponse {
     } | null;
 }
 
-const TYPE_CATALOG_ID_MAP: Record<string, number> = {
-    'new-cryptocurrency-listing': 48,
-    'latest-binance-news': 49,
-    'latest-activities': 93,
-    'new-fiat-listings': 50,
-    'api-updates': 51,
-    'crypto-airdrop': 128,
-    'wallet-maintenance-updates': 157,
-    delisting: 161,
-};
+const TYPE_CATALOG_ID_MAP = new Map([
+    ['new-cryptocurrency-listing', 48],
+    ['latest-binance-news', 49],
+    ['latest-activities', 93],
+    ['new-fiat-listings', 50],
+    ['api-updates', 51],
+    ['crypto-airdrop', 128],
+    ['wallet-maintenance-updates', 157],
+    ['delisting', 161],
+]);
 
-const LANGUAGE_ALIASES: Record<string, string> = {
-    'en-US': 'en',
-    zh: 'zh-CN',
-};
+const LANGUAGE_ALIASES = new Map([
+    ['en-US', 'en'],
+    ['zh', 'zh-CN'],
+]);
 
-const normalizeLanguage = (lang?: string) => (lang ? (LANGUAGE_ALIASES[lang] ?? lang) : 'zh-CN');
+const normalizeLanguage = (lang?: string) => (lang ? (LANGUAGE_ALIASES.get(lang) ?? lang) : 'zh-CN');
 
 const isLanguageCode = (lang: string) => {
     const normalized = normalizeLanguage(lang);
@@ -50,7 +50,7 @@ const handler: Route['handler'] = async (ctx) => {
     const baseUrl = 'https://www.binance.com';
     const rawType = ctx.req.param('type');
     const rawLang = ctx.req.param('lang');
-    const limit = Number.parseInt(ctx.req.query('limit') ?? '20', 10);
+    const limit = Number(ctx.req.query('limit') ?? '20');
     const pageSize = Number.isNaN(limit) || limit <= 0 ? 20 : limit;
 
     let type = rawType;
@@ -67,7 +67,7 @@ const handler: Route['handler'] = async (ctx) => {
 
     let catalogId: number | undefined;
     if (type) {
-        const mappedCatalogId = TYPE_CATALOG_ID_MAP[type];
+        const mappedCatalogId = TYPE_CATALOG_ID_MAP.get(type);
         if (!mappedCatalogId) {
             throw new Error(`${type} is not supported`);
         }
@@ -90,7 +90,7 @@ const handler: Route['handler'] = async (ctx) => {
         lang: language,
     };
 
-    const response = (await ofetch<ArticleListResponse>(listUrl.toString(), { headers })) as ArticleListResponse;
+    const response = await ofetch<ArticleListResponse>(listUrl.href, { headers });
     const catalogs = response.data?.catalogs ?? [];
 
     const itemsWithDate = catalogs.flatMap((catalog) =>

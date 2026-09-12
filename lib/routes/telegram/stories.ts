@@ -1,6 +1,6 @@
 /* eslint-disable no-await-in-loop */
 import type { Context } from 'hono';
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 
 import NotFoundError from '@/errors/types/not-found';
 import { configureMiddlewares, handleMedia } from '@/routes/telegram/channel-media';
@@ -62,12 +62,13 @@ export const route: Route = {
     name: 'Stories',
     maintainers: ['synchrone'],
     handler,
-    description: ``,
+    description: '',
 };
 
 function getMediaAreas(mediaAreas?: Api.TypeMediaArea[]) {
     let description = '';
-    for (const area of mediaAreas ?? []) {
+    const areas = mediaAreas ?? [];
+    for (const area of areas) {
         if (area instanceof Api.MediaAreaChannelPost) {
             // TODO: fetch area.msgId and display inline
         } else if ((area instanceof Api.MediaAreaGeoPoint || area instanceof Api.MediaAreaVenue) && area.geo instanceof Api.GeoPoint) {
@@ -83,7 +84,7 @@ function getMediaAreas(mediaAreas?: Api.TypeMediaArea[]) {
     return description;
 }
 
-export default async function handler(ctx: Context) {
+export default async function handler(ctx: Context): Promise<Data | Response> {
     const c = await getClient();
     const { username, story } = ctx.req.param();
     if (!username) {
@@ -128,5 +129,5 @@ export default async function handler(ctx: Context) {
         item,
         allowEmpty: ctx.req.param('id') === 'allow_empty',
         description: `Stories of @${username} on Telegram`,
-    } as Data;
+    };
 }

@@ -65,7 +65,7 @@ function buildUrl(rootUrl: string, type: PostType, keyword: string | undefined, 
 function extractHomeList($: CheerioAPI, rootUrl: string, limit: number): DataItem[] {
     try {
         const scriptText = $('script:contains("_PageData")').text();
-        const match = scriptText.match(/const\s+_PageData\s*=\s*(\[[\s\S]*?]);/);
+        const match = scriptText.match(/const\s+_PageData\s*=\s*(\[[\s\S]*?\]);/);
 
         if (!match?.[1]) {
             return [];
@@ -142,7 +142,7 @@ function extractGlobalSearchList($: CheerioAPI, limit: number): DataItem[] {
                 .trim()
                 .replaceAll(/[【】]/g, '');
             const title = $pElements.filter('.lf').eq(1).text().trim();
-            const dateText = $pElements.filter('.lr').text().trim();
+            const dateText = $pElements.filter('.lr').text();
 
             return {
                 title: title || $link.text().trim(),
@@ -225,7 +225,7 @@ async function handler(ctx: Context) {
     const $ = load(response);
 
     const limitQuery = ctx.req.query('limit');
-    const limit = limitQuery ? Number.parseInt(limitQuery as string, 10) : 20;
+    const limit = limitQuery ? Number(limitQuery) : 20;
 
     let list: DataItem[];
 

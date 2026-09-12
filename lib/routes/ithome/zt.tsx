@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -9,7 +9,7 @@ import timezone from '@/utils/timezone';
 
 export const handler = async (ctx) => {
     const { id = 'xijiayi' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const rootUrl = 'https://www.ithome.com';
     const currentUrl = new URL(`zt/${id}`, rootUrl).href;
@@ -19,30 +19,30 @@ export const handler = async (ctx) => {
     const $ = load(response);
 
     const author = 'IT之家';
-    const language = 'zh';
+    const language = 'zh' as const;
 
     let items = $('div.newsbody')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
-            const title = item.find('h2').text();
-            const image = item.find('img').prop('data-original') ?? item.find('img').prop('src');
+            const title = $item.find('h2').text();
+            const image = $item.find('img').prop('data-original') ?? $item.find('img').prop('src');
 
             return {
                 title,
                 pubDate: timezone(
                     parseDate(
-                        item
+                        $item
                             .find('span.time script')
                             .text()
-                            .match(/'(.*?)'/)
+                            .match(/'(.*?)'/)?.[0] ?? ''
                     ),
-                    +8
+                    8
                 ),
-                link: item.find('a').first().prop('href'),
-                author: item.find('div.editor').contents().first().text(),
+                link: $item.find('a').first().prop('href'),
+                author: $item.find('div.editor').contents().first().text(),
                 image,
                 banner: image,
                 language,
@@ -51,7 +51,7 @@ export const handler = async (ctx) => {
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const { data: detailResponse } = await got(item.link);
 
                 const $$ = load(detailResponse);
@@ -59,13 +59,13 @@ export const handler = async (ctx) => {
                 $$('p.ad-tips, a.topic-bar').remove();
 
                 $$('div#paragraph p img').each((_, el) => {
-                    el = $$(el);
+                    const $el = $$(el);
 
-                    const src = el.prop('data-original');
+                    const src = $el.prop('data-original');
 
                     if (src) {
-                        const alt = el.prop('alt');
-                        el.replaceWith(renderToString(<figure>{alt ? <img src={src} alt={alt} /> : <img src={src} />}</figure>));
+                        const alt = $el.prop('alt');
+                        $el.replaceWith(renderToString(<figure>{alt ? <img src={src} alt={alt} /> : <img src={src} />}</figure>));
                     }
                 });
 
@@ -75,7 +75,7 @@ export const handler = async (ctx) => {
 
                 item.title = title;
                 item.description = description;
-                item.pubDate = timezone(parseDate($$('span#pubtime_baidu').text()), +8);
+                item.pubDate = timezone(parseDate($$('span#pubtime_baidu').text()), 8);
                 item.category = $$('div.cv a')
                     .toArray()
                     .map((c) => $$(c).text())
@@ -85,8 +85,8 @@ export const handler = async (ctx) => {
                     html: description,
                     text: $$('div#paragraph').text(),
                 };
-                item.image = image;
-                item.banner = image;
+                item.image = image!;
+                item.banner = image!;
                 item.language = language;
 
                 return item;
@@ -117,7 +117,7 @@ export const route: Route = {
     example: '/ithome/zt/xijiayi',
     parameters: { category: '专题 id，默认为 xijiayi，即 [喜加一](https://www.ithome.com/zt/xijiayi)，可在对应专题页 URL 中找到' },
     description: `::: tip
-  更多专题请见 [IT之家专题](https://www.ithome.com/zt)
+更多专题请见 [IT 之家专题](https://www.ithome.com/zt)
 :::`,
     categories: ['new-media'],
 

@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -30,6 +30,17 @@ export const route: Route = {
     handler,
     url: 'vip.open.163.com/',
 };
+
+interface CourseModule {
+    name: string;
+    contents: Array<{
+        title: string;
+        subtitle: string;
+        authorName: string;
+        publishTime: number;
+        courseUid: string;
+    }>;
+}
 
 const renderDescription = (data, description) => {
     const chapterList = data.movieChapterList.length ? data.movieChapterList : data.audioChapterList;
@@ -65,11 +76,11 @@ async function handler() {
     const initialState = JSON.parse(
         $('script')
             .text()
-            .match(/window\.__INITIAL_STATE__=(.*);\(function\(\){var/)[1]
+            .match(/window\.__INITIAL_STATE__=(.*);\(function\(\)\{var/)![1]
     );
 
-    const list = Object.values(initialState.courseindex.myModules).flatMap((mod) =>
-        mod.contents.map((item) => ({
+    const list = Object.values<CourseModule>(initialState.courseindex.myModules).flatMap((mod) =>
+        mod.contents.map((item): DataItem & { courseUid: string; link: string } => ({
             title: `${item.title} - ${item.subtitle}`,
             author: item.authorName,
             pubDate: parseDate(item.publishTime, 'x'),
@@ -93,7 +104,7 @@ async function handler() {
 
                 const $ = load(data.courseInfo.description, null, false);
                 $('img').each((_, img) => {
-                    img.attribs.src = img.attribs.src.split('?')[0];
+                    img.attribs.src = img.attribs.src.split('?', 1)[0];
                     delete img.attribs.width;
                 });
 

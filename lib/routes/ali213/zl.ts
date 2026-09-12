@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,7 +13,7 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { category } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '1', 10);
+    const limit = Number(ctx.req.query('limit') ?? '1');
 
     const rootUrl = 'https://www.ali213.net';
     const apiRootUrl = 'https://mp.ali213.net';
@@ -28,7 +28,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language: string = $('html').prop('lang') ?? 'zh';
+    const language = ($('html').prop('lang') ?? 'zh') as Language;
 
     let items: DataItem[] = JSON.parse(response.replace(/^\((.*)\)$/, '$1'))
         .data.slice(0, limit)
@@ -63,12 +63,12 @@ export const handler = async (ctx: Context): Promise<Data> => {
     items = (
         await Promise.all(
             items.map((item) => {
-                if (!item.link && typeof item.link !== 'string') {
+                if (item.link === undefined) {
                     return item;
                 }
 
                 return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                    const detailResponse = await ofetch(item.link);
+                    const detailResponse = await ofetch(item.link!);
                     const $$: CheerioAPI = load(detailResponse);
 
                     const title: string = $$('h1.newstit').text();
@@ -173,8 +173,7 @@ export const route: Route = {
 
 | 首页                                     | 游戏                                         | 动漫                                           | 影视                                           | 娱乐                                           |
 | ---------------------------------------- | -------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
-| [index](https://www.ali213.net/news/zl/) | [game](https://www.ali213.net/news/zl/game/) | [comic](https://www.ali213.net/news/zl/comic/) | [movie](https://www.ali213.net/news/zl/movie/) | [amuse](https://www.ali213.net/news/zl/amuse/) |
-`,
+| [index](https://www.ali213.net/news/zl/) | [game](https://www.ali213.net/news/zl/game/) | [comic](https://www.ali213.net/news/zl/comic/) | [movie](https://www.ali213.net/news/zl/movie/) | [amuse](https://www.ali213.net/news/zl/amuse/) |`,
     categories: ['game'],
     features: {
         requireConfig: false,

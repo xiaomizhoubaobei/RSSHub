@@ -28,11 +28,20 @@ export const route: Route = {
 | ------------ | ------ | ------ | ------- | ----- |
 | na           | eu     | fr     | de      | jp    |
 
-  Category
+Category
 
 | all | topics | notices | maintenance | updates | status | developers |
 | --- | ------ | ------- | ----------- | ------- | ------ | ---------- |`,
 };
+
+interface LodestoneNewsItem {
+    id: string;
+    url: string;
+    title: string;
+    time: string;
+    description?: string;
+    image?: string;
+}
 
 async function handler(ctx) {
     const lang = ctx.req.param('lang');
@@ -47,12 +56,10 @@ async function handler(ctx) {
         url: `https://lodestonenews.com/news/${type}?locale=${lang}`,
     });
 
-    let data;
+    let data: LodestoneNewsItem[];
     if (type === 'all') {
-        data = [];
-        for (const arr of Object.values(response.data)) {
-            data = [...data, ...arr];
-        }
+        const groups: Record<string, LodestoneNewsItem[]> = response.data;
+        data = Object.values(groups).flat();
     } else {
         data = response.data;
     }

@@ -1,16 +1,16 @@
 import { renderToString } from 'hono/jsx/dom/server';
 
-const puppeteerGet = async (url, browser) => {
-    const page = await browser.newPage();
+const playwrightGet = async (url, context) => {
+    const page = await context.newPage();
     // await page.setExtraHTTPHeaders({ referer: host });
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-        request.resourceType() === 'document' ? request.continue() : request.abort();
+    await page.route('**/*', (route) => {
+        const request = route.request();
+        request.resourceType() === 'document' ? route.continue() : route.abort();
     });
     await page.goto(url, {
         waitUntil: 'domcontentloaded',
     });
-    const html = await page.evaluate(() => document.documentElement.innerHTML);
+    const html = await page.evaluate(() => document.documentElement.getHTML());
     return html;
 };
 
@@ -41,4 +41,4 @@ const renderDesc = (title, authors, doi, img) =>
         </>
     );
 
-export { puppeteerGet, renderDesc };
+export { playwrightGet, renderDesc };

@@ -33,7 +33,6 @@ export const route: Route = {
 
 #### 大型招聘会 {#ha-er-bin-gong-cheng-da-xue-jiu-ye-fu-wu-ping-tai-da-xing-zhao-pin-hui}
 
-
 #### 今日招聘会 {#ha-er-bin-gong-cheng-da-xue-jiu-ye-fu-wu-ping-tai-jin-ri-zhao-pin-hui}`,
 };
 
@@ -68,7 +67,7 @@ async function handler() {
     const list = $('li.clearfix')
         .toArray()
         .map((item) => ({
-            title: $(item).find('span.news_tit.news_tit_s').find('a').attr('title'),
+            title: $(item).find('span.news_tit.news_tit_s').find('a').attr('title')!,
             description: '点击标题，登录查看招聘详情',
             link: $(item).find('span.news_tit.news_tit_s').find('a').attr('href'),
         }));

@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -42,9 +42,9 @@ async function handler() {
 
     const items = $('.views-row article.news-teaser')
         .toArray()
-        .map((el) => {
+        .map((el): DataItem | null => {
             const $el = $(el);
-            const $link = $el.find('h2.algolia-search--title a').first();
+            const $link = $el.find('h2.algolia-search--title a');
             const href = $link.attr('href');
             if (!href) {
                 return null;
@@ -54,15 +54,15 @@ async function handler() {
                 title: $link.text().trim(),
                 link: href.startsWith('http') ? href : `${rootUrl}${href}`,
                 pubDate: $el.find('time.datetime').attr('datetime') ? parseDate($el.find('time.datetime').attr('datetime')!) : undefined,
-                author: $el.find('.author__container--name').text().trim() || undefined,
-                image: $el.find('.field--name-field-teaser-image img').attr('src') || undefined,
+                author: $el.find('.author__container--name').text().trim(),
+                image: $el.find('.field--name-field-teaser-image img').attr('src'),
             };
         })
-        .filter(Boolean);
+        .filter((item) => item !== null);
 
     const fullItems = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,

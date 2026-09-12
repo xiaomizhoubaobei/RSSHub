@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -60,13 +60,13 @@ export const route: Route = {
 | ----- | -------- | -------- | ----- | ---- | ------- |
 | world | covid-19 | business | sport | tech | opinion |
 
-  Categories for Chinese site:
+Categories for Chinese site:
 
 | 新闻 | 中国  | 俄罗斯 | 国际            | 俄中关系                 | 评论    |
 | ---- | ----- | ------ | --------------- | ------------------------ | ------- |
-| news | china | russia | category_guoji | russia_china_relations | opinion |
+| news | china | russia | category\\_guoji | russia\\_china\\_relations | opinion |
 
-  Language
+Language
 
 | Language    | Id          |
 | ----------- | ----------- |
@@ -118,18 +118,18 @@ async function handler(ctx) {
 
     let items = $('.list__title')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
             return {
-                title: item.text(),
-                link: `${rootUrl}${item.attr('href')}`,
+                title: $item.text(),
+                link: `${rootUrl}${$item.attr('href')}`,
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,
@@ -137,7 +137,7 @@ async function handler(ctx) {
 
                 const content = load(detailResponse.data);
 
-                item.pubDate = parseDate(content('a[data-unixtime]').attr('data-unixtime') * 1000);
+                item.pubDate = parseDate(Number(content('a[data-unixtime]').attr('data-unixtime')) * 1000);
 
                 item.category = content('.tag__text')
                     .toArray()

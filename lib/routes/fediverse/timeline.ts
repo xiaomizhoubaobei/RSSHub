@@ -31,8 +31,8 @@ const activityPubTypes = new Set(['application/activity+json', 'application/ld+j
 
 async function handler(ctx) {
     const account = ctx.req.param('account');
-    const domain = account.split('@')[1];
-    const username = account.split('@')[0];
+    const domain = account.split('@', 2)[1];
+    const username = account.split('@', 1)[0];
 
     if (!domain || !username) {
         throw new InvalidParameterError('Invalid account');
@@ -63,7 +63,7 @@ async function handler(ctx) {
             image: officialFeed.image?.url,
             link: officialFeed.link,
             item: officialFeed.items.map((item) => ({
-                title: item.title,
+                title: item.title!,
                 description: item.content,
                 link: item.link,
                 pubDate: item.pubDate ? parseDate(item.pubDate) : null,
@@ -80,21 +80,21 @@ async function handler(ctx) {
 
     const items = firstOutbox.orderedItems;
 
-    const itemResolvers = [] as Array<Promise<any>>;
+    const itemResolvers: Array<Promise<any>> = [];
 
     for (const item of items) {
         if (!['Announce', 'Create', 'Update'].includes(item.type)) {
             continue;
         }
-        if (typeof item.object === 'string') {
+        if (item.object.type) {
+            itemResolvers.push(Promise.resolve(item));
+        } else {
             itemResolvers.push(
                 (async (item) => {
                     item.object = await ofetch(item.object, requestOptions);
                     return item;
                 })(item)
             );
-        } else {
-            itemResolvers.push(Promise.resolve(item));
         }
     }
 

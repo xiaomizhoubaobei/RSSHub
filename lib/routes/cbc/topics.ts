@@ -4,6 +4,20 @@ import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 
+interface LdJsonArticle {
+    headline: string;
+    author?: Array<{ name: string }>;
+    datePublished: string;
+}
+
+interface NewsItem {
+    title: string;
+    author: string;
+    pubDate: string;
+    description: string | null;
+    link: string;
+}
+
 export const route: Route = {
     path: '/topics/:topic?',
     categories: ['traditional-media'],
@@ -39,7 +53,7 @@ async function handler(ctx) {
     const data = response.data;
 
     const $ = load(data);
-    const links = [];
+    const links: string[] = [];
 
     function pushLinks(index, item) {
         const link = item.attribs.href;
@@ -58,7 +72,7 @@ async function handler(ctx) {
 
                 const $ = load(result.data);
 
-                const head = JSON.parse($('script[type="application/ld+json"]').first().text());
+                const head: LdJsonArticle | null = JSON.parse($('script[type="application/ld+json"]').first().text());
                 if (!head) {
                     return [];
                 }
@@ -82,6 +96,6 @@ async function handler(ctx) {
     return {
         title: $('title').text(),
         link: url,
-        item: out.filter((x) => x.title),
+        item: out.filter((x): x is NewsItem => 'title' in x && Boolean(x.title)),
     };
 }

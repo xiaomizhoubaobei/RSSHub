@@ -29,7 +29,7 @@ export const route: Route = {
     maintainers: ['yueyericardo', 'nczitzk'],
     handler,
     url: 'nytimes.com/',
-    description: `URL: [https://www.nytimes.com/zh-hans/series/daily-briefing-chinese](https://www.nytimes.com/zh-hans/series/daily-briefing-chinese)`,
+    description: 'URL: <https://www.nytimes.com/zh-hans/series/daily-briefing-chinese>',
 };
 
 async function handler() {
@@ -43,10 +43,9 @@ async function handler() {
 
     const listData = JSON.parse(response.data.match(/"initialState":(.*),"config"/)[1]);
 
-    let items = [];
-    for (const key of Object.keys(listData)) {
-        if (key.startsWith('Article:') && listData[key].url) {
-            const item = listData[key];
+    let items: any[] = [];
+    for (const [key, item] of Object.entries<any>(listData)) {
+        if (key.startsWith('Article:') && item.url) {
             items.push({
                 link: item.url,
                 pubDate: parseDate(item.firstPublished),
@@ -70,8 +69,8 @@ async function handler() {
                 const images = detailResponse.data.match(/"url":"[^{}]+","name":"articleLarge"/g).map((e) => JSON.parse(`{${e}}`).url);
 
                 let i = 0;
-                content('figure').each(function () {
-                    content(this).html(
+                content('figure').each((_, el) => {
+                    content(el).html(
                         renderToString(
                             <figure>
                                 <img src={images[i++]} />
@@ -81,7 +80,7 @@ async function handler() {
                 });
 
                 item.title = content('meta[property="og:title"]').attr('content');
-                item.author = content('meta[name="byl"]').attr('content').replace(/By /, '');
+                item.author = content('meta[name="byl"]').attr('content')!.replace(/By /, '');
                 item.description = content('section[name="articleBody"]').html();
 
                 return item;

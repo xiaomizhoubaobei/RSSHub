@@ -28,7 +28,7 @@ export const route: Route = {
     maintainers: ['hualiong'],
     url: 'www.kelownacapnews.com',
     description: `\`type\` is as follows:
-  
+
 | News type     | Value         | News type    | Value        |
 | ------------- | ------------- | ------------ | ------------ |
 | News          | news          | Sports       | sports       |
@@ -88,7 +88,7 @@ export const route: Route = {
         return {
             title: `${$('.body-title').text()} - Kelowna Capital News`,
             link: `${baseURL}/${type}`,
-            item: items as DataItem[],
+            item: items,
         };
     },
 };

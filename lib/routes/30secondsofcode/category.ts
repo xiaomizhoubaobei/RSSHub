@@ -8,7 +8,7 @@ import { processList } from './utils';
 export const route: Route = {
     path: '/category/:category?/:subCategory?',
     categories: ['programming'],
-    example: '/category/css/interactivity',
+    example: '/30secondsofcode/category/css/interactivity',
     parameters: {
         category: {
             description: 'Main Category. For Complete list visit site "https://www.30secondsofcode.org/collections/p/1/"',
@@ -64,5 +64,5 @@ async function handler(ctx) {
         image: `${rootUrl}${image}`,
         link: rootUrl,
         item: items,
-    } as Data;
+    } satisfies Data;
 }

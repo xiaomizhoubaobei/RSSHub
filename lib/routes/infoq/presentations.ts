@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -9,7 +9,7 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx) => {
     const { conference } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 12;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 12;
 
     const rootUrl = 'https://www.infoq.com';
     const currentUrl = new URL(`${conference ? `${conference}/` : ''}presentations/`, rootUrl).href;
@@ -18,18 +18,18 @@ export const handler = async (ctx) => {
 
     const $ = load(response);
 
-    const language = $('html').prop('lang');
+    const language = $('html').prop('lang') as Language;
 
     let items = $('ul[data-tax="presentations"] li[data-path]')
         .slice(0, limit)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const a = item.find('h3.card__title a');
+            const a = $item.find('h3.card__title a');
 
             const title = a.prop('title') || a.text().trim();
-            const image = item.find('img.card__image').prop('src');
+            const image = $item.find('img.card__image').prop('src');
             const description = renderDescription({
                 images: image
                     ? [
@@ -39,22 +39,22 @@ export const handler = async (ctx) => {
                           },
                       ]
                     : undefined,
-                intro: item.find('p.card__excerpt').text(),
+                intro: $item.find('p.card__excerpt').text(),
             });
-            const link = new URL(a.prop('href'), rootUrl).href;
-            const guid = `infoq-${item.prop('data-path').replace(/^\//, '')}`;
-            const length = item.find('div.card__length').text() || undefined;
+            const link = new URL(a.prop('href')!, rootUrl).href;
+            const guid = `infoq-${$item.prop('data-path').replace(/^\//, '')}`;
+            const length = $item.find('div.card__length').text() || undefined;
 
             return {
                 title,
                 description,
-                pubDate: parseDate(item.find('span.card__date span').text().trim()),
+                pubDate: parseDate($item.find('span.card__date span').text().trim()),
                 link,
-                category: item
+                category: $item
                     .find('div.card__topics')
                     .toArray()
                     .map((c) => $(c).text().trim()),
-                author: item
+                author: $item
                     .find('div.card__authors a')
                     .toArray()
                     .map((a) => $(a).text().trim())
@@ -63,7 +63,7 @@ export const handler = async (ctx) => {
                 id: guid,
                 content: {
                     html: description,
-                    text: item.find('p.card__excerpt').text(),
+                    text: $item.find('p.card__excerpt').text(),
                 },
                 image,
                 banner: image,
@@ -129,7 +129,7 @@ export const handler = async (ctx) => {
                               },
                           ]
                         : undefined,
-                    description: $$('article.article').html(),
+                    description: $$('article.article').html() ?? undefined,
                 });
 
                 item.description = description;
@@ -174,9 +174,8 @@ export const route: Route = {
     example: '/infoq/presentations',
     parameters: { conference: 'Conference, all by default, can be found in URL' },
     description: `::: tip
-  If you subscribe to [InfoQ Live Jan 2024](https://www.infoq.com/infoq-live-jan-2024/presentations/)，where the URL is \`https://www.infoq.com/infoq-live-jan-2024/presentations/\`, extract the part \`https://www.infoq.com/\` to the end, which is \`/presentations/\`, and use it as the parameter to fill in. Therefore, the route will be [\`/infoq/presentations/infoq-live-jan-2024\`](https://rsshub.app/infoq/presentations/infoq-live-jan-2024).
-:::
-    `,
+If you subscribe to [InfoQ Live Jan 2024](https://www.infoq.com/infoq-live-jan-2024/presentations/)，where the URL is \`https://www.infoq.com/infoq-live-jan-2024/presentations/\`, extract the part \`https://www.infoq.com/\` to the end, which is \`/presentations/\`, and use it as the parameter to fill in. Therefore, the route will be [\`/infoq/presentations/infoq-live-jan-2024\`](https://rsshub.app/infoq/presentations/infoq-live-jan-2024).
+:::`,
     categories: ['programming'],
 
     features: {

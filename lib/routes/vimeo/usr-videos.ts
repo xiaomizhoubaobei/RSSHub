@@ -26,7 +26,7 @@ export const route: Route = {
     maintainers: ['MisteryMonster'],
     handler,
     description: `::: tip Special category name attention
-  Some of the categories contain slash like \`3D/CG\` , must change the slash \`/\` to the vertical bar\`|\`.
+Some of the categories contain slash like \`3D/CG\` , must change the slash \`/\` to the vertical bar\`|\`.
 :::`,
 };
 
@@ -64,7 +64,7 @@ async function handler(ctx) {
         urlfilter = '';
     }
     if (!catword && cat && cat !== 'picks') {
-        return '';
+        return null;
     }
     const picked = cat && cat === 'picks';
 
@@ -81,7 +81,7 @@ async function handler(ctx) {
     const vimeojs = picked ? contentresponse.data.data[0].videos.data : contentresponse.data.data;
 
     return {
-        title: `${profilesjs.name} ${catword ? cat.replace('|', '/') : ''} ${picked ? 'picks' : ''} | Vimeo `,
+        title: `${profilesjs.name} ${catword ? cat.replaceAll('|', '/') : ''} ${picked ? 'picks' : ''} | Vimeo `,
         link: profilesjs.link,
         description: profilesjs.bio,
 

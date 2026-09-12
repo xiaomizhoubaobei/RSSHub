@@ -24,10 +24,10 @@ export const route: Route = {
     maintainers: ['TimWu007'],
     handler,
     description: `::: tip
-  在北京时间深夜可能无法获取内容。
+在北京时间深夜可能无法获取内容。
 :::
 
-  常用栏目 ID：
+常用栏目 ID：
 
 | 栏目名 | ID   |
 | ------ | ---- |
@@ -58,7 +58,7 @@ async function handler(ctx) {
                     ) : null}
                 </>
             ),
-            pubDate: timezone(parseDate(item.publishtime), +8),
+            pubDate: timezone(parseDate(item.publishtime), 8),
             link: item.shareUrl,
             colName: item.colName,
             author: item.arthorName,

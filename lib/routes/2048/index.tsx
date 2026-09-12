@@ -1,11 +1,12 @@
 import { load } from 'cheerio';
-import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
+
+import { getForumUrl } from './utils';
 
 export const route: Route = {
     path: '/:id?',
@@ -65,14 +66,10 @@ async function handler(ctx) {
     const id = ctx.req.param('id') ?? '3';
 
     const rootUrl = 'https://hjd2048.com';
-    // 获取地址发布页指向的 URL
-    const domainInfo = await cache.tryGet('2048:domainInfo', async () => {
+    // Resolve the address page before caching the forum URL.
+    const domainInfo = await cache.tryGet('2048:domainInfo:v2', async () => {
         const response = await ofetch('https://2048.info');
-        const $ = load(response);
-        const onclickValue = $('.button').first().attr('onclick');
-        const targetUrl = onclickValue?.match(/window\.open\('([^']+)'/)?.[1];
-
-        return { url: new URL(targetUrl, 'https://2048.info').href };
+        return { url: getForumUrl(response) };
     });
     // 获取重定向后的url
     const redirectResponse = await ofetch.raw(domainInfo.url);
@@ -81,43 +78,22 @@ async function handler(ctx) {
         async () => {
             const captchaPage = await ofetch(redirectResponse.url);
             const $captcha = load(captchaPage);
-
-            const cookieResponse = await ofetch.raw(redirectResponse.url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    Cookie: `safe18_tok=${$captcha('form#s18f input[name="tok"]').attr('value') || ''}`,
-                },
-                body: new URLSearchParams(
-                    Object.fromEntries(
-                        $captcha('form#s18f input')
-                            .toArray()
-                            .map((el) => [el.attribs.name, el.attribs.value])
-                            .filter(([name, value]) => name !== null && value !== null)
-                    )
-                ).toString(),
-                redirect: 'manual',
-            });
-
-            const safe18Pass = cookieResponse.headers
-                .getSetCookie()
-                ?.find((cookie) => cookie.startsWith('safe18_pass='))
-                ?.split(';')[0]
-                .split('=')[1];
-
+            // Extract the value of safeid from the $captcha HTML content
+            const safeidMatch = $captcha.html()?.match(/var\s+safeid\s*=\s*'([^']+)'/);
+            const safeid = safeidMatch ? safeidMatch[1] : undefined;
             return {
                 url: redirectResponse.url,
-                safe18Pass,
+                safeid,
             };
         },
         86400, // fixed cookie duration: 24 hours
         false
     );
-    const currentUrl = `${redirected.url}thread.php?fid-${id}.html`;
+    const currentUrl = new URL(`thread.php?fid-${id}.html`, redirected.url).href;
 
     const response = await ofetch.raw(currentUrl, {
         headers: {
-            cookie: `safe18_pass=${redirected.safe18Pass}`,
+            cookie: `_safe=${redirected.safeid}`,
         },
     });
 
@@ -131,13 +107,13 @@ async function handler(ctx) {
         .last()
         .nextAll('.tr3')
         .toArray()
-        .map((item) => {
-            item = $(item).find('a.subject');
+        .map((item): DataItem & { link: string; guid: string } => {
+            const $item = $(item).find('a.subject');
 
             return {
-                title: item.text(),
-                link: `${currentHost}/${item.attr('href')}`,
-                guid: `${rootUrl}/2048/${item.attr('href')}`,
+                title: $item.text(),
+                link: `${currentHost}/${$item.attr('href')}`,
+                guid: `${rootUrl}/2048/${$item.attr('href')}`,
             };
         })
         .filter((item) => !item.link.includes('undefined'));
@@ -147,7 +123,7 @@ async function handler(ctx) {
             cache.tryGet(item.guid, async () => {
                 const detailResponse = await ofetch(item.link, {
                     headers: {
-                        cookie: `safe18_pass=${redirected.safe18Pass}`,
+                        cookie: `_safe=${redirected.safeid}`,
                     },
                 });
 
@@ -155,45 +131,52 @@ async function handler(ctx) {
 
                 content('.ads, .tips').remove();
 
-                content('ignore_js_op').each(function () {
-                    const img = content(this).find('img');
+                content('ignore_js_op').each((_, el) => {
+                    const img = content(el).find('img');
                     const originalSrc = img.attr('data-original');
                     const fallbackSrc = img.attr('src');
                     // 判断是否有 data-original 属性，若有则使用其值，否则使用 src 属性值
                     const imgSrc = originalSrc || fallbackSrc;
-                    content(this).replaceWith(`<img src="${imgSrc}">`);
+                    content(el).replaceWith(`<img src="${imgSrc}">`);
                 });
 
                 item.author = content('.fl.black').first().text();
-                item.pubDate = timezone(parseDate(content('span.fl.gray').first().attr('title')), +8);
+                item.pubDate = timezone(parseDate(content('span.fl.gray').first().attr('title')!), 8);
 
-                const downloadLink = content('#read_tpc').first().find('a').last();
+                const readTpc = content('#read_tpc').first();
                 const copyLink = content('#copytext')?.first()?.text();
-                if (new URL(downloadLink.text()).hostname === 'bt.azvmw.com') {
-                    const torrentResponse = await ofetch(downloadLink.text());
+                const readTpcHtml = readTpc.html() ?? '';
+                const magnetText = readTpc.find('.magnet-text').first().text().trim();
 
-                    const torrent = load(torrentResponse);
+                // Extract enclosure: rmdown.com (fetch page for magnet) | magnet from 哈希校验 | copyLink
+                const rmdownLink = readTpc.find('a[href*="rmdown.com/link.php"]').first().attr('href');
+                const enclosureHref = rmdownLink?.startsWith('http') ? rmdownLink : rmdownLink ? `https://www.rmdown.com/${rmdownLink}` : null;
 
-                    item.enclosure_type = 'application/x-bittorrent';
-                    const ahref = torrent('.uk-button').last().attr('href');
-                    item.enclosure_url = ahref?.startsWith('http') ? ahref : `https://bt.azvmw.com/${ahref}`;
-
-                    const magnet = torrent('.uk-button').first().attr('href');
-
-                    downloadLink.replaceWith(renderToString(<DownloadLinks magnet={magnet} torrent={item.enclosure_url} />));
-                } else if (copyLink?.startsWith('magnet')) {
-                    // copy link
-                    item.enclosure_url = copyLink;
-                    item.enclosure_type = 'x-scheme-handler/magnet';
+                if (enclosureHref) {
+                    const rmdownPage = await cache.tryGet(`2048:rmdown:${enclosureHref}`, () => ofetch(enclosureHref));
+                    const btihMatch = rmdownPage.match(/Code:\s*([a-fA-F0-9]{40})/);
+                    const magnetUrl = btihMatch ? `magnet:?xt=urn:btih:${btihMatch[1]}` : null;
+                    if (magnetUrl) {
+                        item.enclosure_url = magnetUrl;
+                        item.enclosure_type = 'x-scheme-handler/magnet';
+                    }
+                }
+                if (!item.enclosure_url) {
+                    const hashMatch = readTpcHtml.match(/哈希校验[^;]*;\s*([a-f0-9]{40})\s*[;；]/i);
+                    const magnetFromHash = hashMatch ? `magnet:?xt=urn:btih:${hashMatch[1]}` : null;
+                    const magnetFromText = magnetText.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/)?.[0];
+                    const magnetLink = magnetFromText ?? readTpcHtml.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/)?.[0] ?? magnetFromHash ?? copyLink;
+                    if (magnetLink?.startsWith('magnet')) {
+                        item.enclosure_url = magnetLink;
+                        item.enclosure_type = 'x-scheme-handler/magnet';
+                    }
                 }
 
-                const desp = content('#read_tpc').first();
-
-                content('.showhide img').each(function () {
-                    desp.append(`<br><img style="max-width: 100%;" src="${content(this).attr('src')}">`);
+                content('.showhide img').each((_, el) => {
+                    readTpc.append(`<br><img style="max-width: 100%;" src="${content(el).attr('src')}">`);
                 });
 
-                item.description = desp.html();
+                item.description = readTpc.html();
 
                 return item;
             })
@@ -206,9 +189,3 @@ async function handler(ctx) {
         item: items,
     };
 }
-
-const DownloadLinks = ({ magnet, torrent }: { magnet?: string; torrent?: string }) => (
-    <>
-        <a href={magnet}>磁力連結</a> | <a href={torrent}>下載檔案</a>
-    </>
-);

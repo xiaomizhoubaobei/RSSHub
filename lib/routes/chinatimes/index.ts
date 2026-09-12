@@ -1,11 +1,11 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import logger from '@/utils/logger';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import puppeteer from '@/utils/puppeteer';
+import playwright from '@/utils/playwright';
 import timezone from '@/utils/timezone';
 
 export const route: Route = {
@@ -43,36 +43,36 @@ async function handler(ctx) {
 
     const response = await ofetch(link);
     const $ = load(response);
-    const browser = await puppeteer();
+    const context = await playwright();
 
     const list = $('.articlebox-compact')
         .toArray()
-        .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 20)
-        .map((item) => {
+        .slice(0, ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 20)
+        .map((item): DataItem & { category: string[] } => {
             const $item = $(item);
             const a = $item.find('.title a');
             return {
-                title: a.text().trim(),
+                title: a.text(),
                 link: `${baseUrl}${a.attr('href')}?chdtv`,
                 guid: `${baseUrl}${a.attr('href')}`,
-                pubDate: timezone(parseDate($item.find('time').attr('datetime')), 8),
+                pubDate: timezone(parseDate($item.find('time').attr('datetime')!), 8),
                 category: $item
                     .find('.category a')
                     .toArray()
-                    .map((i) => $(i).text().trim()),
+                    .map((i) => $(i).text()),
             };
         });
 
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item.link, async () => {
-                const page = await browser.newPage();
-                await page.setRequestInterception(true);
-                page.on('request', (request) => {
-                    request.resourceType() === 'document' ? request.continue() : request.abort();
+            cache.tryGet(item.link!, async () => {
+                const page = await context.newPage();
+                await page.route('**/*', (route) => {
+                    const request = route.request();
+                    request.resourceType() === 'document' ? route.continue() : route.abort();
                 });
                 logger.http(`Requesting ${item.link}`);
-                await page.goto(item.link, {
+                await page.goto(item.link!, {
                     waitUntil: 'domcontentloaded',
                 });
 
@@ -85,26 +85,26 @@ async function handler(ctx) {
                         ...item.category,
                         ...$('.article-hash-tag a')
                             .toArray()
-                            .map((i) => $(i).text().trim()),
+                            .map((i) => $(i).text()),
                     ]),
                 ];
 
                 $('.ad, #donate-form-container, .promote-word, .google-news-promote, .article-hash-tag').remove();
 
-                item.description = $('.main-figure').html() + $('.article-body').html();
+                item.description = $('.main-figure').html()! + $('.article-body').html()!;
 
                 return item;
             })
         )
     );
 
-    await browser.close();
+    await context.close();
 
     return {
         title: $('head title').text(),
         description: $('head meta[name="description"]').attr('content'),
         link,
-        language: $('html').attr('lang'),
+        language: $('html').attr('lang') as Language,
         image: `${baseUrl}/images/2020/apple-touch-icon.png`,
         item: items,
     };

@@ -49,7 +49,7 @@ async function handler(ctx) {
         method: 'get',
         url: apiUrl,
         headers: {
-            cookie: response.headers['set-cookie'].map((cookie) => cookie.split(';Version=1;')[0]).join('; '),
+            cookie: response.headers['set-cookie'].map((cookie) => cookie.split(';Version=1;', 1)[0]).join('; '),
         },
     });
 
@@ -73,9 +73,9 @@ async function handler(ctx) {
                 const content = load(detailResponse.data);
 
                 content('a.__cf_email__').each((_, e) => {
-                    e = content(e);
-                    e.after(decodeCFEmail(e.attr('data-cfemail')));
-                    e.remove();
+                    const $e = content(e);
+                    $e.after(decodeCFEmail($e.attr('data-cfemail')));
+                    $e.remove();
                 });
 
                 const abstracts = content('.Abstracts').html() ?? '';
