@@ -69,7 +69,7 @@ async function handler(ctx) {
                     }
                     return null;
                 })
-                .filter((e) => e?.link);
+                .filter((e): e is NonNullable<typeof e> => Boolean(e?.link));
         },
         config.cache.routeExpire,
         false

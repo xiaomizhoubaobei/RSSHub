@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -39,7 +39,7 @@ export const route: Route = {
         const $ = load(response);
 
         // 获取分类名称映射
-        const categoryMap: Record<string, string> = {
+        const categoryMap = {
             zxdt: '最新动态',
             xygg: '学院公告',
             xszc: '学生之窗',
@@ -58,7 +58,7 @@ export const route: Route = {
         const list = $('.gage-list-news table tr')
             .slice(1) // 跳过表头
             .toArray()
-            .map((tr) => {
+            .map((tr): DataItem | null => {
                 const $tr = $(tr);
                 const cells = $tr.find('td');
 
@@ -72,18 +72,18 @@ export const route: Route = {
 
                 // 提取标题和链接
                 const $titleLink = titleCell.find('a');
-                const title = $titleLink.text().trim();
+                const title = $titleLink.text();
                 let link = $titleLink.attr('href') || '';
 
                 // 处理相对链接
                 link = link && !link.startsWith('http') ? `${baseUrl}/${link}` : link;
 
                 // 提取日期
-                const dateStr = dateCell.text().trim();
-                const pubDate = dateStr.includes('/') ? timezone(parseDate(dateStr, 'YYYY/MM/DD'), +8) : timezone(parseDate(dateStr), +8);
+                const dateStr = dateCell.text();
+                const pubDate = dateStr.includes('/') ? timezone(parseDate(dateStr, 'YYYY/MM/DD'), 8) : timezone(parseDate(dateStr), 8);
 
                 // 提取来源
-                const source = sourceCell.text().trim();
+                const source = sourceCell.text();
 
                 return {
                     title,
@@ -93,41 +93,20 @@ export const route: Route = {
                     description: '', // 初始化description属性
                 };
             })
-            .filter((item) => item && item.link && item.title); // 过滤掉空项目和没有链接的项目
+            .filter((item): item is DataItem => Boolean(item?.link && item.title)); // 过滤掉空项目和没有链接的项目
 
         // 获取每篇文章的详细内容
         const items = await Promise.all(
             list.map((item) =>
-                item
-                    ? cache.tryGet(item.link, async () => {
-                          try {
-                              const { data: response } = await got(item.link);
-                              const $ = load(response);
+                cache.tryGet(item.link!, async () => {
+                    const { data: response } = await got(item.link);
+                    const $ = load(response);
 
-                              const $description = $('.v_news_content');
+                    const $description = $('.v_news_content');
 
-                              // 处理相对链接，转换为绝对链接
-                              if ($description.length > 0) {
-                                  // 处理图片
-                                  $description.find('img').each((i, el) => {
-                                      const $el = $(el);
-                                      let src = $el.attr('src');
-
-                                      if (src && !src.startsWith('http')) {
-                                          src = `${baseUrl}${src}`;
-                                          $el.attr('src', src);
-                                      }
-                                  });
-                              }
-
-                              item.description = $description.html() || item.title;
-                          } catch {
-                              // 如果获取详细内容失败，返回基本信息
-                              item.description = item.title + ' (获取详细内容失败)';
-                          }
-                          return item;
-                      })
-                    : null
+                    item.description = $description.html() || item.title;
+                    return item;
+                })
             )
         );
 

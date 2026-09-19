@@ -40,8 +40,8 @@ async function handler() {
             $('.box')
                 .toArray()
                 .map(async (item) => {
-                    item = $(item);
-                    const linkElem = item.find('.link-button');
+                    const $item = $(item);
+                    const linkElem = $item.find('.link-button');
                     const storyUrl = 'https://daily.zhihu.com/api/4' + linkElem.attr('href');
 
                     try {
@@ -63,7 +63,7 @@ async function handler() {
                     }
                 })
         )
-    ).filter(Boolean);
+    ).filter((item) => item !== null);
 
     return {
         title: '知乎日报',

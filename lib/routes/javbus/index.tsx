@@ -4,15 +4,15 @@ import { renderToString } from 'hono/jsx/dom/server';
 
 import { config } from '@/config';
 import ConfigNotFoundError from '@/errors/types/config-not-found';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import { getSubPath } from '@/utils/common-utils';
 import got from '@/utils/got';
-import { parseDate } from '@/utils/parse-date';
+import { parseDateInTimezone } from '@/utils/parse-date-in-timezone';
 
 const toSize = (raw) => {
-    const matches = raw.match(/(\d+(\.\d+)?)(\w+)/);
+    const matches = raw.match(/(\d+(\.\d+)?)(\D\w*)/);
     return matches[3] === 'GB' ? matches[1] * 1024 : matches[1];
 };
 
@@ -103,19 +103,21 @@ async function handler(ctx) {
     let items = $('.movie-box')
         .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 50)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
             return {
-                link: item.attr('href'),
-                guid: item.find('date').first().text(),
-                pubDate: parseDate(item.find('date').last().text()),
+                link: $item.attr('href'),
+                guid: $item.find('date').first().text(),
+                // This is a calendar release date, represented at UTC midnight.
+                pubDate: parseDateInTimezone($item.find('date').last().text(), 0),
+                title: '',
             };
         });
 
     items = await Promise.all(
-        items.map((item) =>
-            cache.tryGet(item.link, async () => {
+        items.map(async (item) => {
+            const cached = await cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,
@@ -145,7 +147,7 @@ async function handler(ctx) {
                         .toArray()
                         .map((i) => {
                             const thumbSrc = content(i).attr('href');
-                            return thumbSrc.startsWith('http') ? thumbSrc : `${rootUrl}${thumbSrc}`;
+                            return thumbSrc!.startsWith('http') ? thumbSrc : `${rootUrl}${thumbSrc}`;
                         }),
                 };
 
@@ -154,7 +156,7 @@ async function handler(ctx) {
                 // To fetch magnets.
 
                 try {
-                    const matches = detailResponse.data.match(/var gid = (\d+);[\S\s]*var uc = (\d+);[\S\s]*var img = '(.*)';/);
+                    const matches = detailResponse.data.match(/var gid = (\d+);[\s\S]*var uc = (\d+);[\s\S]*var img = '(.*)';/);
 
                     const magnetResponse = await got({
                         method: 'get',
@@ -205,8 +207,9 @@ async function handler(ctx) {
                 });
 
                 return item;
-            })
-        )
+            });
+            return { ...cached, pubDate: item.pubDate };
+        })
     );
 
     const title = $('head title').text();

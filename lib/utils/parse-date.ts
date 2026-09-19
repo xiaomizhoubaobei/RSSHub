@@ -41,35 +41,35 @@ interface UnitPattern {
 // === Pre-compiled Regular Expressions ===
 
 const REGEX_JUST_NOW = /^(?:just\s?now|刚刚|剛剛)$/i;
-const REGEX_AGO = /(.*)(?:ago|[之以]?前)$/i;
-const REGEX_IN = /^(?:in\s*)(.*)|(.*)(?:\s*later|\s*after|[之以]?[后後])$/i;
+const REGEX_AGO = /(.*)(?:ago|前)$/i;
+const REGEX_IN = /^in\s*(.*)|(.*)(?:later|after|[后後])$/i;
 const REGEX_STICKY_AMPM = /(\d+)\s*(a|p)m$/i;
-const REGEX_IS_PM = /(?:下午|晚上|晚|pm|p\.m\.)/i;
-const REGEX_IS_AM = /(?:上午|凌晨|早|晨|am|a\.m\.)/i;
+const REGEX_IS_PM = /下午|晚上|晚|pm|p\.m\./i;
+const REGEX_IS_AM = /上午|凌晨|早|晨|am|a\.m\./i;
 
 const UNIT_PATTERNS: UnitPattern[] = [
     { unit: 'years', regExp: /(\d+)\s*(?:年|y(?:ea)?rs?)/i },
     { unit: 'months', regExp: /(\d+)\s*(?:[个個]?月|months?)/i },
     { unit: 'weeks', regExp: /(\d+)\s*(?:周|[个個]?星期|weeks?)/i },
     { unit: 'days', regExp: /(\d+)\s*(?:天|日|d(?:ay)?s?)/i },
-    { unit: 'hours', regExp: /(\d+)\s*(?:[个個]?(?:小?时|時|点|點)|h(?:(?:ou)?r)?s?)/i },
+    { unit: 'hours', regExp: /(\d+)\s*(?:[个個]?(?:小?时|[時点點])|h(?:(?:ou)?r)?s?)/i },
     { unit: 'minutes', regExp: /(\d+)\s*(?:分[鐘钟]?|m(?:in(?:ute)?)?s?)/i },
     { unit: 'seconds', regExp: /(\d+)\s*(?:秒[鐘钟]?|s(?:ec(?:ond)?)?s?)/i },
 ];
 
-const CN_NUM_MAP: Record<string, string> = {
-    一: '1',
-    二: '2',
-    两: '2',
-    三: '3',
-    四: '4',
-    五: '5',
-    六: '6',
-    七: '7',
-    八: '8',
-    九: '9',
-    十: '10',
-};
+const CN_NUM_MAP = new Map([
+    ['一', '1'],
+    ['二', '2'],
+    ['两', '2'],
+    ['三', '3'],
+    ['四', '4'],
+    ['五', '5'],
+    ['六', '6'],
+    ['七', '7'],
+    ['八', '8'],
+    ['九', '9'],
+    ['十', '10'],
+]);
 
 /**
  * Calculates the date of the most recent occurrence of a specific weekday.
@@ -114,7 +114,7 @@ const KEYWORDS: KeywordDefinition[] = [
         calc: () => dayjs().subtract(2, 'days').startOf('day'),
     },
     {
-        regExp: /^(?:明[天日早晨晚]|t(?:omorrow)?)/i,
+        regExp: /^(?:明[天日早晨晚]|t(?:omorrow|(?![a-z])))/i,
         calc: () => dayjs().add(1, 'days').startOf('day'),
     },
     {
@@ -157,10 +157,10 @@ const normalize = (date: string): string => {
     str = str.replaceAll(/(^|\s)x(\s|$)/g, '$13$2');
 
     // 3. Vague Chinese '几/数' (No boundary needed)
-    str = str.replaceAll(/几|幾|数/g, '3');
+    str = str.replaceAll(/[几幾数]/g, '3');
 
     // 4. Chinese numerals
-    str = str.replaceAll(/[一二两三四五六七八九十]/g, (match) => CN_NUM_MAP[match] || match);
+    str = str.replaceAll(/[一二两三四五六七八九十]/g, (match) => CN_NUM_MAP.get(match) ?? match);
 
     // 5. Remove commas
     str = str.replaceAll(',', '');
@@ -182,7 +182,7 @@ const parseDuration = (str: string): plugin.Duration => {
     for (const { unit, regExp } of UNIT_PATTERNS) {
         const match = regExp.exec(cleanStr);
         if (match) {
-            const val = Number.parseInt(match[1], 10);
+            const val = Number(match[1]);
             if (!Number.isNaN(val)) {
                 totalDuration = totalDuration.add(val, unit);
             }
@@ -195,10 +195,13 @@ const parseDuration = (str: string): plugin.Duration => {
  * A wrapper around `dayjs()` to parse standard date formats.
  *
  * @param date - The date input (string, number, or Date object).
- * @param options - Optional Day.js configuration (e.g., format string).
+ * @param format - Optional Day.js format string(s) or config object.
+ * @param localeOrStrict - Optional locale string, or the strict flag when no locale is given (mirrors `dayjs()`).
+ * @param strict - Optional strict flag when a locale is given.
  * @returns A native JavaScript Date object.
  */
-export const parseDate = (date: string | number | Date, ...options: OptionType[]): Date => dayjs(date, ...options).toDate();
+export const parseDate = (date: string | number | Date, format?: OptionType, localeOrStrict?: string | boolean, strict?: boolean): Date =>
+    (typeof localeOrStrict === 'string' ? dayjs(date, format, localeOrStrict, strict) : dayjs(date, format, localeOrStrict)).toDate();
 
 /**
  * Processes a date string composed of a semantic keyword and an optional time component.
@@ -226,7 +229,7 @@ const processSemanticKeyword = (baseTime: Dayjs, timePart: string, originalConte
     // Attempt 2: Handle cases where duration regex fails (e.g., "3 pm" doesn't match standard units)
     const stickyMatch = REGEX_STICKY_AMPM.exec(timePart);
     if (addedMillis === 0 && stickyMatch) {
-        addedMillis = Number.parseInt(stickyMatch[1], 10) * 60 * 60 * 1000;
+        addedMillis = Number(stickyMatch[1]) * 60 * 60 * 1000;
     }
 
     if (addedMillis > 0) {
@@ -282,10 +285,12 @@ const processSemanticKeyword = (baseTime: Dayjs, timePart: string, originalConte
  *    - Any format not matched above is passed to Day.js with the provided options.
  *
  * @param date - The relative or absolute date string to parse.
- * @param options - Optional configuration passed to Day.js for fallback parsing.
+ * @param format - Optional Day.js format string(s) or config object for fallback parsing.
+ * @param localeOrStrict - Optional locale string, or the strict flag when no locale is given (mirrors `dayjs()`).
+ * @param strict - Optional strict flag when a locale is given.
  * @returns A parsed JavaScript Date object.
  */
-export const parseRelativeDate = (date: string, ...options: OptionType[]): Date => {
+export const parseRelativeDate = (date: string, format?: OptionType, localeOrStrict?: string | boolean, strict?: boolean): Date => {
     if (!date) {
         return new Date();
     }
@@ -326,5 +331,5 @@ export const parseRelativeDate = (date: string, ...options: OptionType[]): Date 
     }
 
     // Strategy 4: Fallback to standard Day.js parsing
-    return parseDate(date, ...options);
+    return parseDate(date, format, localeOrStrict, strict);
 };

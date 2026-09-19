@@ -27,8 +27,8 @@ export const route: Route = {
     description: `栏目类型
 
 | 简讯专栏 | 本科生教育 | 研究生教育 | 科研学术 | 人事工作 | 学生思政 | 对外交流 | 就业指导 |
-| ------ | ------- | ------- | ------ | ------ | ------ | ------ | ------ |
-|   -    |  bksjy  |  yjsjy  |  kyxs  |  rsgz  |  xssz  |  dwjl  |  jyzd  |`,
+| -------- | ---------- | ---------- | -------- | -------- | -------- | -------- | -------- |
+| -        | bksjy      | yjsjy      | kyxs     | rsgz     | xssz     | dwjl     | jyzd     |`,
 };
 
 async function handler(ctx) {
@@ -79,7 +79,7 @@ async function handler(ctx) {
 
                 const infoDiv = content('span.xi14').text();
                 const dateText = infoDiv.match(/\b\d{4}-\d{2}-\d{2}\b/);
-                const pubDate = timezone(parseDate(dateText ? dateText[0] : ''), +8);
+                const pubDate = timezone(parseDate(dateText ? dateText[0] : ''), 8);
 
                 // 获取正文
                 const description = content('div.wp_articlecontent').html();

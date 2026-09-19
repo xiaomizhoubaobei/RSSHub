@@ -1,3 +1,4 @@
+import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 
 import { config } from '@/config';
@@ -6,7 +7,13 @@ import cache from '@/utils/cache';
 import logger from '@/utils/logger';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import puppeteer, { getPuppeteerPage } from '@/utils/puppeteer';
+import playwright, { getPlaywrightPage } from '@/utils/playwright';
+
+declare global {
+    interface Window {
+        __INITIAL_SSR_STATE__: { Main: any };
+    }
+}
 
 // Common headers for requests
 const getHeaders = (cookie?: string) => ({
@@ -26,7 +33,7 @@ const getHeaders = (cookie?: string) => ({
     'Sec-Fetch-User': '?1',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    ...(cookie ? { Cookie: cookie } : {}),
+    ...(cookie && { Cookie: cookie }),
 });
 
 // Fetch HTML through proxy when configured
@@ -58,16 +65,16 @@ const getUser = (url, cache) =>
                 userPageData = userPageData._rawValue || userPageData;
                 notes = notes._rawValue || notes;
 
-                // Cannot get collect data without puppeteer
+                // Cannot get collect data without Playwright
                 return { userPageData, notes, collect: '' };
             }
 
-            // Use puppeteer
-            const { page, destory } = await getPuppeteerPage(url, {
+            // Use Playwright
+            const { page, destroy } = await getPlaywrightPage(url, {
                 onBeforeLoad: async (page) => {
-                    await page.setRequestInterception(true);
-                    page.on('request', (request) => {
-                        request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' || request.resourceType() === 'other' ? request.continue() : request.abort();
+                    await page.route('**/*', (route) => {
+                        const request = route.request();
+                        request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' || request.resourceType() === 'other' ? route.continue() : route.abort();
                     });
                 },
             });
@@ -77,17 +84,22 @@ const getUser = (url, cache) =>
                 await page.goto(url, {
                     waitUntil: 'domcontentloaded',
                 });
-                await page.waitForSelector('div.reds-tab-item:nth-child(2), #red-captcha');
+                try {
+                    await page.waitForSelector('div.reds-tab-item:nth-child(2), .fe-verify-box', { timeout: 3000 });
+                } catch {
+                    //
+                }
 
-                if (await page.$('#red-captcha')) {
+                if (await page.$('.fe-verify-box')) {
                     throw new CaptchaError('小红书风控校验，请稍后再试');
                 }
 
-                const initialState = await page.evaluate(() => (window as any).__INITIAL_STATE__);
+                const content = await page.content();
+                const initialState = JSON.parse(extractInitialState(load(content)));
 
                 if (!(await page.$('.lock-icon'))) {
-                    await page.click('div.reds-tab-item:nth-child(2)');
                     try {
+                        await page.click('div.reds-tab-item:nth-child(2)', { timeout: 3000 });
                         const response = await page.waitForResponse(
                             (res) => {
                                 const req = res.request();
@@ -105,9 +117,13 @@ const getUser = (url, cache) =>
                 userPageData = userPageData._rawValue || userPageData;
                 notes = notes._rawValue || notes;
 
+                if (!userPageData.basicInfo) {
+                    throw new Error(`小红书未返回用户数据，请稍后再试: ${JSON.stringify(userPageData.result)}`);
+                }
+
                 return { userPageData, notes, collect };
             } finally {
-                await destory();
+                await destroy();
             }
         },
         config.cache.routeExpire,
@@ -127,21 +143,21 @@ const getBoard = (url, cache) =>
                 return state.Main;
             }
 
-            // Use puppeteer
-            const browser = await puppeteer();
+            // Use Playwright
+            const context = await playwright();
             try {
-                const page = await browser.newPage();
-                await page.setRequestInterception(true);
-                page.on('request', (request) => {
-                    request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' ? request.continue() : request.abort();
+                const page = await context.newPage();
+                await page.route('**/*', (route) => {
+                    const request = route.request();
+                    request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' ? route.continue() : route.abort();
                 });
                 logger.http(`Requesting ${url}`);
                 await page.goto(url);
                 await page.waitForSelector('.pc-container');
-                const initialSsrState = await page.evaluate(() => (window as any).__INITIAL_SSR_STATE__);
+                const initialSsrState = await page.evaluate(() => window.__INITIAL_SSR_STATE__);
                 return initialSsrState.Main;
             } finally {
-                await browser.close();
+                await context.close();
             }
         },
         config.cache.routeExpire,
@@ -151,9 +167,9 @@ const getBoard = (url, cache) =>
 const formatText = (text) => text.replaceAll(/(\r\n|\r|\n)/g, '<br>').replaceAll('\t', '&emsp;');
 
 // tag_list.id has nothing to do with its url
-const formatTagList = (tagList) => tagList.reduce((acc, item) => acc + `#${item.name} `, ``);
+const formatTagList = (tagList) => tagList.map((item) => `#${item.name} `).join('');
 
-const formatImageList = (imageList) => imageList.reduce((acc, item) => acc + `<img src="${item.url}"><br>`, ``);
+const formatImageList = (imageList) => imageList.map((item) => `<img src="${item.url}"><br>`).join('');
 
 const formatNote = (url, note) => ({
     title: note.title,
@@ -195,7 +211,7 @@ async function renderNotesFulltext(notes, urlPrex, displayLivePhoto) {
 }
 
 async function getFullNote(link, displayLivePhoto) {
-    const data = (await cache.tryGet(link, async () => {
+    const data = await cache.tryGet(link, async () => {
         const res = await fetchWithProxy(link, config.xiaohongshu.cookie);
         const $ = load(res);
         const script = extractInitialState($);
@@ -276,7 +292,7 @@ async function getFullNote(link, displayLivePhoto) {
             pubDate,
             updated,
         };
-    })) as Promise<{ title: string; description: string; pubDate: Date; updated: Date }>;
+    });
     return data;
 }
 
@@ -284,52 +300,50 @@ async function getUserWithCookie(url: string) {
     const cookie = config.xiaohongshu.cookie;
     const res = await fetchWithProxy(url, cookie);
     const $ = load(res);
-    const paths = $('#userPostedFeeds > section > div > a.cover.ld.mask').map((i, item) => item.attributes[3].value);
     const script = extractInitialState($);
     const state = JSON.parse(script);
-    let index = 0;
-    for (const item of state.user.notes.flat()) {
-        const path = paths[index];
-        if (path && path.includes('?')) {
-            item.id = item.id + path?.slice(path.indexOf('?'));
+
+    const tokenizedPaths = new Map<string, string>();
+
+    $('#userPostedFeeds a[href*="xsec_token"]').each((_, item) => {
+        const href = $(item).attr('href');
+        if (!href) {
+            return;
         }
-        index = index + 1;
+
+        const match = href.match(/\/([0-9a-f]{24})(?:\?|$)/i);
+        if (match && href.includes('?')) {
+            tokenizedPaths.set(match[1], href);
+        }
+    });
+
+    for (const item of state.user.notes.flat()) {
+        const path = tokenizedPaths.get(item.id);
+
+        if (path) {
+            item.id += path.slice(path.indexOf('?'));
+        }
     }
     return state.user;
 }
 
 // Add helper function to extract initial state
-function extractInitialState($) {
-    let script = $('script')
-        .filter((i, script) => {
-            const text = script.children[0]?.data;
-            return text?.startsWith('window.__INITIAL_STATE__=');
-        })
-        .text();
-    script = script.slice('window.__INITIAL_STATE__='.length);
-    script = script.replaceAll('undefined', 'null');
+function extractInitialState($: CheerioAPI) {
+    let script = $('script:contains("window.__INITIAL_STATE__=")').text();
+
+    script = script.slice(script.indexOf('window.__INITIAL_STATE__=') + 'window.__INITIAL_STATE__='.length);
+
+    script = script.replaceAll('undefined', 'null').replaceAll(/new Map\(\s*\[\s*\]\s*\)/g, 'null');
+
     return script;
 }
 
 // Add helper function to extract initial SSR state
-function extractInitialSsrState($) {
-    let script = $('script')
-        .filter((i, script) => {
-            const text = script.children[0]?.data;
-            return text?.includes('window.__INITIAL_SSR_STATE__=');
-        })
-        .text();
+function extractInitialSsrState($: CheerioAPI) {
+    const script = $('script:contains("window.__INITIAL_SSR_STATE__=")').text();
     const match = script.match(/window\.__INITIAL_SSR_STATE__\s*=\s*(\{[\s\S]*?\})\s*(?:;|$)/);
     if (match) {
         return match[1].replaceAll('undefined', 'null');
-    }
-    // Fallback: try simple extraction
-    const startMarker = 'window.__INITIAL_SSR_STATE__=';
-    const startIndex = script.indexOf(startMarker);
-    if (startIndex !== -1) {
-        script = script.slice(startIndex + startMarker.length);
-        script = script.replaceAll('undefined', 'null');
-        return script;
     }
     throw new Error('Cannot extract __INITIAL_SSR_STATE__');
 }

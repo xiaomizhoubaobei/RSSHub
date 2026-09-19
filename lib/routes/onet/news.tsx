@@ -32,7 +32,7 @@ export const route: Route = {
     maintainers: ['Vegann'],
     handler,
     url: 'wiadomosci.onet.pl/',
-    description: `This route provides a better reading experience (full text articles) over the official one for \`https://wiadomosci.onet.pl\`.`,
+    description: 'This route provides a better reading experience (full text articles) over the official one for `https://wiadomosci.onet.pl`.',
 };
 
 async function handler() {
@@ -40,7 +40,7 @@ async function handler() {
     const feed = await parser.parseURL(rssUrl);
     const items = await Promise.all(
         feed.items.map(async (item) => {
-            const { description, author, category } = await cache.tryGet(item.link, async () => {
+            const { description, author, category } = await cache.tryGet(item.link!, async () => {
                 const { data: response } = await got(item.link, {
                     headers: {
                         referer: 'https://www.onet.pl/', // for some reason onet.pl will redirect to the main page if referer is not set
@@ -60,22 +60,22 @@ async function handler() {
                 return { description, author, category };
             });
             return {
-                title: item.title,
+                title: item.title!,
                 link: item.link,
                 description,
                 author,
                 category,
-                pubDate: parseDate(item.pubDate),
+                pubDate: parseDate(item.pubDate!),
                 guid: item.id,
             };
         })
     );
     return {
-        title: feed.title,
+        title: feed.title!,
         link: feed.link,
         description: feed.title,
         item: items,
-        language: 'pl',
+        language: 'pl' as const,
         image: 'https://ocdn.eu/wiadomosciucs/static/logo2017/onet2017big_dark.png',
     };
 }

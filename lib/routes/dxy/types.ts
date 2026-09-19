@@ -82,6 +82,7 @@ interface Post {
     id: number;
     rootId: number;
     createTime: number;
+    lastEditTime?: number;
     simpleBody: string;
     subject: string;
     body: string;
@@ -182,7 +183,6 @@ interface RecommendPost {
     postInfo: Post;
     feedType: number;
     source: string;
-    pointMap: Record<string, unknown>;
     globalId: string;
 }
 

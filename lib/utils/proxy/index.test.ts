@@ -44,7 +44,7 @@ describe('proxy', () => {
         const current = proxy.getCurrentProxy();
         expect(current).not.toBeNull();
         expect(proxy.getDispatcherForProxy(current!)).toBeInstanceOf(ProxyAgent);
-        expect(proxy.getAgentForProxy({ uri: 'socks5://proxy.local:1080' } as any)).toBeInstanceOf(SocksProxyAgent);
+        expect(proxy.getAgentForProxy({ uri: 'socks5://proxy.local:1080', isActive: true, failureCount: 0 })).toBeInstanceOf(SocksProxyAgent);
 
         proxy.markProxyFailed(current!.uri);
         const next = proxy.getCurrentProxy();
@@ -73,7 +73,7 @@ describe('proxy', () => {
         });
 
         expect(proxy.agent).toBeInstanceOf(SocksProxyAgent);
-        expect(proxy.dispatcher).toBeNull();
+        expect(proxy.dispatcher).toBeInstanceOf(ProxyAgent);
         expect(proxy.getCurrentProxy()?.uri).toBe('socks5://proxy.local:1080');
     });
 
@@ -84,6 +84,6 @@ describe('proxy', () => {
             PAC_URI: '',
         });
 
-        expect(proxy.getAgentForProxy({ uri: 'ftp://proxy.local:21' } as any)).toBeNull();
+        expect(proxy.getAgentForProxy({ uri: 'ftp://proxy.local:21', isActive: true, failureCount: 0 })).toBeNull();
     });
 });

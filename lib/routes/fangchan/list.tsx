@@ -4,7 +4,7 @@ import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,7 +13,7 @@ import timezone from '@/utils/timezone';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = 'datalist' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const baseUrl = 'http://www.fangchan.com';
     const apiBaseUrl = 'http://news.fangchan.com';
@@ -22,7 +22,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'zh-CN';
+    const language = ($('html').attr('lang') ?? 'zh-CN') as Language;
 
     const response = await ofetch(apiUrl, {
         query: {
@@ -45,7 +45,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             description,
             pubDate: pubDate ? parseDate(pubDate, 'X') : undefined,
             link: linkUrl,
-            id: categories,
+            id: categories.join(','),
             content: {
                 html: description,
                 text: item.zhaiyao ?? description,
@@ -67,7 +67,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 }
 
                 return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                    const detailResponse = await ofetch(item.link);
+                    const detailResponse = await ofetch(item.link!);
                     const $$: CheerioAPI = load(detailResponse);
 
                     const title: string = $$('div.summary-text h').text();
@@ -76,10 +76,10 @@ export const handler = async (ctx: Context): Promise<Data> => {
                         .text()
                         .match(/\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/)?.[1];
                     const idEls: Element[] = $$('a.news-column, div.label span').toArray();
-                    const categories: string[] = [...new Set([...(item.id as string[]), ...idEls.map((el) => $$(el).text()).filter(Boolean)].filter(Boolean))];
+                    const categories: string[] = [...new Set([...(item.id?.split(',') ?? []), ...idEls.map((el) => $$(el).text()).filter(Boolean)].filter(Boolean))];
                     const authors: DataItem['author'] = $$('span.news-date')
                         .text()
-                        ?.split(/\d{4}-\d{2}-\d{2}/)?.[0]
+                        ?.split(/\d{4}-\d{2}-\d{2}/, 1)?.[0]
                         ?.trim()
                         ?.split(/\s/)
                         ?.map((author) => ({
@@ -90,14 +90,14 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     let processedItem: DataItem = {
                         title,
                         description,
-                        pubDate: pubDateStr ? timezone(parseDate(pubDateStr), +8) : item.pubDate,
-                        id: categories,
+                        pubDate: pubDateStr ? timezone(parseDate(pubDateStr), 8) : item.pubDate,
+                        id: categories.join(','),
                         author: authors,
                         content: {
                             html: description,
                             text: description,
                         },
-                        updated: upDatedStr ? timezone(parseDate(upDatedStr), +8) : item.updated,
+                        updated: upDatedStr ? timezone(parseDate(upDatedStr), 8) : item.updated,
                         language,
                     };
 
@@ -177,8 +177,7 @@ export const route: Route = {
 
 | [数据研究](https://www.fangchan.com/datalist)         | [行业测评](https://www.fangchan.com/industrylist)             | [政策法规](https://www.fangchan.com/policylist)           |
 | ----------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| [datalist](https://rsshub.app/fangchan/list/datalist) | [industrylist](https://rsshub.app/fangchan/list/industrylist) | [policylist](https://rsshub.app/fangchan/list/policylist) |
-`,
+| [datalist](https://rsshub.app/fangchan/list/datalist) | [industrylist](https://rsshub.app/fangchan/list/industrylist) | [policylist](https://rsshub.app/fangchan/list/policylist) |`,
     categories: ['new-media'],
     features: {
         requireConfig: false,

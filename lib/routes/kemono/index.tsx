@@ -61,29 +61,20 @@ export const route: Route = {
 | posts | patreon | fanbox       | gumroad | subscribestar | dlsite | discord | fantia |
 
 ::: tip
-  When \`posts\` is selected as the value of the parameter **source**, the parameter **id** does not take effect.
-  There is an optinal parameter **limit** which controls the number of posts to fetch, default value is 25.
+When \`posts\` is selected as the value of the parameter **source**, the parameter **id** does not take effect.
+There is an optinal parameter **limit** which controls the number of posts to fetch, default value is 25.
 
-  Support for announcements and fancards:
-  - Use \`/:source/:id/announcements\` to get announcements
-  - Use \`/:source/:id/fancards\` to get fancards
+Support for announcements and fancards:
+
+- Use \`/:source/:id/announcements\` to get announcements
+- Use \`/:source/:id/fancards\` to get fancards
+
 :::`,
 };
 
-function parseJsonField(field: any): any {
-    if (typeof field !== 'string') {
-        return field;
-    }
-
-    try {
-        let parsedData = JSON.parse(field);
-        if (typeof parsedData === 'string') {
-            parsedData = JSON.parse(parsedData);
-        }
-        return parsedData;
-    } catch {
-        return field;
-    }
+interface KemonoAttachment {
+    name?: string;
+    path?: string;
 }
 
 function buildApiUrl(source: string, userId?: string, contentType?: string): string {
@@ -133,27 +124,23 @@ async function fetchUserProfile(source: string, userId: string): Promise<string>
 function processPostFiles(post: KemonoPost): KemonoFile[] {
     const files: KemonoFile[] = [];
 
-    if (post.file) {
-        const parsedFile = parseJsonField(post.file);
-        if (parsedFile && typeof parsedFile === 'object' && 'path' in parsedFile) {
-            files.push({
-                name: parsedFile.name || 'Unnamed File',
-                path: parsedFile.path,
-                extension: extractFileExtension(parsedFile.path),
-            });
-        }
+    const file: KemonoAttachment | undefined = post.file;
+    if (file?.path) {
+        files.push({
+            name: file.name || 'Unnamed File',
+            path: file.path,
+            extension: extractFileExtension(file.path),
+        });
     }
 
-    if (Array.isArray(post.attachments)) {
-        for (const attachment of post.attachments) {
-            const parsedAttachment = parseJsonField(attachment);
-            if (parsedAttachment && typeof parsedAttachment === 'object' && 'path' in parsedAttachment) {
-                files.push({
-                    name: parsedAttachment.name || 'Unnamed Attachment',
-                    path: parsedAttachment.path,
-                    extension: extractFileExtension(parsedAttachment.path),
-                });
-            }
+    const attachments: KemonoAttachment[] = post.attachments ?? [];
+    for (const attachment of attachments) {
+        if (attachment.path) {
+            files.push({
+                name: attachment.name || 'Unnamed Attachment',
+                path: attachment.path,
+                extension: extractFileExtension(attachment.path),
+            });
         }
     }
 
@@ -168,8 +155,8 @@ function generateEnclosureInfo(htmlContent: string): { enclosure_url?: string; e
     const $ = load(htmlContent);
     let enclosureInfo = {};
 
-    $('audio source, video source').each(function () {
-        const src = $(this).attr('src');
+    $('audio source, video source').each((_, el) => {
+        const src = $(el).attr('src');
         if (!src) {
             return;
         }
@@ -179,7 +166,7 @@ function generateEnclosureInfo(htmlContent: string): { enclosure_url?: string; e
 
         if (mimeType) {
             enclosureInfo = {
-                enclosure_url: new URL(src, KEMONO_ROOT_URL).toString(),
+                enclosure_url: new URL(src, KEMONO_ROOT_URL).href,
                 enclosure_type: mimeType,
             };
             return false;
@@ -223,7 +210,7 @@ const renderPostFiles = (post: KemonoPost & { files?: KemonoFile[] }) =>
         <>
             {post.files?.map((file) => {
                 const extension = file.extension;
-                const typeSuffix = file.extention ?? '';
+                const typeSuffix = file.extension ?? '';
 
                 if (['jpg', 'png', 'webp', 'jpeg', 'jfif'].includes(extension)) {
                     return <img src={file.path} />;
@@ -343,16 +330,17 @@ function processPosts(posts: KemonoPost[], authorName: string, limit: number) {
 
             let replacementCount = 0;
             const fanboxRegex = /downloads\.fanbox\.cc/;
-            $('a').each(function () {
-                const link = $(this).attr('href');
+            $('a').each((_, el) => {
+                const link = $(el).attr('href');
                 if (link && fanboxRegex.test(link)) {
-                    $(this).replaceWith(kemonoFileElements[replacementCount] || '');
+                    $(el).replaceWith(kemonoFileElements[replacementCount] || '');
                     replacementCount++;
                 }
             });
 
             description = (kemonoFileElements[0] || '') + $.html();
-            for (const fileElement of kemonoFileElements.slice(replacementCount + 1)) {
+            const remainingFileElements = kemonoFileElements.slice(replacementCount + 1);
+            for (const fileElement of remainingFileElements) {
                 description += fileElement;
             }
 

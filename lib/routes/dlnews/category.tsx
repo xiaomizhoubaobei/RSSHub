@@ -69,12 +69,13 @@ const extractArticle = (item) =>
         const { data: response } = await got(item.link);
         const $ = load(response);
         const scriptTagContent = $('script#fusion-metadata').text();
-        const jsonData = JSON.parse(scriptTagContent.match(/Fusion\.globalContent=({.*?});Fusion\.globalContentConfig/)[1]).content_elements;
-        const filteredData = [];
+        const jsonData = JSON.parse(scriptTagContent.match(/Fusion\.globalContent=(\{.*?\});Fusion\.globalContentConfig/)![1]).content_elements;
+        const filteredData: any[] = [];
         for (const v of jsonData) {
             if (v.type === 'header' && v.content.includes('What we’re reading')) {
                 break;
-            } else if (v.type === 'custom_embed' && Boolean(v.embed.config.text)) {
+            }
+            if (v.type === 'custom_embed' && Boolean(v.embed.config.text)) {
                 filteredData.push({ type: v.type, data: v.embed.config.text });
             } else if (v.type === 'text' && !v.content.includes('<b>NOW READ: </b>')) {
                 filteredData.push({ type: v.type, data: v.content });
@@ -145,6 +146,6 @@ async function handler(ctx) {
         description: Object.hasOwn(topics, category) ? `${topics[category]} : News on dlnews.com` : 'Latest News on dlnews.com',
         logo: 'https://www.dlnews.com/pf/resources/favicon.ico?d=284',
         icon: 'https://www.dlnews.com/pf/resources/favicon.ico?d=284',
-        language: 'en-us',
+        language: 'en-us' as const,
     };
 }

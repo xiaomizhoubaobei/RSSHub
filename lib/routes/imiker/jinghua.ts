@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -32,11 +32,11 @@ export const route: Route = {
 };
 
 async function handler(ctx) {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const rootUrl = 'https://ask.imiker.com';
     const apiUrl = new URL('explore/main/list/', rootUrl).href;
-    const currentUrl = new URL(``, rootUrl).href;
+    const currentUrl = new URL('', rootUrl).href;
 
     const { data: response } = await got(apiUrl, {
         searchParams: {
@@ -86,7 +86,7 @@ async function handler(ctx) {
 
                 item.title = content('div.title h1').text();
                 item.description += renderDescription({
-                    description: content('div#warp').html(),
+                    description: content('div#warp').html() ?? undefined,
                 });
                 item.author = content('div.name').text();
 
@@ -104,7 +104,7 @@ async function handler(ctx) {
         title: `${author} - ${description}`,
         link: currentUrl,
         description,
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         icon,
         logo: icon,
         subtitle: description,

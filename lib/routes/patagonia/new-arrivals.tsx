@@ -14,8 +14,8 @@ const categoryMap = {
 function extractSfrmUrl(url) {
     const urlObj = new URL(url);
     const sfrmValue = urlObj.searchParams.get('sfrm');
-    urlObj.search = new URLSearchParams({ sfrm: sfrmValue }).toString();
-    return urlObj.toString();
+    urlObj.search = new URLSearchParams({ sfrm: String(sfrmValue) }).toString();
+    return urlObj.href;
 }
 export const route: Route = {
     path: '/new-arrivals/:category',
@@ -31,7 +31,7 @@ export const route: Route = {
         supportScihub: false,
     },
     name: 'New Arrivals',
-    maintainers: [],
+    maintainers: ['IvanWng97'],
     handler,
     description: `| Men's | Women's | Kids' & Baby | Packs & Gear |
 | ----- | ------- | ------------ | ------------ |
@@ -55,13 +55,14 @@ async function handler(ctx) {
     const list = $('.product')
         .toArray()
         .map((element) => {
+            const tealium = $(element).find('.product-tile').data('tealium') as { product_name: string[] };
             const data = {
-                title: $(element).find('.product-tile').data('tealium').product_name[0],
+                title: tealium.product_name[0],
                 link: host + '/' + $(element).find('[itemprop="url"]').attr('href'),
                 description: '',
                 category: $(element).find('[itemprop="category"]').attr('content'),
             };
-            let imgUrl = new URL($(element).find('[itemprop="image"]').attr('content'));
+            let imgUrl: string | URL = new URL($(element).find('[itemprop="image"]').attr('content')!);
             imgUrl = extractSfrmUrl(imgUrl);
 
             const price = $(element).find('[itemprop="price"]').eq(0).text();

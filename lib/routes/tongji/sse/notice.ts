@@ -30,15 +30,15 @@ export const route: Route = {
 | ---------- | ---------- | -------- | -------- | -------- | -------- | -------- |
 | bkstz      | yjstz      | jgtz     | qttz     | xytz     | xyxw     | xyhd     |
 
-  注意: \`qttz\` 与 \`xytz\` 在原网站等价.`,
+注意: \`qttz\` 与 \`xytz\` 在原网站等价.`,
 };
 
 async function handler(ctx) {
     const baseUrl = 'https://sse.tongji.edu.cn';
     const type = ctx.req.param('type') || 'xytz';
-    const subType = ['bkstz', 'yjstz', 'jgtz', 'qttz'];
+    const subtype = ['bkstz', 'yjstz', 'jgtz', 'qttz'];
 
-    const listUrl = `${baseUrl}/xxzx/${subType.includes(type) ? `xytz/${type}` : type}.htm`;
+    const listUrl = `${baseUrl}/xxzx/${subtype.includes(type) ? `xytz/${type}` : type}.htm`;
     const response = await got({
         method: 'get',
         url: listUrl,
@@ -50,12 +50,12 @@ async function handler(ctx) {
     const detailUrls = $('.data-list li')
         .toArray()
         .map((item) => {
-            item = $(item);
-            const a = item.find('a');
+            const $item = $(item);
+            const a = $item.find('a');
             return {
                 title: a.text(),
-                link: new URL(a.attr('href'), baseUrl).href,
-                pubDate: parseDate(item.find('.data-list-time').text(), 'YYYY-MM-DD'),
+                link: new URL(a.attr('href')!, baseUrl).href,
+                pubDate: parseDate($item.find('.data-list-time').text(), 'YYYY-MM-DD'),
             };
         });
 

@@ -25,6 +25,7 @@ interface GeoLocation {
 interface JobInformation {
     readonly title: string;
     readonly description: string;
+    readonly company_info_description?: string;
 }
 
 interface ProcessedJobData {
@@ -60,11 +61,14 @@ interface SearchParams {
     readonly sortBy?: 'date' | 'default' | 'compensation_desc' | 'experience_asc';
 }
 
-const validateSearchParams = ({ keywords, page = 0, size = CONFIG.DEFAULT_PAGE_SIZE }: SearchParams): SearchParams => ({
-    keywords: keywords.trim(),
-    page: Math.max(0, Math.floor(Number(page))),
-    size: Math.min(Math.max(1, Math.floor(Number(size))), CONFIG.MAX_PAGE_SIZE),
-});
+const validateSearchParams = ({ keywords, page = 0, size = CONFIG.DEFAULT_PAGE_SIZE }: SearchParams): SearchParams => {
+    const normalizedSize = Math.floor(Number(size));
+    return {
+        keywords: keywords.trim(),
+        page: Math.max(0, Math.floor(Number(page))),
+        size: Math.min(Math.max(1, normalizedSize), CONFIG.MAX_PAGE_SIZE),
+    };
+};
 
 const fetchJobs = async (searchParams: SearchParams): Promise<ApiResponse> => {
     const payload = {
@@ -85,8 +89,7 @@ const fetchJobs = async (searchParams: SearchParams): Promise<ApiResponse> => {
 
 const renderJobDescription = (jobInfo: JobInformation, processedData: ProcessedJobData): string => {
     const isCompensationTransparent = Boolean(processedData.is_compensation_transparent && processedData.yearly_min_compensation && processedData.yearly_max_compensation);
-    const companyInfoDescription = (jobInfo as { company_info_description?: string }).company_info_description;
-    const hasCompanyInfo = Boolean(companyInfoDescription);
+    const companyInfoDescription = jobInfo.company_info_description;
 
     return renderToString(
         <>
@@ -108,10 +111,10 @@ const renderJobDescription = (jobInfo: JobInformation, processedData: ProcessedJ
                 <strong>Requirements:</strong> {processedData.requirements_summary ?? 'No requirements specified'}
             </p>
             <div class="job-description">{jobInfo.description ? raw(jobInfo.description) : null}</div>
-            {hasCompanyInfo ? (
+            {companyInfoDescription ? (
                 <>
                     <h2>About {processedData.company_name}</h2>
-                    {raw(companyInfoDescription as string)}
+                    {raw(companyInfoDescription)}
                 </>
             ) : null}
         </>
@@ -134,7 +137,7 @@ const transformJobItem = (item: JobResult) => {
 
 async function handler(ctx: Context) {
     const searchParams = validateSearchParams({
-        keywords: ctx.req.param('keywords'),
+        keywords: ctx.req.param('keywords')!,
     });
 
     const response = await fetchJobs(searchParams);

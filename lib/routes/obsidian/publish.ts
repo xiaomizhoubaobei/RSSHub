@@ -37,7 +37,7 @@ async function handler(ctx) {
 
     return {
         title: 'Obsidian Publish',
-        language: 'en-us',
+        language: 'en-us' as const,
         item: items,
         link: 'https://publish.obsidian.md/',
     };
@@ -72,14 +72,14 @@ async function fetchPage(id: string) {
             }
             const item: DataItem = {
                 title: post.frontmatter?.title || getTitle(postKey),
-                link: `${baseUrl}/${postKey.replaceAll(' ', '+').split('.md')[0]}`,
+                link: `${baseUrl}/${postKey.replaceAll(' ', '+').split('.md', 1)[0]}`,
                 pubDate: post.frontmatter?.['date created'] ? parseDate(post.frontmatter['date created']) : undefined,
                 ...post.frontmatter,
             };
 
             return item;
         })
-        .filter(Boolean) as DataItem[];
+        .filter((item) => item !== null);
 
     return items;
 }

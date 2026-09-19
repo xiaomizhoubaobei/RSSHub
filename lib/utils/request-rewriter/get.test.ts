@@ -4,7 +4,7 @@ import getWrappedGet from '@/utils/request-rewriter/get';
 
 describe('request-rewriter get wrapper', () => {
     it('passes callback when url and callback are provided', () => {
-        const origin = vi.fn(() => 'ok');
+        const origin = vi.fn<(...args: any[]) => string>(() => 'ok');
         const wrapped = getWrappedGet(origin as any);
         const callback = vi.fn();
 
@@ -19,7 +19,7 @@ describe('request-rewriter get wrapper', () => {
         const origin = vi.fn(() => 'fallback');
         const wrapped = getWrappedGet(origin as any);
         const callback = vi.fn();
-        const options = { href: 'http://' } as any;
+        const options = { href: 'http://' };
 
         const result = wrapped(options, callback);
 

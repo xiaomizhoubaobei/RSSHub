@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { DataItem, Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -10,7 +10,7 @@ const handler: Route['handler'] = async () => {
 
     const $ = load(data);
 
-    const item = (await Promise.all(
+    const item = await Promise.all(
         $('article')
             .toArray()
             .slice(0, 20)
@@ -24,9 +24,9 @@ const handler: Route['handler'] = async () => {
                     const $ = load(data);
 
                     return {
-                        title: $('h1').first().text().trim(),
+                        title: $('h1').text(),
                         link,
-                        description: $('div.prose').html() ?? '',
+                        description: $('div.prose').html(),
                         pubDate: parseDate(
                             $('p[data-version="v1"]')
                                 .first()
@@ -36,12 +36,12 @@ const handler: Route['handler'] = async () => {
                     };
                 });
             })
-    )) as DataItem[];
+    );
 
     return {
         title: 'Next.js Blog',
         link: 'https://nextjs.org/blog',
-        language: 'en-US',
+        language: 'en-us',
         item,
     };
 };

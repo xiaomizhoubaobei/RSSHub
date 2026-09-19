@@ -28,7 +28,7 @@ const parseArticle = (item) =>
         const author = $('.author > a[rel="author"]').text();
 
         const categories = $('meta[name="keywords"]')
-            .attr('content')
+            .attr('content')!
             .split(',')
             .map((c) => c.trim());
 
@@ -42,8 +42,8 @@ const parseArticle = (item) =>
         article.find('.bylineWrap').each((i, e) => {
             $(e)
                 .find('p')
-                .each(function () {
-                    $(this).replaceWith($(this).html());
+                .each((_, el) => {
+                    $(el).replaceWith($(el).html() ?? '');
                 });
         });
 
@@ -92,8 +92,8 @@ const parseArticle = (item) =>
 
         return {
             title: item.title,
-            pubDate: parseDate(publishedAt),
-            updated: parseDate(updatedAt),
+            pubDate: parseDate(publishedAt!),
+            updated: parseDate(updatedAt!),
             author,
             link: item.link,
             summary,

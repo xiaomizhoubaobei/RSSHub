@@ -134,7 +134,7 @@ async function handler(ctx) {
         title: item.title,
         author: item.source,
         link: item.skipURL || item.url || `${rootUrl}/dy/article/${item.docid}.html`,
-        pubDate: timezone(parseDate(item.ptime), +8),
+        pubDate: timezone(parseDate(item.ptime), 8),
         videoId: item.skipType === 'video' ? item.stitle : '',
     }));
 
@@ -163,10 +163,10 @@ async function handler(ctx) {
 
                         content('.m-linkCard').remove();
 
-                        content('.m-photo').each(function () {
-                            content(this).html(
+                        content('.m-photo').each((_, el) => {
+                            content(el).html(
                                 renderExclusiveDescription({
-                                    image: content(this).find('img').attr('data-src'),
+                                    image: content(el).find('img').attr('data-src'),
                                 })
                             );
                         });

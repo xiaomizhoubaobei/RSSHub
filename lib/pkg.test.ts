@@ -93,6 +93,8 @@ describe('pkg', () => {
             {
                 path: '/hello',
                 name: 'Custom Hello',
+                maintainers: [],
+                example: '/custom/hello',
                 handler: () => ({
                     title: 'Custom',
                     link: 'https://example.com',
@@ -127,6 +129,8 @@ describe('pkg', () => {
         await registerRoute('custom-response', {
             path: '/hello',
             name: 'Custom Response',
+            maintainers: [],
+            example: '/custom-response/hello',
             handler: () => new Response('ok'),
         });
 

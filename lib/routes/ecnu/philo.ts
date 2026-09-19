@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -25,9 +25,9 @@ export const route: Route = {
         const $ = load(response.data);
         const links = $('ul.data-list2 > li')
             .toArray()
-            .map((el) => ({
-                pubDate: timezone(parseDate($(el).find('span').text()), +8),
-                link: new URL($(el).find('a').attr('href'), baseUrl).toString(),
+            .map((el): DataItem & { link: string } => ({
+                pubDate: timezone(parseDate($(el).find('span').text()), 8),
+                link: new URL($(el).find('a').attr('href')!, baseUrl).href,
                 title: $(el).find('a').text(),
             }));
         const items = await Promise.all(
@@ -41,10 +41,10 @@ export const route: Route = {
                         const attr = el.tagName === 'img' ? 'src' : 'href';
                         const val = $el.attr(attr);
                         if (val) {
-                            $el.attr(attr, new URL(val, baseUrl).toString());
+                            $el.attr(attr, new URL(val, baseUrl).href);
                         }
                     });
-                    item.description = $read.html()?.trim();
+                    item.description = $read.html();
                     return item;
                 })
             )

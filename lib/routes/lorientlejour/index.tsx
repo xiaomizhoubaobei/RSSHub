@@ -4,7 +4,7 @@ import { renderToString } from 'hono/jsx/dom/server';
 import { FetchError } from 'ofetch';
 
 import { config } from '@/config';
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -46,8 +46,8 @@ export const route: Route = {
     name: 'Category',
     maintainers: ['quiniapiezoelectricity'],
     handler,
-    description: `  ::: tip
-For example, the path for the sites https://today.lorientlejour.com/section/977-lebanon and https://www.lorientlejour.com/rubrique/1-liban would be /lorientlejour/977-lebanon and /lorientlejour/1-liban respectively.
+    description: `::: tip
+For example, the path for the sites <https://today.lorientlejour.com/section/977-lebanon> and <https://www.lorientlejour.com/rubrique/1-liban> would be /lorientlejour/977-lebanon and /lorientlejour/1-liban respectively.
 Multiple categories seperated by '|' is also supported, e.g. /lorientlejour/977-lebanon|1-liban.
 :::`,
     radar: [
@@ -86,7 +86,7 @@ async function viewCategory(category: string) {
 }
 
 async function handler(ctx) {
-    const categoryId = (ctx.req.param('category') ?? '977-Lebanon').split('|').map((item) => item.match(/^(\d+)/i)[0] ?? item);
+    const categoryId = (ctx.req.param('category') ?? '977-Lebanon').split('|').map((item) => item.match(/^(\d+)/)[0] ?? item);
     const limit = ctx.req.query('limit') ?? 25;
 
     let token;
@@ -143,14 +143,14 @@ async function handler(ctx) {
 
     let url = `https://www.lorientlejour.com/cmsapi/content.php?text=clean&key=${key}&action=search&category=${encodeURIComponent(JSON.stringify(categoriesParam))}&limit=${limit}&text=false&page=1`;
     if (token) {
-        url = url + `&token=${token}`;
+        url += `&token=${token}`;
     }
     const response = await got(url);
     const items = response.data.data.map((item) => {
         item.link = item.url;
         item.author = item.authors.map((author) => author.name).join(', ');
-        item.pubDate = timezone(parseDate(item.firstPublished), +3);
-        item.updated = timezone(parseDate(item.lastUpdate), +3);
+        item.pubDate = timezone(parseDate(item.firstPublished), 3);
+        item.updated = timezone(parseDate(item.lastUpdate), 3);
         item.category = item.categories.map((itemCategory) => itemCategory.name);
         const contents = item.contents;
         const $ = load(contents);
@@ -158,12 +158,12 @@ async function handler(ctx) {
         article.find('.inline-embeded-article').remove();
         article.find('.relatedArticles').remove();
         if (item.inline_attachments) {
-            article.find('.inlineImage').each(function () {
-                const inlineImageSrc = $(this).attr('src');
+            article.find('.inlineImage').each((_, el) => {
+                const inlineImageSrc = $(el).attr('src');
                 const inlineAttachment = item.inline_attachments.find((inlineAttachment) => inlineAttachment.url === inlineImageSrc);
                 if (inlineAttachment && inlineAttachment.description) {
-                    $(this).wrap('<figure></figure>');
-                    $(this).after(`<figcaption>${inlineAttachment.description}</figcaption>`);
+                    $(el).wrap('<figure></figure>');
+                    $(el).after(`<figcaption>${inlineAttachment.description}</figcaption>`);
                 }
             });
         }
@@ -189,7 +189,7 @@ async function handler(ctx) {
     return {
         title,
         description,
-        language,
+        language: language as Language,
         link,
         item: items,
     };

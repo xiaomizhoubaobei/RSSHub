@@ -1,4 +1,4 @@
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 
 import { apiRootUrl, icon, image, processItems, rootUrl } from './util';
 
@@ -9,7 +9,7 @@ export const route: Route = {
     parameters: { id: '专栏 id, 可在对应专栏页 URL 中找到' },
     features: {
         requireConfig: false,
-        requirePuppeteer: false,
+        requirePuppeteer: true,
         antiCrawler: false,
         supportBT: false,
         supportPodcast: false,
@@ -28,7 +28,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const apiUrl = new URL('v1/articles', apiRootUrl).href;
     const currentUrl = new URL(`column/detail/${id}`, rootUrl).href;
@@ -44,7 +44,7 @@ async function handler(ctx) {
         title: `Foresight News - ${column}`,
         link: currentUrl,
         description: `${column} - Foresight News`,
-        language: 'zh-cn',
+        language: 'zh-CN' as const satisfies Language,
         image,
         icon,
         logo: icon,

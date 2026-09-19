@@ -11,7 +11,8 @@ const getOriginalImg = (url) => {
             format = 'jpg';
         }
         return `${m[1]}?format=${format}&name=orig`;
-    } else if ((m = url.match(/^(https?:\/\/\w+\.twimg\.com\/.+)(\?.+)$/i))) {
+    }
+    if ((m = url.match(/^(https?:\/\/\w+\.twimg\.com\/[^?]+)(\?.+)$/i))) {
         const pars = getQueryParams(url);
         if (!pars.format || !pars.name) {
             return url;
@@ -20,11 +21,11 @@ const getOriginalImg = (url) => {
             return url;
         }
         return m[1] + '?format=' + pars.format + '&name=orig';
-    } else {
-        return url;
     }
+    return url;
 };
 const replaceBreak = (text) => text.replaceAll(/<br><br>|<br>/g, ' ');
+const quoteSeparator = "<hr style='border:0;border-top:1px solid #80808030;margin:12px 0;'>";
 
 const formatText = (item) => {
     let text = item.full_text;
@@ -32,7 +33,7 @@ const formatText = (item) => {
     const urls = item.entities.urls || [];
     for (const url of urls) {
         // trim link pointing to the tweet itself (usually appears when the tweet is truncated)
-        text = text.replaceAll(url.url, url.expanded_url?.endsWith(id_str) ? '' : url.expanded_url);
+        text = text.replaceAll(url.url, () => (url.expanded_url?.endsWith(id_str) ? '' : url.expanded_url));
     }
     const media = item.extended_entities?.media || [];
     for (const m of media) {
@@ -41,7 +42,31 @@ const formatText = (item) => {
     return text.trim().replaceAll('\n', '<br>');
 };
 
-const ProcessFeed = (ctx, { data = [] }, params = {}) => {
+interface ProcessFeedParams {
+    readable?: boolean;
+    authorNameBold?: boolean;
+    showAuthorInTitle?: boolean;
+    showAuthorAsTitleOnly?: boolean;
+    showAuthorInDesc?: boolean;
+    showQuotedAuthorAvatarInDesc?: boolean;
+    showAuthorAvatarInDesc?: boolean;
+    showEmojiForRetweetAndReply?: boolean;
+    showSymbolForRetweetAndReply?: boolean;
+    showRetweetTextInTitle?: boolean;
+    addLinkForPics?: boolean;
+    showTimestampInDescription?: boolean;
+    showQuotedInTitle?: boolean;
+    widthOfPics?: number;
+    heightOfPics?: number;
+    sizeOfAuthorAvatar?: number;
+    sizeOfQuotedAuthorAvatar?: number;
+    mediaNumber?: number | boolean;
+    showEmojiForSubscriberOnly?: boolean;
+    showSymbolForSubscriberOnly?: boolean;
+    showFullPrefixForSubscriberOnly?: boolean;
+}
+
+const ProcessFeed = (ctx, { data = [] }: { data?: any[] }, params: ProcessFeedParams = {}) => {
     // undefined and strings like "exclude_rts_replies" is also safely parsed, so no if branch is needed
     const routeParams = new URLSearchParams(ctx.req.param('routeParams'));
 
@@ -65,9 +90,10 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
         sizeOfAuthorAvatar: fallback(params.sizeOfAuthorAvatar, queryToInteger(routeParams.get('sizeOfAuthorAvatar')), 48),
         sizeOfQuotedAuthorAvatar: fallback(params.sizeOfQuotedAuthorAvatar, queryToInteger(routeParams.get('sizeOfQuotedAuthorAvatar')), 24),
         mediaNumber: fallback(params.mediaNumber, queryToInteger(routeParams.get('mediaNumber')), false),
+        showEmojiForSubscriberOnly: fallback(params.showEmojiForSubscriberOnly, queryToBoolean(routeParams.get('showEmojiForSubscriberOnly')), false),
+        showSymbolForSubscriberOnly: fallback(params.showSymbolForSubscriberOnly, queryToBoolean(routeParams.get('showSymbolForSubscriberOnly')), true),
+        showFullPrefixForSubscriberOnly: fallback(params.showFullPrefixForSubscriberOnly, queryToBoolean(routeParams.get('showFullPrefixForSubscriberOnly')), false),
     };
-
-    params = mergedParams;
 
     const {
         readable,
@@ -84,15 +110,18 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
         showTimestampInDescription,
         showQuotedInTitle,
         mediaNumber,
+        showEmojiForSubscriberOnly,
+        showSymbolForSubscriberOnly,
+        showFullPrefixForSubscriberOnly,
         widthOfPics,
         heightOfPics,
         sizeOfAuthorAvatar,
         sizeOfQuotedAuthorAvatar,
-    } = params;
+    } = mergedParams;
 
     const formatVideo = (media, extraAttrs = '') => {
         let content = '';
-        let bestVideo = null;
+        let bestVideo: any = null;
 
         for (const item of media.video_info.variants) {
             if (!bestVideo || (item.bitrate || 0) > (bestVideo.bitrate || -Infinity)) {
@@ -101,7 +130,7 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
         }
 
         if (bestVideo && bestVideo.url) {
-            const gifAutoPlayAttr = media.type === 'animated_gif' ? `autoplay loop muted webkit-playsinline playsinline` : '';
+            const gifAutoPlayAttr = media.type === 'animated_gif' ? 'autoplay loop muted webkit-playsinline playsinline' : '';
             if (!readable) {
                 content += '<br>';
             }
@@ -131,12 +160,12 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                     default:
                         originalImg = getOriginalImg(media.media_url_https);
                         if (!readable) {
-                            content += `<br>`;
+                            content += '<br>';
                         }
                         if (addLinkForPics) {
                             content += `<a href='${originalImg}' target='_blank' rel='noopener noreferrer'>`;
                         }
-                        content += `<img `;
+                        content += '<img ';
                         if (widthOfPics >= 0) {
                             content += ` width="${widthOfPics}"`;
                             style += `width: ${widthOfPics}px;`;
@@ -150,7 +179,7 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                         }
                         content += ` style="${style}" ${readable ? 'hspace="4" vspace="8"' : ''} src="${originalImg}">`;
                         if (addLinkForPics) {
-                            content += `</a>`;
+                            content += '</a>';
                         }
                         break;
                 }
@@ -180,7 +209,7 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                 let originalImg;
                 switch (media.type) {
                     case 'video':
-                        content = formatVideo(media, `width="0" height="0"`);
+                        content = formatVideo(media, 'width="0" height="0"');
                         break;
 
                     case 'photo':
@@ -197,9 +226,15 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
     };
 
     return data.map((item) => {
+        // Handle subscriber-only prefix based on user preference
+        if (item.full_text?.startsWith('[Subscribers Only]')) {
+            const text = item.full_text.replace('[Subscribers Only] ', '');
+            const prefix = showFullPrefixForSubscriberOnly ? '🔒 [Subscribers Only] ' : showEmojiForSubscriberOnly ? '🔒 ' : showSymbolForSubscriberOnly ? '[Subscribers Only] ' : '';
+            item.full_text = `${prefix}${text}`;
+        }
         const originalItem = item;
         item = item.retweeted_status || item;
-        item.full_text = item.full_text || item.text;
+        item.full_text ||= item.text;
         item.full_text = formatText(item);
         const img = formatMedia(item);
         let picsPrefix = generatePicsPrefix(item);
@@ -210,15 +245,16 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
         if (item.is_quote_status) {
             const quoteData = item.quoted_status;
 
-            if (quoteData) {
-                quoteData.full_text = quoteData.full_text || quoteData.text;
+            if (quoteData?.user) {
+                quoteData.full_text ||= quoteData.text;
                 const author = quoteData.user;
+                if (!readable) {
+                    quote += quoteSeparator;
+                }
                 quote += '<div class="rsshub-quote">';
                 if (readable) {
                     quote += `<br clear='both' /><div style='clear: both'></div>`;
                     quote += `<blockquote style='background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;'>`;
-                } else {
-                    quote += `<br><br>`;
                 }
 
                 if (readable) {
@@ -230,20 +266,20 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                 }
 
                 if (authorNameBold) {
-                    quote += `<strong>`;
+                    quote += '<strong>';
                 }
 
                 quote += author.name;
 
                 if (authorNameBold) {
-                    quote += `</strong>`;
+                    quote += '</strong>';
                 }
 
                 if (readable) {
-                    quote += `</a>`;
+                    quote += '</a>';
                 }
 
-                quote += `:&ensp;`;
+                quote += ':&ensp;';
                 quote += formatText(quoteData);
 
                 if (!readable) {
@@ -261,14 +297,14 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                 }
                 if (showTimestampInDescription) {
                     quote += '<br><small>' + parseDate(quoteData.created_at);
-                    quote += `</small>`;
+                    quote += '</small>';
                     if (readable) {
                         quote += `<br clear='both' /><div style='clear: both'></div>`;
                     }
                 }
 
                 if (readable) {
-                    quote += `</blockquote>`;
+                    quote += '</blockquote>';
                 }
                 quote += '</div>';
             }
@@ -316,11 +352,11 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                     description += `<a href='https://x.com/${originalItem.user?.screen_name}' target='_blank' rel='noopener noreferrer'>`;
                 }
                 if (authorNameBold) {
-                    description += `<strong>`;
+                    description += '<strong>';
                 }
                 description += originalItem.user?.name;
                 if (authorNameBold) {
-                    description += `</strong>`;
+                    description += '</strong>';
                 }
                 if (readable) {
                     description += '</a>';
@@ -334,11 +370,11 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                     description += `<a href='https://x.com/${item.user?.screen_name}' target='_blank' rel='noopener noreferrer'>`;
                 }
                 if (authorNameBold) {
-                    description += `<strong>`;
+                    description += '<strong>';
                 }
                 description += item.user?.name;
                 if (authorNameBold) {
-                    description += `</strong>`;
+                    description += '</strong>';
                 }
                 if (readable) {
                     description += '</a>';
@@ -358,16 +394,16 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                 description += `<img width='${sizeOfAuthorAvatar}' height='${sizeOfAuthorAvatar}' src='${item.user.profile_image_url_https}' ${readable ? 'hspace="8" vspace="8" align="left"' : ''}>`;
             }
             if (authorNameBold) {
-                description += `<strong>`;
+                description += '<strong>';
             }
             description += item.user?.name;
             if (authorNameBold) {
-                description += `</strong>`;
+                description += '</strong>';
             }
             if (readable) {
-                description += `</a>`;
+                description += '</a>';
             }
-            description += `:&ensp;`;
+            description += ':&ensp;';
         }
         if (item.in_reply_to_screen_name) {
             description += showEmojiForRetweetAndReply ? '↩️ ' : showSymbolForRetweetAndReply ? 'Re ' : '';
@@ -375,7 +411,7 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
 
         description += item.full_text;
         // 从 description 提取 话题作为 category，放在此处是为了避免 匹配到 quote 中的 # 80808030 颜色字符
-        const category = description.match(/(\s)?(#[^\s;<]+)/g)?.map((e) => e?.match(/#([^\s<]+)/)?.[1]);
+        const category = description.match(/(\s)?(#[^\s;<]+)/g)?.map((e) => e?.match(/#([^\s<]+)/)?.[1]) as string[] | undefined;
         description += img;
         description += quote;
         if (readable) {
@@ -384,7 +420,7 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
 
         if (showTimestampInDescription) {
             if (readable) {
-                description += `<hr>`;
+                description += '<hr>';
             }
             description += `<small>${parseDate(item.created_at)}</small>`;
         }
@@ -416,14 +452,15 @@ const ProcessFeed = (ctx, { data = [] }, params = {}) => {
                         },
                     ],
                 }) ||
-                (item.is_quote_status && {
-                    links: [
-                        {
-                            url: `https://x.com/${item.quoted_status?.user?.screen_name}/status/${item.quoted_status?.id_str || item.quoted_status?.conversation_id_str}`,
-                            type: 'quote',
-                        },
-                    ],
-                }) ||
+                (item.is_quote_status &&
+                    item.quoted_status?.user && {
+                        links: [
+                            {
+                                url: `https://x.com/${item.quoted_status?.user?.screen_name}/status/${item.quoted_status?.id_str || item.quoted_status?.conversation_id_str}`,
+                                type: 'quote',
+                            },
+                        ],
+                    }) ||
                 (item.in_reply_to_screen_name &&
                     item.in_reply_to_status_id_str && {
                         links: [
@@ -462,7 +499,7 @@ const parseRouteParams = (routeParams) => {
 
         default: {
             const parsed = new URLSearchParams(routeParams);
-            count = fallback(undefined, queryToInteger(parsed.get('count')));
+            count = fallback(undefined, queryToInteger(parsed.get('count')), undefined);
             include_replies = fallback(undefined, queryToBoolean(parsed.get('includeReplies')), false);
             include_rts = fallback(undefined, queryToBoolean(parsed.get('includeRts')), true);
             force_web_api = fallback(undefined, queryToBoolean(parsed.get('forceWebApi')), false);
@@ -473,7 +510,7 @@ const parseRouteParams = (routeParams) => {
 };
 
 export const excludeRetweet = function (tweets) {
-    const excluded = [];
+    const excluded: any[] = [];
     for (const t of tweets) {
         if (t.retweeted_status) {
             continue;
@@ -487,6 +524,8 @@ export const keepOnlyMedia = function (tweets) {
     const excluded = tweets.filter((t) => t.extended_entities && t.extended_entities.media);
     return excluded;
 };
+
+export const getTwitterUserCacheKey = (id: string, operationName: string, params: Record<string, string | number | boolean | undefined> | undefined) => `twitter:${id}:${operationName}:${JSON.stringify(params)}`;
 
 export default {
     ProcessFeed,

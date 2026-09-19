@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -30,17 +30,17 @@ export const route: Route = {
 | ------- | ------ | ------ | ---- |
 | en      | ja     | ko     | zh   |
 
-  **Category**
+**Category**
 
 | Chinese subtitles AV | Censored       | Amateur          | Uncensored       | Asian self-timer | H comics     |
 | -------------------- | -------------- | ---------------- | ---------------- | ---------------- | ------------ |
-| chinese_list        | censored_list | amateurjav_list | uncensored_list | amateur_list    | hcomic_list |
+| chinese\\_list        | censored\\_list | amateurjav\\_list | uncensored\\_list | amateur\\_list    | hcomic\\_list |
 
 | Chinese subtitles AV random | Censored random  | Amateur random     | Uncensored random  | Asian self-timer random | H comics random |
 | --------------------------- | ---------------- | ------------------ | ------------------ | ----------------------- | --------------- |
-| chinese_random             | censored_random | amateurjav_random | uncensored_random | amateur_random         | hcomic_random  |
+| chinese\\_random             | censored\\_random | amateurjav\\_random | uncensored\\_random | amateur\\_random         | hcomic\\_random  |
 
-  **Server**
+**Server**
 
 | All Server | fembed(Full DL) | streamsb(Full DL) | doodstream | streamtape(Full DL) | avgle | embedgram | videovard(Full DL) |
 | ---------- | --------------- | ----------------- | ---------- | ------------------- | ----- | --------- | ------------------ |
@@ -64,23 +64,23 @@ async function handler(ctx) {
 
     let items = $('.video')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { poster?: string; video?: string } => {
+            const $item = $(item);
 
-            const title = item.find('.video-title a');
+            const title = $item.find('.video-title a');
             return {
                 title: title.text(),
-                author: item.find('.video-channel').text(),
-                pubDate: parseDate(item.find('.small').text()),
+                author: $item.find('.video-channel').text(),
+                pubDate: parseDate($item.find('.small').text()),
                 link: title.attr('href'),
-                poster: item.find('img').attr('data-src'),
-                video: item.find('video').attr('data-src'),
+                poster: $item.find('img').attr('data-src'),
+                video: $item.find('video').attr('data-src'),
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,

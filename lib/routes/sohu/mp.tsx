@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import CryptoJS from 'crypto-js';
 import { renderToString } from 'hono/jsx/dom/server';
 
@@ -23,8 +23,9 @@ export const route: Route = {
     maintainers: ['HenryQW'],
     handler,
     description: `搜狐号 ID 可以通过以下方式获取：
-  1.  通过浏览器搜索相关搜狐号 \`果壳 site: mp.sohu.com\`。
-  2.  通过浏览器控制台执行 \`window.globalConst.mkeyConst_mkey\`，返回的即为搜狐号 ID。`,
+
+1. 通过浏览器搜索相关搜狐号 \`果壳 site: mp.sohu.com\`。
+2. 通过浏览器控制台执行 \`window.globalConst.mkeyConst_mkey\`，返回的即为搜狐号 ID。`,
 };
 
 function randomString(length = 32) {
@@ -56,11 +57,11 @@ function createAuthToken() {
 function fetchArticle(item) {
     return cache.tryGet(item.link, async () => {
         const response = await ofetch(item.link);
-        const $ = cheerio.load(response);
+        const $ = load(response);
 
         $('.original-title, .lookall-box').remove();
-        item.author = item.author || $('span[data-role="original-link"] a').text();
-        item.pubDate = timezone(parseDate($('meta[itemprop="dateUpdate"]').attr('content')), 8);
+        item.author ||= $('span[data-role="original-link"] a').text();
+        item.pubDate = timezone(parseDate($('meta[itemprop="dateUpdate"]').attr('content')!), 8);
 
         if (/window\.sohu_mp\.article_video/.test($('script').text())) {
             const videoSrc = $('script')
@@ -116,8 +117,8 @@ async function handler(ctx) {
     const suv = pageResponse.headers
         ?.getSetCookie()
         .find((e) => e.startsWith('SUV'))
-        ?.split(';')[0];
-    const $ = cheerio.load(pageResponse._data);
+        ?.split(';', 1)[0];
+    const $ = load(pageResponse._data);
 
     const CBDRenderConst = JSON.parse(
         $('script:contains("CBDRenderConst")')
@@ -139,10 +140,10 @@ async function handler(ctx) {
     const blockRenderData = JSON.parse(
         $('script:contains("column_2_text")')
             .text()
-            .match(/({.*})/)?.[1]
+            .match(/(\{.*\})/)![1]
     );
-    const renderData = blockRenderData[Object.keys(blockRenderData).find((e) => e.startsWith('FeedSlideloadAuthor'))];
-    const briefIntroductionCard = blockRenderData[Object.keys(blockRenderData).find((e) => e.startsWith('BriefIntroductionCard'))].param.data.list[0];
+    const renderData = blockRenderData[Object.keys(blockRenderData).find((e) => e.startsWith('FeedSlideloadAuthor'))!];
+    const briefIntroductionCard = blockRenderData[Object.keys(blockRenderData).find((e) => e.startsWith('BriefIntroductionCard'))!].param.data.list[0];
 
     const globalConst = JSON.parse(
         $('script:contains("globalConst")')
@@ -218,7 +219,7 @@ async function handler(ctx) {
         title: `搜狐号 - ${globalConst.title}`,
         description: briefIntroductionCard.column_9_text,
         link: originalRequest.url,
-        image: `https:${briefIntroductionCard.column_2_image}`,
+        image: briefIntroductionCard.column_2_image.startsWith('http') ? briefIntroductionCard.column_2_image.replace('http:', 'https:') : `https:${briefIntroductionCard.column_2_image}`,
         item: items,
     };
 }

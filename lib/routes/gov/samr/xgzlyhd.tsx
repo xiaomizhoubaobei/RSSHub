@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -36,7 +36,7 @@ const getOption = async (type, name) => {
 };
 
 export const route: Route = {
-    path: '/samr/xgzlyhd/:category?/:department?',
+    path: '/xgzlyhd/:category?/:department?',
     categories: ['government'],
     example: '/gov/samr/xgzlyhd',
     parameters: { category: '留言类型，见下表，默认为全部', department: '回复部门，见下表，默认为全部' },
@@ -154,7 +154,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { category, department } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 10;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 10;
 
     let categoryOption;
     let departmentOption;
@@ -221,14 +221,14 @@ async function handler(ctx) {
     const author = '国家市场监督管理总局';
     const title = $('title').text();
     const subtitle = [categoryOption ? categoryOption.name : undefined, departmentOption ? departmentOption.name : undefined].filter(Boolean).join(' - ');
-    const icon = new URL($('link[rel="icon"]').prop('href'), rootUrl).href;
+    const icon = new URL($('link[rel="icon"]').prop('href')!, rootUrl).href;
 
     return {
         item: items,
         title: `${author}${title}${subtitle ? ` - ${subtitle}` : ''}`,
         link: currentUrl,
         description: $('meta[property="og:description"]').prop('content'),
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         image: new URL(`gjjly/${$('div.fd-logo img').prop('src')}`, rootUrl).href,
         icon,
         logo: icon,

@@ -27,12 +27,14 @@ export const route: Route = {
     maintainers: ['lchtao26'],
     handler,
     description: `::: tip
--   演出场地 ID 查询: \`/showstart/search/site/:keyword\`, 如: [https://rsshub.app/showstart/search/site/酒球会](https://rsshub.app/showstart/search/site/酒球会)
+
+- 演出场地 ID 查询: \`/showstart/search/site/:keyword\`, 如: [https://rsshub.app/showstart/search/site/ 酒球会](https://rsshub.app/showstart/search/site/酒球会)
+
 :::`,
 };
 
 async function handler(ctx: Context): Promise<Data> {
-    const siteId = Number.parseInt(ctx.req.param('siteId')).toString();
+    const siteId = Number.parseInt(ctx.req.param('siteId')!).toString();
     const [activityList, siteInfo] = await Promise.all([fetchActivityList({ siteId }), fetchSiteInfo({ siteId })]);
     return {
         title: `${TITLE} - ${siteInfo.name}`,

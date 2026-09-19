@@ -1,20 +1,24 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { handler } from '@/api/radar/rules/one';
+import api from '@/api';
+import { getRadarRules } from '@/api/radar/rules/utils';
 
 describe('api/radar/rules/one', () => {
-    it('returns radar data for a domain param', () => {
-        const ctx = {
-            req: {
-                valid: vi.fn(() => ({ domain: 'unknown.invalid' })),
-            },
-            json: vi.fn((value) => value),
-        };
+    it('returns radar rules for a known domain', async () => {
+        const rules = await getRadarRules();
+        const domain = Object.keys(rules)[0];
+        expect(domain).toBeDefined();
 
-        const result = handler(ctx as any);
+        const response = await api.request(`/radar/rules/${domain}`);
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data).toEqual(rules[domain]);
+    });
 
-        expect(ctx.req.valid).toHaveBeenCalledWith('param');
-        expect(ctx.json).toHaveBeenCalledWith(undefined);
-        expect(result).toBeUndefined();
+    it('returns an empty body for an unknown domain', async () => {
+        const response = await api.request('/radar/rules/unknown.invalid');
+        expect(response.status).toBe(200);
+        const text = await response.text();
+        expect(text).toBe('');
     });
 });

@@ -1,11 +1,11 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
 import { config } from '@/config';
 import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import logger from '@/utils/logger';
-import puppeteer from '@/utils/puppeteer';
+import playwright from '@/utils/playwright';
 
 const render = ({ preview, cover }) =>
     renderToString(
@@ -18,19 +18,19 @@ const render = ({ preview, cover }) =>
         </>
     );
 
-const handler = async () => {
+const handler = async (): Promise<Data> => {
     const baseUrl = 'https://spankbang.com';
     const link = `${baseUrl}/new_videos/`;
 
-    const browser = await puppeteer();
+    const context = await playwright();
 
     const data = await cache.tryGet(
         link,
         async () => {
-            const page = await browser.newPage();
-            await page.setRequestInterception(true);
-            page.on('request', (request) => {
-                request.resourceType() === 'document' ? request.continue() : request.abort();
+            const page = await context.newPage();
+            await page.route('**/*', (route) => {
+                const request = route.request();
+                request.resourceType() === 'document' ? route.continue() : route.abort();
             });
             logger.http(`Requesting ${link}`);
             await page.goto(link, {
@@ -38,7 +38,7 @@ const handler = async () => {
             });
 
             const response = await page.content();
-            const $ = cheerio.load(response);
+            const $ = load(response);
 
             const items = $('.video-item')
                 .toArray()
@@ -48,7 +48,7 @@ const handler = async () => {
                     const cover = $item.find('img.cover');
 
                     return {
-                        title: thumb.attr('title'),
+                        title: thumb.attr('title')!,
                         link: new URL(thumb.attr('href')!, baseUrl).href,
                         description: render({
                             cover: cover.data('src'),
@@ -67,14 +67,14 @@ const handler = async () => {
         false
     );
 
-    await browser.close();
+    await context.close();
 
     return {
         title: data.title,
         description: data.description,
         link,
         item: data.item,
-    } as unknown as Promise<Data>;
+    };
 };
 
 export const route: Route = {

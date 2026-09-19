@@ -3,11 +3,11 @@ import advancedFormat from 'dayjs/plugin/advancedFormat.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
 import { raw } from 'hono/html';
+import { jsx } from 'hono/jsx';
 import { renderToString } from 'hono/jsx/dom/server';
-import type { JSX } from 'hono/jsx/jsx-runtime';
 import { FetchError } from 'ofetch';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 
@@ -35,14 +35,15 @@ export const route: Route = {
     ],
     handler,
     description: `::: tip
-For example, the category for https://www.washingtonpost.com/national/investigations would be /national/investigations.
+For example, the category for <https://www.washingtonpost.com/national/investigations> would be /national/investigations.
 :::`,
 };
 
 function handleDuplicates(array) {
-    const objects = {};
+    const objects: Record<string, DataItem> = {};
     for (const obj of array) {
-        objects[obj.id] = objects[obj.id] ? Object.assign(objects[obj.id], obj) : obj;
+        const existing = objects[obj.id];
+        objects[obj.id] = existing ? Object.assign(existing, obj) : obj;
     }
     return Object.values(objects);
 }
@@ -67,7 +68,7 @@ async function handler(ctx) {
         main.items[0].items
             .filter((item) => item.is_from_feed === true)
             .map((item) => {
-                const object = {
+                const object: DataItem = {
                     id: item.id,
                     title: item.headline.text,
                     link: item.link.url,
@@ -82,18 +83,18 @@ async function handler(ctx) {
     );
     const feed = handleDuplicates(list);
     const items = await Promise.all(
-        feed.map((item) =>
-            cache.tryGet(item.link, async () => {
+        feed.map((item) => {
+            const itemLink = item.link as string;
+            return cache.tryGet(itemLink, async (): Promise<DataItem> => {
                 let response;
                 try {
-                    response = await got(`https://rainbowapi-a.wpdigital.net/rainbow-data-service/rainbow/content-by-url.json?followLinks=false&url=${item.link}`, { headers });
+                    response = await got(`https://rainbowapi-a.wpdigital.net/rainbow-data-service/rainbow/content-by-url.json?followLinks=false&url=${itemLink}`, { headers });
                 } catch (error) {
                     if (error instanceof FetchError && error.statusCode === 415) {
                         // Interactive or podcast contents will return 415 Unsupported Media Type. Keep calm and carry on.
                         return item;
-                    } else {
-                        throw error;
                     }
+                    throw error;
                 }
                 item.title = response.data.title ?? item.title;
                 item.author =
@@ -103,8 +104,8 @@ async function handler(ctx) {
                         ?.join(', ') ?? '';
                 item.description = renderDescription(response.data.items);
                 return item;
-            })
-        )
+            });
+        })
     );
 
     return {
@@ -123,8 +124,7 @@ const renderDescription = (content): string =>
                 }
 
                 if (entry.type === 'title' && entry.subtype !== 'h1') {
-                    const TitleTag = (entry.subtype || 'h2') as keyof JSX.IntrinsicElements;
-                    return <TitleTag key={`title-${index}`}>{entry.mime === 'text/html' ? raw(entry.content) : entry.content}</TitleTag>;
+                    return jsx(entry.subtype || 'h2', { key: `title-${index}` }, entry.mime === 'text/html' ? raw(entry.content) : entry.content);
                 }
 
                 if (entry.type === 'sanitized_html') {
@@ -138,17 +138,9 @@ const renderDescription = (content): string =>
                     }
 
                     if (entry.subtype === 'subhead') {
-                        const SubheadTag = `h${entry.subhead_level || 4}` as keyof JSX.IntrinsicElements;
-                        return (
-                            <SubheadTag key={`subhead-${index}`}>
-                                {entry.mime === 'text/html' ? raw(entry.content) : entry.content}
-                                {entry.oembed ? raw(entry.oembed) : null}
-                            </SubheadTag>
-                        );
+                        return jsx(`h${entry.subhead_level || 4}`, { key: `subhead-${index}` }, entry.mime === 'text/html' ? raw(entry.content) : entry.content, entry.oembed ? raw(entry.oembed) : null);
                     }
-                }
-
-                if (entry.type === 'deck') {
+                } else if (entry.type === 'deck') {
                     return (
                         <blockquote key={`deck-${index}`}>
                             <p>{entry.mime === 'text/html' ? raw(entry.content) : entry.content}</p>
@@ -180,9 +172,7 @@ const renderDescription = (content): string =>
                             </figure>
                         );
                     }
-                }
-
-                if (entry.type === 'list') {
+                } else if (entry.type === 'list') {
                     const ListTag = entry.subtype === 'ordered' ? 'ol' : 'ul';
                     return (
                         <ListTag key={`list-${index}`}>
