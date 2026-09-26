@@ -42,8 +42,8 @@ export const route: Route = {
 
 async function handler(ctx) {
     const type = ctx.req.param('type');
-    const getDescription = Boolean(ctx.req.param('getDescription')) || false;
-    const suffix = map.get(type).suffix;
+    const getDescription = Boolean(ctx.req.param('getDescription'));
+    const suffix = map.get(type)!.suffix;
 
     const link = new URL(suffix, host).href;
     const cookie = await getCookie(host);
@@ -55,8 +55,10 @@ async function handler(ctx) {
     const response = await got(link, gotConfig);
     const $ = load(response.data);
 
+    const perCount = Number.parseInt($('.per_count', '#wp_paging_w6').text());
+    const allCount = Number.parseInt($('.all_count', '#wp_paging_w6').slice(1).text());
     const list = $('#news_list ul li')
-        .slice(0, Math.min(Number.parseInt($('.per_count', '#wp_paging_w6').text()), Number.parseInt($('.all_count', '#wp_paging_w6').slice(1).text())))
+        .slice(0, Math.min(perCount, allCount))
         .toArray()
         .map((element) => {
             const info = {
@@ -71,7 +73,7 @@ async function handler(ctx) {
         list.map(async (info) => {
             const title = info.title || 'tzgg';
             const date = info.date;
-            const itemUrl = new URL(info.link, host).href;
+            const itemUrl = new URL(info.link!, host).href;
             let description = title + '<br><a href="' + itemUrl + '" target="_blank">查看原文</a>';
 
             if (getDescription) {
@@ -83,6 +85,7 @@ async function handler(ctx) {
                         const $ = load(response.data);
                         return $('.wp_articlecontent').html() + '<br><hr /><a href="' + itemUrl + '" target="_blank">查看原文</a>';
                     }
+                    return '';
                 });
             }
 
@@ -96,7 +99,7 @@ async function handler(ctx) {
     );
 
     return {
-        title: map.get(type).title,
+        title: map.get(type)!.title,
         link,
         description: '南京航空航天大学计算机科学与技术学院RSS',
         item: out,

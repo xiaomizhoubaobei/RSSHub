@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -81,7 +81,7 @@ const buildDescription = (attributes: any, title: string | undefined, enclosureU
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id } = ctx.req.param();
-    const limit = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const targetUrl = new URL(`users/${id}/content?tab=radios`, baseUrl).href;
     const apiUrl = new URL(`gapi/v1/users/${id}/radios`, baseUrl).href;
@@ -97,7 +97,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'zh-CN';
+    const language = ($('html').attr('lang') ?? 'zh-CN') as Language;
 
     const included = response.included || [];
 
@@ -163,8 +163,7 @@ export const route: Route = {
     },
     description: `::: tip
 若订阅用户 [这样重这样轻](https://www.gcores.com/users/31418) 发布的播客，网址为 \`https://www.gcores.com/users/31418\`，请截取 \`https://www.gcores.com/users/\` 之后的部分 \`31418\` 作为 \`id\` 参数填入，此时目标路由为 [\`/gcores/users/31418/radios\`](https://rsshub.app/gcores/users/31418/radios)。
-:::
-`,
+:::`,
     categories: ['game'],
     features: {
         requireConfig: false,

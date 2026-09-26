@@ -53,13 +53,13 @@ export const route: Route = {
     name: 'FX Pair Yesterday',
     maintainers: ['HenryQW'],
     handler,
-    description: `Refer to [the list of supported currencies](https://wise.com/tools/exchange-rate-alerts/).`,
+    description: 'Refer to [the list of supported currencies](https://wise.com/tools/exchange-rate-alerts/).',
 };
 
 async function handler(ctx) {
-    let yesterday = dayjs().subtract(1, 'day');
-    const dayBefore = yesterday.subtract(1, 'day').format('YYYY-MM-DD');
-    yesterday = yesterday.format('YYYY-MM-DD');
+    const yesterdayDate = dayjs().subtract(1, 'day');
+    const dayBefore = yesterdayDate.subtract(1, 'day').format('YYYY-MM-DD');
+    const yesterday = yesterdayDate.format('YYYY-MM-DD');
 
     const source = ctx.req.param('source').toUpperCase();
     const target = ctx.req.param('target').toUpperCase();
@@ -108,7 +108,7 @@ async function handler(ctx) {
     return {
         title: `${source} to ${target} by Wise`,
         link,
-        description: `Exchange Rate from Wise`,
+        description: 'Exchange Rate from Wise',
         item: [single],
     };
 }

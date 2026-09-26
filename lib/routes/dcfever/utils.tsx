@@ -61,7 +61,7 @@ const parseItem = (item) =>
         const pageLinks = $('.article_multi_page a')
             .not('.selected')
             .toArray()
-            .map((i) => ({ link: new URL($(i).attr('href'), item.link).href }));
+            .map((i) => ({ link: new URL($(i).attr('href')!, item.link).href }));
 
         if (pageLinks.length) {
             const pages = await Promise.all(
@@ -71,31 +71,35 @@ const parseItem = (item) =>
                     return $('div[itemprop="articleBody"]').html();
                 })
             );
-            content.append(pages);
+            for (const page of pages) {
+                if (page) {
+                    content.append(page);
+                }
+            }
         }
 
         content.find('img').each((_, e) => {
             if (e.attribs.src?.includes('?')) {
-                e.attribs.src = e.attribs.src.split('?')[0];
+                e.attribs.src = e.attribs.src.split('?', 1)[0];
             }
         });
 
         content.find('p a').each((_, e) => {
-            e = $(e);
-            if (e.text().startsWith('下一頁為')) {
-                e.remove();
+            const $e = $(e);
+            if ($e.text().startsWith('下一頁為')) {
+                $e.remove();
             }
         });
 
         content.find('iframe').each((_, e) => {
-            e = $(e);
-            if (e.attr('src').startsWith('https://www.facebook.com/plugins/like.php')) {
-                e.remove();
+            const $e = $(e);
+            if ($e.attr('src')?.startsWith('https://www.facebook.com/plugins/like.php')) {
+                $e.remove();
             }
         });
 
         item.description = content.html();
-        item.pubDate = parseDate($('meta[property="article:published_time"]').attr('content'));
+        item.pubDate = parseDate($('meta[property="article:published_time"]').attr('content')!);
 
         return item;
     });

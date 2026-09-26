@@ -24,6 +24,10 @@ export const route: Route = {
             source: ['comic-walker.com/detail/:id'],
             target: '/manga/:id',
         },
+        {
+            source: ['comic-walker.com/detail/:id/episodes/:episodeId'],
+            target: '/manga/:id',
+        },
     ],
     name: '漫画详情',
     maintainers: ['xiaobailoves'],
@@ -37,7 +41,6 @@ export const route: Route = {
 
         const response = await ofetch<string>(fetchUrl, {
             headers: {
-                Referer: baseUrl,
                 'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
             },
         });
@@ -52,7 +55,7 @@ export const route: Route = {
         const nextData = JSON.parse(nextDataText);
         const queries = nextData.props?.pageProps?.dehydratedState?.queries || [];
 
-        const workQuery = queries.find((q: any) => q.queryKey?.includes('/api/contents/details/work') || (Array.isArray(q.queryKey) && q.queryKey.some((k: any) => typeof k === 'string' && k.includes('work'))));
+        const workQuery = queries.find((q: any) => q.queryKey?.includes('/api/contents/details/work') || (Array.isArray(q.queryKey) && q.queryKey.some((k: any) => String(k).includes('work'))));
 
         if (!workQuery || !workQuery.state?.data) {
             throw new Error('无法在 HTML 缓存中提取核心数据对象');
@@ -65,8 +68,8 @@ export const route: Route = {
             throw new Error('成功获取数据对象，但未找到作品基本信息');
         }
 
-        const mangaTitle = work.title || $('title').text().trim();
-        const mangaAuthor = work.authors?.map((author: any) => author.name).join(', ') || '';
+        const mangaTitle = work.title || $('title').text();
+        const mangaAuthor = work.authors?.map((author: any) => author.name).join(', ');
         const mangaDescription = work.summary || '';
         const coverImage = work.bookCover || work.thumbnail;
 

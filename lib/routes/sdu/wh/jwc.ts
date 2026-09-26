@@ -30,6 +30,12 @@ export const route: Route = {
 | gzzd     | zyjs     | sjjx     | zbfc     | fwzn     | jwyw     | gztz     | jwjb     | cyxz     |`,
 };
 
+type ExtractedArticle = {
+    description?: string | null;
+    author?: string;
+    exactDate?: Date;
+};
+
 async function handler(ctx) {
     const column = ctx.req.param('column') ?? 'gztz';
     const baseUrl = data.wh.jwc.url;
@@ -38,17 +44,17 @@ async function handler(ctx) {
     const items = $('.articleul li');
     const out = await Promise.all(
         items.map(async (index, item) => {
-            item = $(item);
-            const anchor = item.find('a');
-            const dateElement = item.find('div:last-of-type');
+            const $item = $(item);
+            const anchor = $item.find('a');
+            const dateElement = $item.find('div:last-of-type');
             const dateText = dateElement.text();
             dateElement.remove();
             const href = anchor.attr('href');
-            const link = href.startsWith('http') ? href : baseUrl + href;
-            const title = item.text();
-            const { description, author: exactAuthor, exactDate } = await cache.tryGet(link, () => extractor(link));
+            const link = href!.startsWith('http') ? href : baseUrl + href;
+            const title = $item.text();
+            const { description, author: exactAuthor, exactDate } = await cache.tryGet<ExtractedArticle>(link!, () => extractor(link));
             const author = exactAuthor ?? '教务处';
-            const pubDate = exactDate ?? timezone(parseDate(dateText.slice(1, -1), 'YYYY-MM-DD'), +8);
+            const pubDate = exactDate ?? timezone(parseDate(dateText.slice(1, -1), 'YYYY-MM-DD'), 8);
             return {
                 title,
                 link,

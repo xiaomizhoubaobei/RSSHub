@@ -11,10 +11,9 @@ const getPosts = async (searchParams) => {
     const data = await ofetch(url.href);
     return data.map((item) => {
         const $ = load(item.content.rendered);
-        $('input').each(function () {
-            $(this).replaceWith($(this).attr('value') || '');
+        $('input').each((_, el) => {
+            $(el).replaceWith($(el).attr('value') || '');
         });
-        $('script').remove();
         return {
             title: item.title.rendered,
             link: item.link,

@@ -13,21 +13,10 @@ const generateDescription = (target, description = '') => {
 
             case 'video':
                 try {
-                    description += `<video
-            controls="controls"
-            width="${item.playlist.hd.width}"
-            height="${item.playlist.hd.height}"
-            poster="${item.cover_info.thumbnail}"
-            src="${item.playlist.hd.play_url}"
-          >`;
+                    description += `<video controls metadata="preload" width="${item.playlist.hd.width}" height="${item.playlist.hd.height}" poster="${item.cover_info.thumbnail.split('?', 1)[0]}" src="${item.playlist.hd.play_url}"></video>`;
                 } catch {
-                    description += `<video
-                controls="controls"
-                width="${item.playlist.pop().width}"
-                height="${item.playlist.pop().height}"
-                poster="${item.thumbnail}"
-                src="${item.playlist.pop().play_url}"
-              >`;
+                    const video = item.playlist.find((v) => v.quality === 'hd') ?? item.playlist.at(-1);
+                    description += `<video controls metadata="preload" width="${video.width}" height="${video.height}" poster="${item.thumbnail.split('?', 1)[0]}" src="${video.url}"></video>`;
                 }
                 break;
 
@@ -42,19 +31,19 @@ const generateDescription = (target, description = '') => {
     return description;
 };
 
-const generateData = (data) =>
+export const generateData = (data) =>
     data.map((item) => {
         const target = item.target ?? item;
-        const pubDate = parseDate(target.created * 1000);
+        const pubDate = parseDate(target.created, 'X');
         const author = target.author.name;
-        const title = `${author}：${target.excerpt_title}`;
+        const title = target.excerpt_title;
         const link = `https://www.zhihu.com/pin/${target.id}`;
         let description = generateDescription(target, `<a href="https://www.zhihu.com${target.author.url}">${author}</a>：`);
         if (target.origin_pin !== undefined) {
             const t = target.origin_pin;
             const origin_link = `<a href="https://www.zhihu.com/pin/${t.id}">转发原文</a>：`;
             const origin_description = generateDescription(t, `<a href="https://www.zhihu.com${t.author.url}">${t.author.name}</a>：`);
-            description = `${description} ${origin_link} ${origin_description}`;
+            description += ` ${origin_link} ${origin_description}`;
         }
         return {
             title,
@@ -64,5 +53,3 @@ const generateData = (data) =>
             link,
         };
     });
-
-export { generateData };

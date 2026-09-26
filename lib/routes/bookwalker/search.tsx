@@ -4,25 +4,25 @@ import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { filter = 'order=sell_desc' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '24', 10);
+    const limit = Number(ctx.req.query('limit') ?? '24');
 
     const baseUrl = 'https://www.bookwalker.com.tw';
     const targetUrl: string = new URL(`search?${filter}`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'zh-TW';
+    const language = ($('html').attr('lang') ?? 'zh-TW') as Language;
 
-    const items: DataItem[] = $('div.bwbook_package')
+    const items: DataItem[] = $('div.book_package')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const name: string = $el.find('h4.bookname').text();
@@ -31,9 +31,9 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
             const title = `${name} - ${authorStr} ${price}`;
             const image: string | undefined = $el
-                .find('img')
+                .find('div.bookcover img')
                 .attr('data-src')
-                ?.replace(/_\d+(\.\w+)$/, '$1');
+                ?.replace(/_\d+(?:_mask)?(\.\w+)$/, '$1');
             const description: string | undefined = renderToString(
                 image ? (
                     <figure>
@@ -41,7 +41,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     </figure>
                 ) : null
             );
-            const linkUrl: string | undefined = $el.find('div.bwbookitem a').attr('href');
+            const linkUrl: string | undefined = $el.find('div.bookitem a').attr('href');
             const authors: DataItem['author'] = authorStr.split(/,/).map((a) => ({
                 name: a,
             }));
@@ -80,7 +80,7 @@ export const route: Route = {
     path: '/search/:filter?',
     name: '搜尋',
     url: 'www.bookwalker.com.tw',
-    maintainers: ['nczitzk'],
+    maintainers: ['wushijishan', 'nczitzk'],
     handler,
     example: '/bookwalker/search/order=sell_desc&s=34',
     parameters: {
@@ -89,7 +89,7 @@ export const route: Route = {
         },
     },
     description: `::: tip
-订阅 [依發售日新至舊排序的文學小說](https://www.bookwalker.com.tw/search?order=sell_desc&s=34)，其源网址为 \`https://www.bookwalker.com.tw/search?order=sell_desc&s=34\`，请参考该 URL 指定部分构成参数，此时路由为 [\`/bookwalker/search/order=sell_desc&s=34\`](https://rsshub.app/bookwalker/search/order=sell_desc&s=34)。
+订阅 [依發售日新至舊排序的文學小說](https://www.bookwalker.com.tw/search?order=sell_desc\\&s=34)，其源网址为 \`https://www.bookwalker.com.tw/search?order=sell_desc&s=34\`，请参考该 URL 指定部分构成参数，此时路由为 [\`/bookwalker/search/order=sell_desc&s=34\`](https://rsshub.app/bookwalker/search/order=sell_desc\\&s=34)。
 :::`,
     categories: ['shopping'],
     features: {

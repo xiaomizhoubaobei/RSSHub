@@ -105,42 +105,42 @@ interface Blog {
 
 async function handler(ctx) {
     const { uid } = ctx.req.param();
-    const limit = Number.parseInt(ctx.req.query('limit') ?? 10, 10);
+    const limit = Number(ctx.req.query('limit') ?? 10);
     const isNumericId = /^\d+$/.test(uid);
     let userId = uid;
 
     if (!isNumericId) {
         const userByIdent = await cache.tryGet(`oschina:ident:${uid}`, async () => {
-            const response = await ofetch(`${apiBaseUrl}/oschinapi/user/byIdent`, {
-                query: {
-                    ident: uid,
-                },
-            });
-            return response as {
+            const response = await ofetch<{
                 code: number;
                 error: boolean;
                 message: string;
                 result: number;
                 success: boolean;
                 timestamp: string;
-            };
+            }>(`${apiBaseUrl}/oschinapi/user/byIdent`, {
+                query: {
+                    ident: uid,
+                },
+            });
+            return response;
         });
         userId = userByIdent.result;
     }
 
     const userDetail = await cache.tryGet(`oschina:user:${userId}`, async () => {
-        const response = await ofetch(`${apiBaseUrl}/oschinapi/user/userDetails`, {
+        const response = await ofetch<{ result: UserDetail }>(`${apiBaseUrl}/oschinapi/user/userDetails`, {
             query: {
                 userId,
             },
         });
-        return response.result as UserDetail;
+        return response.result;
     });
 
     const blogData = await cache.tryGet(
         `oschina:user:${userId}:blogs`,
         async () => {
-            const response = await ofetch(`${apiBaseUrl}/oschinapi/blog/otherUser/web`, {
+            const response = await ofetch<{ result: { list: Blog[] } }>(`${apiBaseUrl}/oschinapi/blog/otherUser/web`, {
                 query: {
                     userId,
                     pageNum: 1,
@@ -154,7 +154,7 @@ async function handler(ctx) {
         false
     );
 
-    const list = (blogData.result.list as Blog[]).map((item) => ({
+    const list = blogData.result.list.map((item) => ({
         title: item.title,
         description: item.detail,
         link: `${blogBaseUrl}/u/${userId}/blog/${item.id}`,

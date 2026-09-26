@@ -5,26 +5,26 @@ import type { Context } from 'hono';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
 export const handler = async (ctx: Context): Promise<Data> => {
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '100', 10);
+    const limit = Number(ctx.req.query('limit') ?? '100');
 
     const baseUrl = 'https://www.cloudflarestatus.com';
 
     const response = await ofetch(baseUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
 
     $('div.incidents-list').remove();
 
     const items: DataItem[] = $('div.update')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const $actualTitleEl: Cheerio<Element> = $el.parent().parent().find('a');
@@ -40,7 +40,8 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 </>
             );
             const pubDateStr: string | undefined = $el.find('span.ago').attr('data-datetime-unix');
-            const linkUrl: string | undefined = $actualTitleEl.attr('href') ? new URL($actualTitleEl.attr('href') as string, baseUrl).toString() : undefined;
+            const href: string | undefined = $actualTitleEl.attr('href');
+            const linkUrl: string | undefined = href ? new URL(href, baseUrl).href : undefined;
             const categories: string[] = [type].filter(Boolean);
             const guid: string = linkUrl ? `${linkUrl}#${pubDateStr}` : '';
             const upDatedStr: string | undefined = pubDateStr;

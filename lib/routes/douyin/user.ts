@@ -4,7 +4,7 @@ import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import logger from '@/utils/logger';
 import { parseDate } from '@/utils/parse-date';
-import puppeteer from '@/utils/puppeteer';
+import playwright from '@/utils/playwright';
 import { fallback, queryToBoolean } from '@/utils/readable-social';
 
 import type { PostData } from './types';
@@ -46,16 +46,15 @@ async function handler(ctx) {
 
     const pageUrl = `https://www.douyin.com/user/${uid}`;
 
-    const pageData = (await cache.tryGet(
+    const pageData = await cache.tryGet(
         `douyin:user:${uid}`,
         async () => {
-            let postData;
-            const browser = await puppeteer();
-            const page = await browser.newPage();
-            await page.setRequestInterception(true);
-
-            page.on('request', (request) => {
-                request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' ? request.continue() : request.abort();
+            let postData: PostData | undefined;
+            const context = await playwright();
+            const page = await context.newPage();
+            await page.route('**/*', (route) => {
+                const request = route.request();
+                request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' ? route.continue() : route.abort();
             });
             page.on('response', async (response) => {
                 const request = response.request();
@@ -66,10 +65,10 @@ async function handler(ctx) {
 
             logger.http(`Requesting ${pageUrl}`);
             await page.goto(pageUrl, {
-                waitUntil: 'networkidle2',
+                waitUntil: 'networkidle',
             });
 
-            await browser.close();
+            await context.close();
 
             if (!postData) {
                 throw new Error('Empty post data. The request may be filtered by WAF.');
@@ -79,7 +78,7 @@ async function handler(ctx) {
         },
         config.cache.routeExpire,
         false
-    )) as PostData;
+    );
 
     if (!pageData.aweme_list?.length) {
         throw new Error('Empty post data. The request may be filtered by WAF.');
@@ -96,16 +95,15 @@ async function handler(ctx) {
             videoList = videoList.map((item) => proxyVideo(item, relay));
         }
         let duration = post.video?.duration;
-        duration = duration && duration / 1000;
+        duration &&= duration / 1000;
         let img;
         // if (!embed) {
         //     img = post.video && post.video.dynamicCover; // dynamic cover (webp)
         // }
-        img =
-            img ||
+        img ||=
             post.video?.cover?.url_list.at(-1) || // HD
             post.video?.origin_cover?.url_list.at(-1); // LD
-        img = img && resolveUrl(img);
+        img &&= resolveUrl(img);
 
         // render description
         const desc = post.desc?.replaceAll('\n', '<br>');
@@ -114,7 +112,7 @@ async function handler(ctx) {
         const description = templates.desc({ desc, media });
 
         return {
-            title: post.desc.split('\n')[0],
+            title: post.desc.split('\n', 1)[0],
             description,
             link: `https://www.douyin.com/video/${post.aweme_id}`,
             pubDate: parseDate(post.create_time * 1000),

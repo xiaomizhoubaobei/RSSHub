@@ -1,22 +1,22 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import parser from '@/utils/rss-parser';
 
 const getArticleDetail = (link) =>
-    cache.tryGet(link, async () => {
+    cache.tryGet(link, async (): Promise<any> => {
         const response = await got(link);
         const $ = load(response.data);
 
         // Prefer tags to slug
         let categories = $('.tag')
             .toArray()
-            .map((el) => $(el).text().trim());
+            .map((el) => $(el).text());
 
         if (categories.length < 1) {
-            const slug = $('.slug a').contents().first().text().trim();
+            const slug = $('.slug a').contents().first().text();
 
             if (slug) {
                 categories = [slug];
@@ -91,7 +91,7 @@ export const route: Route = {
     name: 'News',
     maintainers: ['bennyyip'],
     handler,
-    description: `Provide full article RSS for CBC topics.`,
+    description: 'Provide full article RSS for CBC topics.',
 };
 
 async function handler(ctx) {
@@ -112,13 +112,13 @@ async function handler(ctx) {
                 };
             })
         )
-    ).filter(Boolean);
+    ).filter((item) => item !== null);
 
     return {
-        title: feed.title,
+        title: feed.title!,
         link: feed.link,
         description: feed.description,
         icon: 'https://media.npr.org/images/podcasts/primary/npr_generic_image_300.jpg?s=200',
-        item: items,
+        item: items as DataItem[],
     };
 }

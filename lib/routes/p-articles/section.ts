@@ -1,8 +1,10 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
+import { isValidHost } from '@/utils/valid-host';
 
 import { ProcessFeed, rootUrl } from './utils';
 
@@ -23,6 +25,10 @@ export const route: Route = {
 
 async function handler(ctx) {
     let sectionName: string = ctx.req.param('section');
+    if (!isValidHost(sectionName)) {
+        throw new InvalidParameterError('Invalid section');
+    }
+
     sectionName = sectionName.replace('-', '/');
     sectionName += '/';
     const sectionUrl = new URL(sectionName, rootUrl).href;
@@ -30,7 +36,7 @@ async function handler(ctx) {
     const $ = load(response);
     const topInfo = {
         title: $('div.inner_top_title_01 > h1 > a').text(),
-        link: new URL($('div.inner_top_title_01 > h1 > a').prop('href'), rootUrl).href,
+        link: new URL($('div.inner_top_title_01 > h1 > a').prop('href')!, rootUrl).href,
     };
 
     const list = $('div.contect_box_04 > a')
@@ -38,7 +44,7 @@ async function handler(ctx) {
         .map((element) => {
             const info = {
                 title: $(element).find('h1').text().trim(),
-                link: new URL($(element).attr('href'), rootUrl).href,
+                link: new URL($(element).attr('href')!, rootUrl).href,
             };
             return info;
         });
@@ -57,6 +63,6 @@ async function handler(ctx) {
         title: '虚词 p-articles',
         link: sectionUrl,
         item: items,
-        language: 'zh-cn',
+        language: 'zh-CN' as const satisfies Language,
     };
 }

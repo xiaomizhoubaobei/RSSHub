@@ -8,7 +8,7 @@ import { processList, rootUrl } from './utils';
 export const route: Route = {
     path: '/latest',
     categories: ['programming'],
-    example: '/latest',
+    example: '/30secondsofcode/latest',
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -39,5 +39,5 @@ async function handler() {
         description: 'Discover short code snippets for all your development needs.',
         link: rootUrl,
         item: items,
-    } as Data;
+    } satisfies Data;
 }

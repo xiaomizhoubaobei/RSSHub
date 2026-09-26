@@ -42,15 +42,11 @@ export async function processItems(ctx, baseURL, exclude) {
         list.map((item) => {
             const link = $(item).find('a');
             const href = link.attr('href');
-            const pubDate = timezone(parseDate($(item).find('span').text().replaceAll(/[[\]]/g, ''), 'MM-DD'), +8);
+            const pubDate = timezone(parseDate($(item).find('span').text().replaceAll(/[[\]]/g, ''), 'MM-DD'), 8);
             const text = link.text();
 
-            if (href === undefined) {
-                return;
-            }
-
-            if (exclude && exclude.some((e) => e.test(text))) {
-                // 过滤掉满足正则的标题条目
+            // 过滤掉满足正则的标题条目
+            if (href === undefined || (exclude && exclude.some((e) => e.test(text)))) {
                 return;
             }
 

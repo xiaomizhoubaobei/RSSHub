@@ -31,7 +31,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
-    const baseUrl = `https://www.laimanhua8.com`;
+    const baseUrl = 'https://www.laimanhua8.com';
     const link = `${baseUrl}/kanmanhua/${id}/`;
 
     const { data: response } = await got(link, {
@@ -48,11 +48,11 @@ async function handler(ctx) {
     const items = $('.plist a')
         .toArray()
         .map((item, index) => {
-            item = $(item);
+            const $item = $(item);
             return {
-                title: item.attr('title'),
-                link: `${baseUrl}${item.attr('href')}`,
-                pubDate: index === 0 ? parseDate($('head meta[property="og:novel:update_time"]').attr('content')) : null,
+                title: $item.attr('title')!,
+                link: `${baseUrl}${$item.attr('href')}`,
+                pubDate: index === 0 ? parseDate($('head meta[property="og:novel:update_time"]').attr('content')!) : null,
                 author: $('head meta[property="og:novel:author"]').attr('content'),
             };
         });

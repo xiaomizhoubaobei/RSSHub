@@ -197,7 +197,7 @@ async function handler(ctx) {
         title,
         link: `${host}/${link}`,
         description,
-        language: 'ja-jp',
+        language: 'ja' as const,
         allowEmpty: true,
         item,
     };

@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 
@@ -21,7 +21,7 @@ const sortMap = {
 };
 
 export const route: Route = {
-    path: ['/pd/guild/:id/:sub?/:sort?'],
+    path: '/pd/guild/:id/:sub?/:sort?',
     categories: ['bbs'],
     example: '/qq/pd/guild/qrp4pkq01d/650967831/created',
     parameters: {
@@ -51,7 +51,7 @@ export const route: Route = {
 async function handler(ctx: Context): Promise<Data> {
     const { id, sub = 'hot', sort = 'created' } = ctx.req.param();
 
-    if (sort in sortMap === false) {
+    if (!Object.hasOwn(sortMap, sort)) {
         throw new InvalidParameterError('invalid sort parameter, should be `hot`, `created`, or `replied`');
     }
     const sortType = sortMap[sort];
@@ -142,6 +142,6 @@ async function handler(ctx: Context): Promise<Data> {
         title: guildName,
         link: baseUrl + id,
         description: guildName,
-        item: feedItems as DataItem[],
+        item: feedItems,
     };
 }

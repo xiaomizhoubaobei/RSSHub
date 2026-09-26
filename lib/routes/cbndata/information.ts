@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -10,9 +10,19 @@ import { parseDate } from '@/utils/parse-date';
 
 import { renderDescription } from './templates/description';
 
+interface CbndataArticleDetail {
+    id?: number | string;
+    title: string;
+    content?: string;
+    date: number | string;
+    tags?: Array<{ name: string }>;
+    author: string;
+    thumbnail_url?: string;
+}
+
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = 'all' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '50', 10);
+    const limit = Number(ctx.req.query('limit') ?? '50');
 
     const baseUrl = 'https://www.cbndata.com';
     const targetUrl: string = new URL(`information?tag_id=${id}`, baseUrl).href;
@@ -20,7 +30,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
     const response = await ofetch(apiUrl, {
         query: {
@@ -76,7 +86,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
 
                 const dataStr: string | undefined = detailResponse.match(/<script>window\.__INITIAL_STATE__=(.*?);<\/script>/)?.[1];
 
@@ -84,7 +94,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     return item;
                 }
 
-                const data = JSON.parse(dataStr)?.data;
+                const data: CbndataArticleDetail | undefined = JSON.parse(dataStr)?.data;
 
                 if (!data) {
                     return item;
@@ -98,7 +108,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     });
                 const pubDate: number | string = data.date;
                 const linkUrl: string | undefined = data.id ? `information/${data.id}` : undefined;
-                const categories: string[] = [...new Set(((data.tags?.map((c) => c.name) ?? []) as string[]).filter(Boolean))];
+                const categories: string[] = [...new Set((data.tags?.map((c) => c.name) ?? []).filter(Boolean))];
                 const authors: DataItem['author'] = [
                     {
                         name: data.author,
@@ -197,8 +207,7 @@ export const route: Route = {
 | [美妆个护](https://www.cbndata.com/information?tag_id=1)    | [1](https://rsshub.app/cbndata/information/1)       |
 | [服饰鞋包](https://www.cbndata.com/information?tag_id=2559) | [2559](https://rsshub.app/cbndata/information/2559) |
 | [宠物](https://www.cbndata.com/information?tag_id=2419)     | [2419](https://rsshub.app/cbndata/information/2419) |
-| [营销](https://www.cbndata.com/information?tag_id=2484)     | [2484](https://rsshub.app/cbndata/information/2484) |
-`,
+| [营销](https://www.cbndata.com/information?tag_id=2484)     | [2484](https://rsshub.app/cbndata/information/2484) |`,
     categories: ['new-media'],
     features: {
         requireConfig: false,

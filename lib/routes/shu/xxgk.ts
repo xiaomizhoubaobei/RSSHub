@@ -35,8 +35,8 @@ export const route: Route = {
     handler,
     url: 'xxgk.shu.edu.cn/',
     description: `| 对外交流项目 | 合作交流 |
-| -------- | --------- |
-| dwjlxm   | hzjl      |`,
+| ------------ | -------- |
+| dwjlxm       | hzjl     |`,
 };
 
 async function handler(ctx) {
@@ -68,7 +68,7 @@ async function handler(ctx) {
             return {
                 title, // 获取标题
                 link: rawLink ? new URL(rawLink, rootUrl).href : rootUrl, // 生成完整链接
-                pubDate: timezone(parseDate(pubDate, 'YYYY/MM/DD'), +8), // 解析日期
+                pubDate: timezone(parseDate(pubDate, 'YYYY/MM/DD'), 8), // 解析日期
                 description: '', // 初始化描述
             };
         });

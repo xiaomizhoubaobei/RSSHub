@@ -1,16 +1,19 @@
-import got from '@/utils/got';
+import cache from '@/utils/cache';
+import ofetch from '@/utils/ofetch';
 
-const getTokenAndSecret = (tryGet) =>
-    tryGet('qianp:token', async () => {
-        const response = await got('https://qianp.com/news/recommend/');
-        const token = response.headers['set-cookie']
+const getTokenAndSecret = () =>
+    cache.tryGet('qianp:token', async () => {
+        const response = await ofetch.raw('https://qianp.com/news/recommend/');
+        const token = response.headers
+            .getSetCookie()
             .find((cookie) => cookie.startsWith('token='))
-            ?.split(';')[0]
-            ?.split('=')[1];
-        const secret = response.headers['set-cookie']
+            ?.split(';', 1)[0]
+            ?.split('=', 2)[1];
+        const secret = response.headers
+            .getSetCookie()
             .find((cookie) => cookie.startsWith('secret='))
-            ?.split(';')[0]
-            ?.split('=')[1];
+            ?.split(';', 1)[0]
+            ?.split('=', 2)[1];
         return { token, secret };
     });
 

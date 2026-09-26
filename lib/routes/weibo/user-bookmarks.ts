@@ -41,11 +41,11 @@ export const route: Route = {
     handler,
     url: 'weibo.com/',
     description: `::: warning
-  此方案必须使用用户\`Cookie\`进行抓取，只可以获取本人的收藏动态
+此方案必须使用用户\`Cookie\`进行抓取，只可以获取本人的收藏动态
 
-  因微博 cookies 的过期与更新方案未经验证，部署一次 Cookie 的有效时长未知
+因微博 cookies 的过期与更新方案未经验证，部署一次 Cookie 的有效时长未知
 
-  微博用户 Cookie 的配置可参照部署文档
+微博用户 Cookie 的配置可参照部署文档
 :::`,
 };
 
@@ -143,7 +143,7 @@ async function handler(ctx) {
                         item.mblog.retweeted_status.created_at = data.retweeted_status.created_at;
                     }
                 } else {
-                    item.mblog.created_at = timezone(item.mblog.created_at, +8);
+                    item.mblog.created_at = timezone(item.mblog.created_at, 8);
                 }
 
                 // 转发的长微博处理

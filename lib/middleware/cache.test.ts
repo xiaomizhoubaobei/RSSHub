@@ -1,3 +1,4 @@
+import { Context } from 'hono';
 import Parser from 'rss-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -186,5 +187,26 @@ describe('cache', () => {
         const response = await app.request('/test/cache');
         const parsed = await parser.parseString(await response.text());
         expect(parsed.ttl).toEqual('10');
+    });
+});
+
+describe('cache middleware error handling', () => {
+    it('clears control key when downstream throws', async () => {
+        process.env.CACHE_TYPE = 'memory';
+        const cache = (await import('@/utils/cache')).default;
+        const setSpy = vi.spyOn(cache.globalCache, 'set');
+
+        const { default: cacheMiddleware } = await import('@/middleware/cache');
+
+        const ctx = new Context(new Request('http://localhost/test'), { env: {}, path: '/test' });
+
+        await expect(
+            cacheMiddleware(ctx, () => {
+                throw new Error('boom');
+            })
+        ).rejects.toThrow('boom');
+
+        expect(setSpy.mock.calls.some(([key, value]) => key.startsWith('rsshub:path-requested:') && value === '0')).toBe(true);
+        setSpy.mockRestore();
     });
 });

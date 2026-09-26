@@ -37,6 +37,23 @@ type ComingSoonResponse = {
     reason?: string;
 };
 
+interface UpstreamError {
+    response?: {
+        status?: number;
+    };
+}
+
+const buildFetchError = (error: UpstreamError): Error => {
+    const status = error?.response?.status;
+    if (status === 429) {
+        return new Error('Douban 请求过于频繁（429）。请稍后重试，或降低请求频率。');
+    }
+    if (status === 403) {
+        return new Error('Douban 拒绝访问（403），可能触发反爬策略。请稍后重试。');
+    }
+    return new Error('Douban 数据请求失败，可能触发反爬或限频，请稍后重试。');
+};
+
 const signRequest = async (url: string, ts: string, method = 'GET'): Promise<string> => {
     const urlPath = new URL(url).pathname;
     const rawSign = `${method.toUpperCase()}&${encodeURIComponent(urlPath)}&${ts}`;
@@ -55,38 +72,35 @@ const getPubDate = (pubdate?: string[]): Date | undefined => {
         return undefined;
     }
 
-    const datePart = pubDateText.split('(')[0];
+    const datePart = pubDateText.split('(', 1)[0];
     return parseDate(datePart);
 };
 
 const getSortTimestamp = (pubdate?: string[]): number => {
     const pubDateText = getPubDateText(pubdate);
     if (!pubDateText) {
-        return Number.POSITIVE_INFINITY;
+        return Infinity;
     }
 
-    const datePart = pubDateText.split('(')[0].trim();
+    const datePart = pubDateText.split('(', 1)[0].trim();
     const match = /^(\d{4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?/.exec(datePart);
     if (!match) {
-        return Number.POSITIVE_INFINITY;
+        return Infinity;
     }
 
-    const year = Number.parseInt(match[1], 10);
-    const month = match[2] ? Number.parseInt(match[2], 10) : 1;
-    const day = match[3] ? Number.parseInt(match[3], 10) : 1;
+    const year = Number(match[1]);
+    const month = match[2] ? Number(match[2]) : 1;
+    const day = match[3] ? Number(match[3]) : 1;
     const timestamp = Date.UTC(year, month - 1, day);
-    return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+    return Number.isNaN(timestamp) ? Infinity : timestamp;
 };
 
 const getWishCount = (wishCount?: number | string): number => {
-    if (typeof wishCount === 'number') {
-        return wishCount;
+    if (wishCount === undefined) {
+        return 0;
     }
-    if (typeof wishCount === 'string') {
-        const parsed = Number.parseInt(wishCount, 10);
-        return Number.isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
+    const parsed = Number(wishCount);
+    return Number.isNaN(parsed) ? 0 : parsed;
 };
 
 const renderDescription = (subject: { intro?: string; wish_count?: number | string }): string => {
@@ -97,17 +111,6 @@ const renderDescription = (subject: { intro?: string; wish_count?: number | stri
         return `${wishCountText}，${introText}`;
     }
     return wishCountText || introText;
-};
-
-const buildFetchError = (error: unknown): Error => {
-    const status = (error as { response?: { status?: number } })?.response?.status;
-    if (status === 429) {
-        return new Error('Douban 请求过于频繁（429）。请稍后重试，或降低请求频率。');
-    }
-    if (status === 403) {
-        return new Error('Douban 拒绝访问（403），可能触发反爬策略。请稍后重试。');
-    }
-    return new Error('Douban 数据请求失败，可能触发反爬或限频，请稍后重试。');
 };
 
 export const route: Route = {
@@ -134,10 +137,10 @@ export const route: Route = {
 | sortBy   | 排序方式         | hot/time | hot    |
 | count    | 请求上游返回数量 | 正整数   | 10     |
 
-  用例：\`/douban/tv/coming/hot/10\`
+用例：\`/douban/tv/coming/hot/10\`
 
 ::: tip
-  服务端请求固定使用 \`sortby=hot\` 拉取数据，再按 \`sortBy\` 参数在本地重排；条目数量可通过 \`count\` 调整，仍可叠加 RSSHub 通用参数 \`limit\`。
+服务端请求固定使用 \`sortby=hot\` 拉取数据，再按 \`sortBy\` 参数在本地重排；条目数量可通过 \`count\` 调整，仍可叠加 RSSHub 通用参数 \`limit\`。
 :::`,
 };
 
@@ -146,11 +149,11 @@ async function handler(ctx) {
     const countParam = ctx.req.param('count');
 
     const sortBy = sortByParam === 'time' ? 'time' : 'hot';
-    const rawCount = Number.parseInt(countParam || '', 10);
+    const rawCount = Number(countParam || '');
     const requestCount = Number.isNaN(rawCount) || rawCount <= 0 ? 10 : rawCount;
 
     const ts = new Date().toISOString().slice(0, 10).replaceAll('-', '');
-    const searchParams: Record<string, string | number> = {
+    const searchParams = {
         start: 0,
         count: requestCount,
         sortby: 'hot',
@@ -161,7 +164,7 @@ async function handler(ctx) {
     };
 
     const cacheKey = `douban:tv:coming:${requestCount}`;
-    const data = (await cache.tryGet(
+    const data = await cache.tryGet(
         cacheKey,
         async () => {
             try {
@@ -176,12 +179,12 @@ async function handler(ctx) {
                 });
                 return response.data as ComingSoonResponse;
             } catch (error) {
-                throw buildFetchError(error);
+                throw buildFetchError(error as UpstreamError);
             }
         },
         config.cache.routeExpire,
         false
-    )) as ComingSoonResponse;
+    );
 
     if (!Array.isArray(data.subjects)) {
         const details = data.msg || data.message || data.reason;

@@ -37,17 +37,17 @@ export const route: Route = {
     handler,
     url: 'hashnode.dev/',
     description: `::: tip
-  username 为博主用户名，而非\`xxx.hashnode.dev\`中\`xxx\`所代表的 blog 地址。
+username 为博主用户名，而非\`xxx.hashnode.dev\`中\`xxx\`所代表的 blog 地址。
 :::`,
 };
 
 async function handler(ctx) {
     const username = ctx.req.param('username');
     if (!username) {
-        return;
+        return null;
     }
 
-    const query = `
+    const query = /* GraphQL */ `
     {
         user(username: "${username}") {
             publication {
@@ -76,7 +76,7 @@ async function handler(ctx) {
 
     const publication = response.data.data.user.publication;
     if (!publication) {
-        return;
+        return null;
     }
 
     const list = publication.posts;

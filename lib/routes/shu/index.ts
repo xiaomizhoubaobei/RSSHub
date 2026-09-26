@@ -35,8 +35,8 @@ export const route: Route = {
     handler,
     url: 'www.shu.edu.cn/',
     description: `| 通知公告 | 重要新闻 |
-| -------- | --------- |
-| tzgg     | zyxw      |`,
+| -------- | -------- |
+| tzgg     | zyxw     |`,
 };
 
 async function handler(ctx) {
@@ -63,10 +63,10 @@ async function handler(ctx) {
             const item = $(el); // Wrap `el` in a Cheerio object
             const rawLink = item.find('a').attr('href');
             return {
-                title: item.find('p.bt').text().trim(),
+                title: item.find('p.bt').text(),
                 link: rawLink ? new URL(rawLink, rootUrl).href : rootUrl,
-                pubDate: timezone(parseDate(item.find('p.sj').text().trim(), 'YYYY.MM.DD'), +8),
-                description: item.find('p.zy').text().trim(),
+                pubDate: timezone(parseDate(item.find('p.sj').text(), 'YYYY.MM.DD'), 8),
+                description: item.find('p.zy').text(),
             };
         });
 

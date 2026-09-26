@@ -1,14 +1,14 @@
 import { load } from 'cheerio';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
 export const route: Route = {
-    path: '/suzhou/news/:uid',
+    path: '/news/:uid',
     categories: ['government'],
     example: '/gov/suzhou/news/news',
     parameters: { uid: '栏目名' },
@@ -47,11 +47,11 @@ export const route: Route = {
 |    区县专题    |  qxzt  |
 
 ::: tip
-  **热点专题**栏目包含**市本级专题**和**区县专题**
+**热点专题**栏目包含**市本级专题**和**区县专题**
 
-  **市本级专题**栏目包含**最新热点专题**和**往期专题**
+**市本级专题**栏目包含**最新热点专题**和**往期专题**
 
-  如需订阅完整的热点专题，仅需订阅 **热点专题**\`rdzt\` 一项即可。
+如需订阅完整的热点专题，仅需订阅 **热点专题**\`rdzt\` 一项即可。
 :::`,
 };
 
@@ -150,12 +150,12 @@ async function handler(ctx) {
         items = $('ul.infolist li')
             .toArray()
             .map((item) => {
-                item = $(item);
-                const a = item.find('a');
+                const $item = $(item);
+                const a = $item.find('a');
                 return {
-                    title: a.attr('title'),
-                    link: new URL(a.attr('href'), rootUrl).href,
-                    pubDate: timezone(parseDate(item.find('.time').text(), 'YYYY-MM-DD'), 8),
+                    title: a.attr('title')!,
+                    link: new URL(a.attr('href')!, rootUrl).href,
+                    pubDate: timezone(parseDate($item.find('.time').text(), 'YYYY-MM-DD'), 8),
                 };
             });
     }

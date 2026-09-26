@@ -3,7 +3,7 @@ import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 import iconv from 'iconv-lite';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -44,11 +44,11 @@ async function handler(ctx) {
     const list = $('tbody > tr')
         .slice(0, 25)
         .toArray()
-        .map((item) => ({
+        .map((item): DataItem & { link: string } => ({
             title: $(item).find('td.title2').text(),
-            link: new URL($(item).find('td.title2 > a').attr('href'), rootUrl).href,
+            link: new URL($(item).find('td.title2 > a').attr('href')!, rootUrl).href,
             author: $(item).find('td.author').text(),
-            pubDate: timezone(parseDate($(item).find('td.dateline').text(), 'YYYY-M-D HH:mm'), +8),
+            pubDate: timezone(parseDate($(item).find('td.dateline').text(), 'YYYY-M-D HH:mm'), 8),
             category: $(item).find('td.forum').text(),
         }))
         .filter((item) => item.title);
@@ -70,12 +70,12 @@ async function handler(ctx) {
                             .remove()
                             .end()
                             .html()
-                            ?.replaceAll(/(<img.*?) src=".*?"(.*?>)/g, '$1$2')
+                            ?.replaceAll(/(<img.*?) src="[^"]*"(.*?>)/g, '$1$2')
                             .replaceAll(/(<img.*?)zoomfile(.*?>)/g, '$1src$2');
                         const pattlHtml = content(item)
                             .find('div.pattl')
                             .html()
-                            ?.replaceAll(/(<img.*?) src=".*?"(.*?>)/g, '$1$2')
+                            ?.replaceAll(/(<img.*?) src="[^"]*"(.*?>)/g, '$1$2')
                             .replaceAll(/(<img.*?)zoomfile(.*?>)/g, '$1src$2');
                         const author = content(item).find('a.xw1').text().trim();
 

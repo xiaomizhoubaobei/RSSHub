@@ -1,8 +1,11 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Language } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
+import { isValidHost } from '@/utils/valid-host';
 
 const rootUrl = 'https://www.safe.gov.cn';
 
@@ -14,7 +17,11 @@ const zxfkCategoryApis = {
     tsjy: 'www/complaint/complaintQuery?siteid=',
 };
 
-const processZxfkItems = async (site = 'beijing', category = 'ywzx', limit = '3') => {
+const processZxfkItems = async (site = 'beijing', category = 'ywzx', limit = 3) => {
+    if (!isValidHost(site)) {
+        throw new InvalidParameterError('Invalid site');
+    }
+
     const apiUrl = new URL(`${zxfkCategoryApis[category]}${site}`, rootUrl).href;
     const currentUrl = new URL(`${site}/${category}/index.html`, rootUrl).href;
 
@@ -26,9 +33,9 @@ const processZxfkItems = async (site = 'beijing', category = 'ywzx', limit = '3'
         .slice(0, limit)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const spans = item.find('span[objid]');
+            const spans = $item.find('span[objid]');
 
             const message = {
                 author: spans.first().text().replace(/:$/, ''),
@@ -93,7 +100,7 @@ const processZxfkItems = async (site = 'beijing', category = 'ywzx', limit = '3'
         title: `${author} - ${subtitle}`,
         link: currentUrl,
         description: content('meta[name="ColumnDescription"]').prop('content'),
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         image,
         icon,
         logo: icon,

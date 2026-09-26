@@ -1,7 +1,7 @@
 import markdownit from 'markdown-it';
 
 import type { NamespacesType } from '@/registry';
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 
@@ -45,6 +45,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const isEnglish = ctx.req.param('lang') !== 'zh';
+    const language: Language = isEnglish ? 'en-us' : 'zh-CN';
 
     const data = await ofetch<NamespacesType>('https://docs.rsshub.app/routes.json');
 
@@ -54,7 +55,7 @@ async function handler(ctx) {
             description: routeData.description ? md.render(routeData.description) : '',
             link: `https://docs.rsshub.app/${isEnglish ? '' : 'zh/'}routes/${namespace}`,
             category: routeData.categories,
-            guid: `/${namespace}${routePath === '/' ? '' : routePath}`,
+            guid: routePath.replace(/\/$/, ''),
             author: routeData.maintainers.join(', '),
         }))
     );
@@ -63,7 +64,7 @@ async function handler(ctx) {
         title: isEnglish ? 'RSSHub has new routes' : 'RSSHub 有新路由啦',
         link: 'https://docs.rsshub.app',
         description: isEnglish ? 'Everything is RSSible' : '万物皆可 RSS',
-        language: isEnglish ? 'en-us' : 'zh-cn',
+        language,
         item: items,
     };
 }

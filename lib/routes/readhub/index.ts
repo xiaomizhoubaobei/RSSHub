@@ -1,7 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
-import cache from '@/utils/cache';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -26,18 +25,18 @@ export const route: Route = {
     handler,
     description: `| 热门话题 | 科技动态 | 医疗产业 | 财经快讯           |
 | -------- | -------- | -------- | ------------------ |
-|          | news     | medical  | financial_express |`,
+|          | news     | medical  | financial\\_express |`,
 };
 
 async function handler(ctx) {
     const { category = '' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const currentUrl = new URL(category ?? '', rootUrl).href;
 
     const { data: currentResponse } = await got(currentUrl);
 
-    const type = currentResponse.match(/\[\\"type\\",\\"(\d+)\\",\\"d\\"]/)?.[1] ?? '1';
+    const type = currentResponse.match(/\[\\"type\\",\\"(\d+)\\",\\"d\\"\]/)?.[1] ?? '1';
 
     const { data: response } = await got(apiTopicUrl, {
         searchParams: {
@@ -57,12 +56,12 @@ async function handler(ctx) {
             rootUrl,
         }),
         author: item.siteNameDisplay,
-        category: [...(item.entityList.map((c) => c.name) ?? []), ...(item.tagList.map((c) => c.name) ?? [])],
+        category: [...(item.entityList?.map((c) => c.name) ?? []), ...(item.tagList?.map((c) => c.name) ?? [])],
         guid: item.uid,
-        pubDate: parseDate(item.publishDate),
+        pubDate: item.publishDate ? parseDate(item.publishDate) : undefined,
     }));
 
-    items = await processItems(items, cache.tryGet);
+    items = await processItems(items);
 
     const $ = load(currentResponse);
 
@@ -76,7 +75,7 @@ async function handler(ctx) {
         title: `${author} - ${subtitle}`,
         link: currentUrl,
         description: $('meta[property="og:description"]').prop('content'),
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         image,
         icon,
         logo: icon,

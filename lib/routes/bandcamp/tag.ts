@@ -44,7 +44,7 @@ async function handler(ctx) {
         .match(/tralbum_url&quot;:&quot;(.*?)&quot;,&quot;audio_url/g)
         .slice(0, 10)
         .map((item) => ({
-            link: item.match(/tralbum_url&quot;:&quot;(.*?)&quot;,&quot;audio_url/)[1].split('&quot;')[0],
+            link: item.match(/tralbum_url&quot;:&quot;(.*?)&quot;,&quot;audio_url/)[1].split('&quot;', 1)[0],
         }));
 
     const items = await Promise.all(
@@ -58,7 +58,7 @@ async function handler(ctx) {
 
                 item.title = content('.trackTitle').eq(0).text();
                 item.author = content('h3 span a').text();
-                item.description = content('#tralbumArt').html() + content('#trackInfo').html();
+                item.description = content('#tralbumArt').html()! + content('#trackInfo').html()!;
 
                 return item;
             })

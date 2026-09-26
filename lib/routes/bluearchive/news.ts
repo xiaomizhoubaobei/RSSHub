@@ -5,12 +5,12 @@ import { parseDate } from '@/utils/parse-date';
 // type id => display name
 type Mapping = Record<string, string>;
 
-const JP: Mapping = {
+const JP = {
     '0': '全て',
     '1': 'イベント',
     '2': 'お知らせ',
     '3': 'メンテナンス',
-};
+} satisfies Mapping;
 
 // render into MD table
 const mkTable = (mapping: Mapping): string => {
@@ -52,7 +52,7 @@ const ja: Route['handler'] = async (ctx) => {
     return {
         title: `ブルアカ - ${JP[type]}`,
         link: 'https://bluearchive.jp/news/newsJump',
-        language: 'ja-JP',
+        language: 'ja',
         image: 'https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png', // The CN website has a larger one
         icon: 'https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png',
         logo: 'https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png',

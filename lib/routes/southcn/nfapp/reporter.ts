@@ -1,5 +1,4 @@
 import type { Route } from '@/types';
-import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
@@ -23,7 +22,7 @@ export const route: Route = {
     name: '南方 +（按作者）',
     maintainers: ['TimWu007'],
     handler,
-    description: `作者的 UUID 只可通过 \`static.nfapp.southcn.com\` 下的文章页面获取。点击文章下方的作者介绍，进入该作者的个人主页，即可从 url 中获取。`,
+    description: '作者的 UUID 只可通过 `static.nfapp.southcn.com` 下的文章页面获取。点击文章下方的作者介绍，进入该作者的个人主页，即可从 url 中获取。',
 };
 
 async function handler(ctx) {
@@ -38,13 +37,13 @@ async function handler(ctx) {
             thumb: item.picMiddle,
             description: item.attAbstract,
         }),
-        pubDate: timezone(parseDate(item.publishtime), +8),
+        pubDate: timezone(parseDate(item.publishtime), 8),
         link: `http://pc.nfapp.southcn.com/${item.colID}/${item.fileId}.html`,
         articleId: item.fileId,
         shareUrl: item.shareUrl,
     }));
 
-    const items = await Promise.all(list.map((item) => parseArticle(item, cache.tryGet)));
+    const items = await Promise.all(list.map((item) => parseArticle(item)));
 
     return {
         title: `南方+ - ${response.data.reportInfo.reporterName}`,

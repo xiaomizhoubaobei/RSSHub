@@ -1,6 +1,5 @@
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
-import type { JSX } from 'hono/jsx/jsx-runtime';
 
 type DescriptionData = {
     image?: {
@@ -15,7 +14,7 @@ type DescriptionData = {
 };
 
 const AbcDescription = ({ image, enclosure, description }: DescriptionData) => {
-    const enclosureTag = enclosure?.type?.split('/')[0] as keyof JSX.IntrinsicElements | undefined;
+    const enclosureTag = enclosure?.type?.split('/', 1)[0] as 'audio' | 'video' | undefined;
 
     return (
         <>

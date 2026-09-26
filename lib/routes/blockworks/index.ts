@@ -36,7 +36,7 @@ export const route: Route = {
 async function handler(ctx): Promise<Data> {
     const rssUrl = 'https://blockworks.co/feed';
     const feed = await parser.parseURL(rssUrl);
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 20;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 20;
     // Limit to 20 items
     const limitedItems = feed.items.slice(0, limit);
 
@@ -44,12 +44,12 @@ async function handler(ctx): Promise<Data> {
 
     const items = await Promise.all(
         limitedItems
-            .map((item) => ({
-                ...item,
-                link: item.link?.split('?')[0],
-            }))
+            .map((item) => {
+                const entry: typeof item & { author?: DataItem['author'] } = { ...item, link: item.link?.split('?', 1)[0] };
+                return entry;
+            })
             .map((item) =>
-                cache.tryGet(item.link!, async () => {
+                cache.tryGet<DataItem>(item.link!, async () => {
                     // Get cached content or fetch new content
                     const content = await extractFullText(item.link!.split('/').pop()!, buildId);
 
@@ -65,7 +65,7 @@ async function handler(ctx): Promise<Data> {
                                   content: { url: content.imageUrl },
                               }
                             : undefined,
-                    } as DataItem;
+                    };
                 })
             )
     );
@@ -126,4 +126,4 @@ const getBuildId = () =>
         },
         config.cache.routeExpire,
         false
-    ) as Promise<string>;
+    );

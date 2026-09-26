@@ -45,8 +45,8 @@ async function handler(ctx) {
     const $ = load(csrfresponse._data);
     const token = $('meta[name="csrf-token"]').attr('content');
     const cookies = csrfresponse.headers.getSetCookie().toString();
-    const xsrf_token = cookies.match(/XSRF-TOKEN=[^\s;]+/)[0];
-    const laravel_session = cookies.match(/laravel_session[^\s;]+/)[0];
+    const xsrf_token = cookies.match(/XSRF-TOKEN=[^\s;]+/)![0];
+    const laravel_session = cookies.match(/laravel_session[^\s;]+/)![0];
 
     const keykind = ctx.req.param('keykind') || '';
     let formdata;
@@ -59,9 +59,9 @@ async function handler(ctx) {
         link = `https://nosec.org/home/index/${keykind}.html`;
     } else {
         // keykind 未知时则获取全部
-        formdata = `keykind=&page=1`;
-        title = `NOSEC 安全讯息平台`;
-        link = `https://nosec.org/home/index`;
+        formdata = 'keykind=&page=1';
+        title = 'NOSEC 安全讯息平台';
+        link = 'https://nosec.org/home/index';
     }
 
     const response = await got({

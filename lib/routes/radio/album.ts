@@ -30,10 +30,10 @@ export const route: Route = {
     handler,
     description: `如果订阅 [中国相声榜](https://www.radio.cn/pc-portal/sanji/detail.html?columnId=15682090498666)，其 URL 为 \`https://www.radio.cn/pc-portal/sanji/detail.html?columnId=15682090498666\`，可以得到 \`columnId\` 为 \`15682090498666\`
 
-  所以对应路由为 [\`/radio/album/15682090498666\`](https://rsshub.app/radio/album/15682090498666)
+所以对应路由为 [\`/radio/album/15682090498666\`](https://rsshub.app/radio/album/15682090498666)
 
 ::: tip
-  部分专辑不适用该路由，此时可以尝试 [节目](#yun-ting-jie-mu) 路由
+部分专辑不适用该路由，此时可以尝试 [节目](#yun-ting-jie-mu) 路由
 :::`,
 };
 
@@ -83,7 +83,7 @@ async function handler(ctx) {
             title: item.name,
             link: `${rootUrl}/share/albumPlay?correlateId=${item.id}&columnId=${id}`,
             description: renderDescription({ enclosure_url, enclosure_type }),
-            pubDate: timezone(parseDate(item.createTime), +8),
+            pubDate: timezone(parseDate(item.createTime), 8),
             enclosure_url,
             enclosure_type,
             enclosure_length: item.fileSize,

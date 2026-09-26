@@ -1,4 +1,5 @@
 import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 import { http as mswHttp, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -28,12 +29,21 @@ describe('ofetch', () => {
                 retry: 1,
                 retryDelay: 0,
                 onResponse({ options }) {
-                    options.headers = null as unknown as Headers;
+                    (options as { headers: Headers | null }).headers = null;
                 },
             })
         ).rejects.toBeDefined();
 
         expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('surfaces the root cause in fetch error messages', async () => {
+        const { logger, ofetch } = await loadOfetchWithLogger();
+        vi.spyOn(logger, 'error').mockImplementation(() => logger);
+        const networkError = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND t.me') });
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(networkError));
+
+        await expect(ofetch('https://t.me/s/telegram', { retry: 0 })).rejects.toThrow('fetch failed (getaddrinfo ENOTFOUND t.me)');
     });
 
     it('logs redirected responses', async () => {
@@ -52,8 +62,7 @@ describe('ofetch', () => {
         });
 
         await new Promise<void>((resolve) => server.listen(0, resolve));
-        const address = server.address();
-        const port = typeof address === 'object' && address ? address.port : 0;
+        const { port } = server.address() as AddressInfo;
 
         try {
             await ofetch(`http://127.0.0.1:${port}/redirect`);

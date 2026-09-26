@@ -32,7 +32,7 @@ export const route: Route = {
     url: 'jwc.ncu.edu.cn/Notices.jsp',
 };
 
-async function handler() {
+async function handler(): Promise<Data> {
     const targetUrl = `${baseUrl}/Notices.jsp?urltype=tree.TreeTempUrl&wbtreeid=1541`;
 
     const response = await ofetch(targetUrl);
@@ -48,10 +48,7 @@ async function handler() {
             const rawLink = linkEl.attr('href');
             const link = rawLink ? new URL(rawLink, baseUrl).href : '';
 
-            const dateText = el
-                .find(String.raw`.font-mono span.md\:inline`)
-                .text()
-                .trim();
+            const dateText = el.find(String.raw`.font-mono span.md\:inline`).text();
 
             return {
                 title,
@@ -69,19 +66,6 @@ async function handler() {
 
                 const contentEl = $detail('.v_news_content');
 
-                contentEl.find('a').each((_, el) => {
-                    const href = $detail(el).attr('href');
-                    if (href && !href.startsWith('http')) {
-                        $detail(el).attr('href', new URL(href, baseUrl).href);
-                    }
-                });
-                contentEl.find('img').each((_, el) => {
-                    const src = $detail(el).attr('src');
-                    if (src && !src.startsWith('http')) {
-                        $detail(el).attr('src', new URL(src, baseUrl).href);
-                    }
-                });
-
                 let description = contentEl.html() || '';
 
                 const attachments = $detail('a[href*="download.jsp"]');
@@ -90,10 +74,12 @@ async function handler() {
                     attachments.each((_, el) => {
                         const href = $detail(el).attr('href');
                         const text = $detail(el).text().trim();
-                        if (href && text) {
-                            const absoluteHref = href.startsWith('http') ? href : new URL(href, baseUrl).href;
-                            description += `<li><a href="${absoluteHref}">${text}</a></li>`;
+                        if (!href || !text) {
+                            return;
                         }
+
+                        const absoluteHref = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+                        description += `<li><a href="${absoluteHref}">${text}</a></li>`;
                     });
                     description += '</ul>';
                 }
@@ -108,5 +94,5 @@ async function handler() {
         link: targetUrl,
         description: '南昌大学教务处通知公告',
         item: items,
-    } as Data;
+    };
 }

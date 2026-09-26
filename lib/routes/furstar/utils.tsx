@@ -26,11 +26,17 @@ const renderDesc = (desc, pics, author) =>
         </>
     );
 
+interface Author {
+    name?: string | null;
+    avatar?: string | null;
+    link?: string | null;
+}
+
 const authorDetail = (el) => {
     const $ = load(el);
     // if there is <a>
     const a = $('a');
-    const result = {
+    const result: Author = {
         name: null,
         avatar: null,
         link: null,
@@ -60,7 +66,7 @@ const detailPage = (link, cache) =>
             .toArray()
             .map((e) => {
                 const p = load(e);
-                const link = p('a').attr('href').trim();
+                const link = p('a').attr('href')!.trim();
                 return `${base}/${link.slice(2)}`;
             });
 
@@ -80,8 +86,8 @@ const fetchAllCharacters = (data, base) => {
         const c = load(e);
         const r = {
             title: c('.character-headline').text().trim(),
-            headImage: c('.character-images img').attr('src').trim(),
-            detailPage: `${base}/${c('.character-images a').attr('href').trim()}`,
+            headImage: c('.character-images img').attr('src')!.trim(),
+            detailPage: `${base}/${c('.character-images a').attr('href')!.trim()}`,
             author: authorDetail(c('.character-description').html()),
         };
         return r;

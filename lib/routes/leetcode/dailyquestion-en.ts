@@ -7,13 +7,15 @@ const host = 'https://leetcode.com';
 
 export const route: Route = {
     path: '/dailyquestion/en',
+    categories: ['programming'],
+    example: '/leetcode/dailyquestion/en',
     radar: [
         {
             source: ['leetcode.com/'],
         },
     ],
-    name: 'Unknown',
-    maintainers: [],
+    name: 'Daily Question',
+    maintainers: ['IvanWng97'],
     handler,
     url: 'leetcode.com/',
 };
@@ -30,16 +32,18 @@ async function handler() {
     };
     const url = host + '/graphql';
     const dailyQuestionPayload = {
-        query: `query questionOfToday {
-            activeDailyCodingChallengeQuestion {
-                date
-                link
-                question {
-                    frontendQuestionId: questionFrontendId
-                    titleSlug
+        query: /* GraphQL */ `
+            query questionOfToday {
+                activeDailyCodingChallengeQuestion {
+                    date
+                    link
+                    question {
+                        frontendQuestionId: questionFrontendId
+                        titleSlug
+                    }
                 }
             }
-        } `,
+        `,
         variables: {},
     };
     const dailyQuestionResponse = await got({
@@ -57,25 +61,27 @@ async function handler() {
 
     const detailsPayload = {
         operationName: 'questionData',
-        query: `query questionData($titleSlug: String!) {
-            question(titleSlug: $titleSlug) {
-                questionId
-                questionFrontendId
-                title
-                titleSlug
-                content
-                translatedTitle
-                translatedContent
-                difficulty
-                topicTags {
-                    name
-                    slug
-                    translatedName
+        query: /* GraphQL */ `
+            query questionData($titleSlug: String!) {
+                question(titleSlug: $titleSlug) {
+                    questionId
+                    questionFrontendId
+                    title
+                    titleSlug
+                    content
+                    translatedTitle
+                    translatedContent
+                    difficulty
+                    topicTags {
+                        name
+                        slug
+                        translatedName
+                        __typename
+                    }
                     __typename
                 }
-                __typename
             }
-        }`,
+        `,
         variables: {
             titleSlug: question.titleSlug,
         },

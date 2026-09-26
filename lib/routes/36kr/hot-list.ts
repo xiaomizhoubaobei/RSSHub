@@ -1,6 +1,5 @@
 import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { Route } from '@/types';
-import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -56,7 +55,7 @@ const getProperty = (object, key) => {
     let result = object;
     const keys = key.split('.');
     for (const k of keys) {
-        result = result && result[k];
+        result &&= result[k];
     }
     return result;
 };
@@ -64,7 +63,7 @@ const getProperty = (object, key) => {
 async function handler(ctx) {
     const category = ctx.req.param('category') ?? '24';
 
-    if (!categories[category]) {
+    if (!Object.hasOwn(categories, category)) {
         throw new InvalidParameterError('This category does not exist. Please refer to the documentation for the correct usage.');
     }
 
@@ -74,12 +73,14 @@ async function handler(ctx) {
     const response = await got({
         method: 'get',
         url: currentUrl,
-        headers: {
-            Cookie: `_waftokenid=${wafTokenId}`,
-        },
+        headers: wafTokenId
+            ? {
+                  Cookie: `_waftokenid=${wafTokenId}`,
+              }
+            : undefined,
     });
 
-    const data = getProperty(JSON.parse(response.data.match(/window.initialState=({.*})/)[1]), categories[category].key);
+    const data = getProperty(JSON.parse(response.data.match(/window.initialState=(\{.*\})/)[1]), categories[category].key);
 
     let items = data
         .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 10)
@@ -95,7 +96,7 @@ async function handler(ctx) {
             };
         });
 
-    items = await Promise.all(items.map((item) => ProcessItem(item, cache.tryGet)));
+    items = await Promise.all(items.map((item) => ProcessItem(item)));
 
     return {
         title: `36氪 - ${categories[category].title}`,

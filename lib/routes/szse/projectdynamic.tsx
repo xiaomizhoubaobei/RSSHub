@@ -34,7 +34,7 @@ export const route: Route = {
 | --- | ------ | ------------ |
 | 1   | 2      | 3            |
 
-  阶段
+阶段
 
 | 全部 | 受理 | 问询 | 上市委会议 |
 | ---- | ---- | ---- | ---------- |
@@ -44,7 +44,7 @@ export const route: Route = {
 | -------- | -------- | ---- | ---- |
 | 35       | 40       | 50   | 60   |
 
-  状态
+状态
 
 | 全部 | 新受理 | 已问询 | 通过 | 未通过 |
 | ---- | ------ | ------ | ---- | ------ |
@@ -131,7 +131,7 @@ async function handler(ctx) {
 
                 item.description = renderDescription(data, current);
 
-                item.pubDate = timezone(parseDate(current.startTime, 'YYYY-MM-DD HH:mm:ss'), +8);
+                item.pubDate = timezone(parseDate(current.startTime, 'YYYY-MM-DD HH:mm:ss'), 8);
 
                 return item;
             })
@@ -212,7 +212,7 @@ const renderDescription = (data, current): string =>
                     </tr>
                     <tr>
                         <td class="title">最近一期审计基准日</td>
-                        <td class="info" colspan="3">
+                        <td class="info" colspan={3}>
                             {data.lastestAuditEndDate}
                         </td>
                     </tr>

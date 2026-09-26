@@ -11,13 +11,15 @@ const rootUrl = 'https://www.chaincatcher.com';
 
 export const route: Route = {
     path: '/',
+    categories: ['new-media'],
+    example: '/chaincatcher',
     radar: [
         {
             source: ['chaincatcher.com/'],
             target: '',
         },
     ],
-    name: 'Unknown',
+    name: '首页',
     maintainers: ['TonyRL'],
     handler,
     url: 'chaincatcher.com/',
@@ -46,6 +48,7 @@ async function handler() {
                 if (item.categoryId !== 3) {
                     const { data: response } = await got(item.link);
                     const $ = load(response);
+                    const articleHtml = $('.article-container').html();
                     item.description = renderToString(
                         <>
                             {item.description ? (
@@ -54,7 +57,7 @@ async function handler() {
                                     <br />
                                 </>
                             ) : null}
-                            {$('.article-container').html() ? raw($('.article-container').html() as string) : null}
+                            {articleHtml ? raw(articleHtml) : null}
                         </>
                     );
                 }

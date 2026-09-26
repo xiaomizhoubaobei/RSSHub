@@ -25,9 +25,9 @@ async function parsePage(html: string) {
                 articleUrl = `${baseUrl}${title.attr('href')}`;
 
                 return cache.tryGet(articleUrl, async () => {
-                    const res = await got.get<string>(articleUrl!);
+                    const res = await got.get(articleUrl!);
                     const article = load(res.data);
-                    const pubDate = timezone(parseDate(article('meta[name=PubDate]').attr('content')!, 'YYYY-MM-DD HH:mm'), +8);
+                    const pubDate = timezone(parseDate(article('meta[name=PubDate]').attr('content')!, 'YYYY-MM-DD HH:mm'), 8);
 
                     return {
                         title: title.text(),
@@ -63,7 +63,7 @@ export const route: Route = {
     maintainers: ['KarasuShin', 'TonyRL'],
     handler,
     description: `::: tip
-  在路由末尾处加上 \`?limit=限制获取数目\` 来限制获取条目数量，默认值为\`10\`
+在路由末尾处加上 \`?limit=限制获取数目\` 来限制获取条目数量，默认值为\`10\`
 :::
 
 | 分类     | 编码 |
@@ -84,7 +84,7 @@ async function handler(ctx) {
     if (category) {
         link += `/${category}/index.html`;
     }
-    const { data: indexData } = await got.get<string>(link);
+    const { data: indexData } = await got.get(link);
 
     const $ = load(indexData);
 
@@ -99,7 +99,7 @@ async function handler(ctx) {
         const queryData = JSON.parse(buildUnitScript.attr('querydata')?.replaceAll("'", '"') ?? '{}');
         queryData.paramJson = `{"pageNo":1,"pageSize":${limit}}`;
 
-        const { data } = await got.get<{ data: { html: string } }>(queryUrl, {
+        const { data } = await got.get(queryUrl, {
             searchParams: new URLSearchParams(queryData),
         });
 

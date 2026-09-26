@@ -44,16 +44,16 @@ async function handler(ctx) {
 
     // 解析页面内容并提取文章信息
     const list = $('.text-list ul li')
-        .toArray()
         .slice(0, 16)
+        .toArray()
         .map((element) => {
             const $element = $(element);
-            const $link = $element.find('a').first();
-            const link = new URL($link.attr('href'), typeDict[type][1]).href;
+            const $link = $element.find('a');
+            const link = new URL($link.attr('href')!, typeDict[type][1]).href;
             const title = $link.attr('title') || $link.text().trim();
 
             // 获取发布时间
-            const pubDateText = $element.find('span').text().trim();
+            const pubDateText = $element.find('span').text();
 
             return {
                 title,

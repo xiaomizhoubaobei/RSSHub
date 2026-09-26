@@ -55,17 +55,17 @@ async function handler(ctx) {
 
 function parseXyxwList($, typeDict, type) {
     return $('section.n_titu ul li')
-        .toArray()
         .slice(0, 6)
+        .toArray()
         .map((element) => {
             const $element = $(element);
-            const $link = $element.find('a').first();
+            const $link = $element.find('a');
             const link = new URL($link.attr('href'), typeDict[type][1]).href;
             const title = $link.attr('title') || $link.text().trim();
             const description = $element.find('.right .con p').text().trim();
 
-            const monthDay = $element.find('.time_con h3').text().trim();
-            const year = $element.find('.time_con h6').text().trim();
+            const monthDay = $element.find('.time_con h3').text();
+            const year = $element.find('.time_con h6').text();
             const pubDateText = `${year}-${monthDay}`;
 
             return {
@@ -79,15 +79,15 @@ function parseXyxwList($, typeDict, type) {
 
 function parseOtherList($, typeDict, type) {
     return $('.n_notice ul.ul li')
-        .toArray()
         .slice(0, 16)
+        .toArray()
         .map((element) => {
             const $element = $(element);
-            const $link = $element.find('a').first();
+            const $link = $element.find('a');
             const link = new URL($link.attr('href'), typeDict[type][1]).href;
             const title = $link.attr('title');
 
-            const pubDateText = $element.find('span.span01').text().trim();
+            const pubDateText = $element.find('span.span01').text();
 
             return {
                 title,

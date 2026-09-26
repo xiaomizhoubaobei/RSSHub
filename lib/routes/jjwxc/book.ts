@@ -31,7 +31,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 100;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 100;
 
     const rootUrl = 'https://www.jjwxc.net';
     const currentUrl = new URL(`onebook.php?novelid=${id}`, rootUrl).href;
@@ -52,18 +52,18 @@ async function handler(ctx) {
     let items = $('tr[itemprop="chapter"]')
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const chapterId = item.find('td').first().text().trim();
-            const chapterName = item.find('span[itemprop="headline"]').text().trim();
-            const chapterIntro = item.find('td').eq(2).text().trim();
+            const chapterId = $item.find('td').first().text().trim();
+            const chapterName = $item.find('span[itemprop="headline"]').text().trim();
+            const chapterIntro = $item.find('td').eq(2).text().trim();
             const chapterUrl = new URL(`onebook.php?novelid=${id}&chapterid=${chapterId}`, rootUrl).href;
-            const chapterWords = item.find('td[itemprop="wordCount"]').text();
-            const chapterClicks = item.find('td.chapterclick').text();
-            const chapterUpdatedTime = item.find('td').last().text().trim();
+            const chapterWords = $item.find('td[itemprop="wordCount"]').text();
+            const chapterClicks = $item.find('td.chapterclick').text();
+            const chapterUpdatedTime = $item.find('td').last().text().trim();
 
-            const isVip = item.find('span[itemprop="headline"] font').last().text() === '[VIP]';
-            const isLock = item.find('td').eq(1).last().text().trim() === '[锁]';
+            const isVip = $item.find('span[itemprop="headline"] font').last().text() === '[VIP]';
+            const isLock = $item.find('td').eq(1).last().text().trim() === '[锁]';
 
             return {
                 title: `${chapterName} ${chapterIntro}`,
@@ -78,9 +78,9 @@ async function handler(ctx) {
                     chapterUpdatedTime,
                 }),
                 author,
-                category: [isVip ? 'VIP' : undefined, ...(category?.split(/\s/) ?? [])].filter(Boolean),
+                category: [isVip ? 'VIP' : '', ...(category?.split(/\s/) ?? [])].filter(Boolean),
                 guid: `jjwxc-${id}#${chapterId}`,
-                pubDate: timezone(parseDate(chapterUpdatedTime), +8),
+                pubDate: timezone(parseDate(chapterUpdatedTime), 8),
                 isVip,
                 isLock,
             };
@@ -107,7 +107,7 @@ async function handler(ctx) {
                           });
                       }
 
-                      delete item.isVip;
+                      delete (item as { isVip?: unknown }).isVip;
 
                       return item;
                   })
@@ -123,7 +123,7 @@ async function handler(ctx) {
         title: `${logoEl.prop('alt').replace(/logo/, '')} | ${author}${keywords[0]}`,
         link: currentUrl,
         description: $('span[itemprop="description"]').text(),
-        language: 'zh',
+        language: 'zh' as const,
         image,
         icon,
         logo: icon,

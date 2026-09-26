@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import pMap from 'p-map';
 import { CookieJar } from 'tough-cookie';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -50,7 +50,7 @@ export const route: Route = {
     parameters: {
         type: '通知类型，留空则获取所有分类',
     },
-    feature: {
+    features: {
         requireConfig: false,
         requirePuppeteer: false,
         antiCrawler: false,
@@ -70,15 +70,14 @@ export const route: Route = {
     url: 'oas.gdut.edu.cn/seeyon',
     description: `学校可能会因为 IP 来源非学校而做出一定的限制，建议在校内网络环境下使用 RSS 阅读器订阅。
 
-| 类型 | 参数 | 可能需要校内访问 |
-| ---- | ---- | ---------------- |
-| 部处简讯 | department | 是 |
-| 学院简讯 | academy | 是 |
-| 校内通知 | notice | 是 |
-| 公示公告 | announcement | 是 |
-| 招标结果 | tender_result | 否 |
-| 招标公告 | tender_invite | 否 |
-`,
+| 类型     | 参数           | 可能需要校内访问 |
+| -------- | -------------- | ---------------- |
+| 部处简讯 | department     | 是               |
+| 学院简讯 | academy        | 是               |
+| 校内通知 | notice         | 是               |
+| 公示公告 | announcement   | 是               |
+| 招标结果 | tender\\_result | 否               |
+| 招标公告 | tender\\_invite | 否               |`,
 };
 
 async function handler(ctx) {
@@ -109,11 +108,11 @@ async function handler(ctx) {
     }
 
     // 构造文章数组
-    const articles = resp.data.data.map((item) => ({
+    const articles: Array<DataItem & { link: string }> = resp.data.data.map((item): DataItem & { link: string } => ({
         title: item.title,
         guid: item.id,
         link: site + '/newsData.do?method=newsView&newsId=' + item.id,
-        pubDate: timezone(parseDate(item.publishDate), +8),
+        pubDate: timezone(parseDate(item.publishDate), 8),
         author: item.publishUserDepart,
         category: item.typeName,
     }));
@@ -132,19 +131,15 @@ async function handler(ctx) {
                 const node = $('#content');
                 // 清理样式
                 node.find('*')
-                    .filter(function () {
-                        return this.type === 'comment' || this.tagName === 'meta' || this.tagName === 'style';
-                    })
+                    .filter((_, el) => el.tagName === 'meta' || el.tagName === 'style')
                     .remove();
                 node.find('*')
                     .contents()
-                    .filter(function () {
-                        return this.type === 'comment' || this.tagName === 'meta' || this.tagName === 'style';
-                    })
+                    .filter((_, el) => el.type === 'comment' || $(el).is('meta, style'))
                     .remove();
-                node.find('*').each(function () {
-                    if (this.attribs.style !== undefined) {
-                        const newSty = this.attribs.style
+                node.find('*').each((_, el) => {
+                    if (el.attribs.style !== undefined) {
+                        const newSty = el.attribs.style
                             .split(';')
                             .filter((s) => {
                                 const styBlocklist = ['color:rgb(0,0,0)', 'color:black', 'background:rgb(255,255,255)', 'background:white', 'text-align:left', 'text-align:justify', 'font-style:normal', 'font-weight:normal'];
@@ -177,31 +172,31 @@ async function handler(ctx) {
                             })
                             .join(';');
                         if (newSty) {
-                            this.attribs.style = newSty;
+                            el.attribs.style = newSty;
                         } else {
-                            delete this.attribs.style;
+                            delete el.attribs.style;
                         }
                     }
-                    if (this.attribs.class && this.attribs.class.trim().startsWith('Mso')) {
-                        delete this.attribs.class;
+                    if (el.attribs.class && el.attribs.class.trimStart().startsWith('Mso')) {
+                        delete el.attribs.class;
                     }
-                    if (this.attribs.lang) {
-                        delete this.attribs.lang;
+                    if (el.attribs.lang) {
+                        delete el.attribs.lang;
                     }
-                    if (this.tagName === 'font' || this.tagName === 'o:p') {
-                        $(this).replaceWith(this.childNodes);
+                    if (el.tagName === 'font' || el.tagName === 'o:p') {
+                        $(el).replaceWith(el.childNodes);
                     }
-                    if (this.tagName === 'span' && !this.attribs.style) {
-                        $(this).replaceWith(this.childNodes);
+                    if (el.tagName === 'span' && !el.attribs.style) {
+                        $(el).replaceWith(el.childNodes);
                     }
                 });
-                node.find('span').each(function () {
-                    if (this.childNodes.length === 0) {
-                        $(this).remove();
+                node.find('span').each((_, el) => {
+                    if (el.childNodes.length === 0) {
+                        $(el).remove();
                     }
                 });
 
-                return node.html();
+                return node.html() ?? '';
             });
             return data;
         },
@@ -209,9 +204,9 @@ async function handler(ctx) {
     );
 
     return {
-        title: `广东工业大学通知公文网 - ` + type.name,
+        title: '广东工业大学通知公文网 - ' + type.name,
         link: site,
-        description: `广东工业大学通知公文网`,
+        description: '广东工业大学通知公文网',
         item: results,
     };
 }

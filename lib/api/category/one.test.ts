@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { handler, route } from '@/api/category/one';
+import api from '@/api';
+import { route } from '@/api/category/one';
+import type { NamespacesType } from '@/registry';
 import { namespaces } from '@/registry';
-
-const createCtx = (param: Record<string, string>, query: Record<string, any> = {}) =>
-    ({
-        req: {
-            valid: (type: string) => (type === 'param' ? param : query),
-        },
-        json: (data: unknown) => data,
-    }) as any;
 
 const findCategory = (requireLang = false) => {
     for (const [namespace, data] of Object.entries(namespaces)) {
@@ -27,38 +21,34 @@ const findCategory = (requireLang = false) => {
 };
 
 describe('api/category/one', () => {
-    it('returns namespaces that match a category', () => {
+    it('returns namespaces that match a category', async () => {
         const { categories } = findCategory();
         const category = categories[0];
 
-        const result = handler(createCtx({ category }, {}));
+        const response = await api.request(`/category/${category}`);
+        expect(response.status).toBe(200);
+        const result: NamespacesType = await response.json();
         expect(Object.keys(result)).not.toHaveLength(0);
 
         for (const namespace of Object.values(result)) {
-            for (const route of Object.values((namespace as { routes: Record<string, { categories?: string[] }> }).routes)) {
+            for (const route of Object.values(namespace.routes)) {
                 expect(route.categories || []).toContain(category);
             }
         }
     });
 
-    it('intersects categories and filters by lang', () => {
+    it('intersects categories and filters by lang', async () => {
         const { namespace, categories, lang } = findCategory(true);
         const [primary, secondary] = categories.length > 1 ? categories : [categories[0], categories[0]];
         const selectedLang = lang || namespaces[namespace].lang;
 
-        const result = handler(
-            createCtx(
-                { category: primary },
-                {
-                    categories: [secondary],
-                    lang: selectedLang,
-                }
-            )
-        );
+        const response = await api.request(`/category/${primary}?categories=${secondary}&lang=${selectedLang}`);
+        expect(response.status).toBe(200);
+        const result: NamespacesType = await response.json();
 
         expect(Object.keys(result)).toContain(namespace);
         for (const ns of Object.values(result)) {
-            expect((ns as { lang?: string }).lang).toBe(selectedLang);
+            expect(ns.lang).toBe(selectedLang);
         }
     });
 
@@ -68,8 +58,10 @@ describe('api/category/one', () => {
         expect(parsed?.lang).toBe('en');
     });
 
-    it('returns empty result for unknown categories', () => {
-        const result = handler(createCtx({ category: 'rsshub-unknown-category' }, {}));
+    it('returns empty result for unknown categories', async () => {
+        const response = await api.request('/category/rsshub-unknown-category');
+        expect(response.status).toBe(200);
+        const result = await response.json();
         expect(result).toEqual({});
     });
 });
