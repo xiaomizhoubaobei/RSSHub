@@ -42,18 +42,18 @@ async function handler(ctx) {
 
     // 解析页面内容并提取文章信息
     const list = $('.list_notice > a')
-        .toArray()
         .slice(0, 10)
+        .toArray()
         .map((element) => {
             const $element = $(element);
-            const link = new URL($element.attr('href'), typeDict[type][1]).href;
+            const link = new URL($element.attr('href')!, typeDict[type][1]).href;
             const title = $element.find('h3').text().trim();
 
             // 获取发布时间
             // xwzx: 格式为 MM-DD，需要补全年份
             // tzgg: 格式为 yyyy-mm-dd，直接使用
-            const pubDateText = $element.find('time').text().trim();
-            let pubDate = null;
+            const pubDateText = $element.find('time').text();
+            let pubDate: string | null = null;
 
             if (pubDateText) {
                 if (type === 'xwzx') {

@@ -5,6 +5,7 @@ import type { KVNamespace } from '@cloudflare/workers-types';
 import { config } from '@/config';
 
 import type CacheModule from './base';
+import { stringify } from './base';
 
 let kvNamespace: KVNamespace | null = null;
 
@@ -24,6 +25,10 @@ export const setKVNamespace = (kv: KVNamespace) => {
 
 export const getKVNamespace = () => kvNamespace;
 
+// Workers KV rejects expirationTtl values below 60 seconds
+const KV_MIN_TTL = 60;
+export const toKVTtl = (ttl: number) => Math.max(ttl, KV_MIN_TTL);
+
 export default {
     init: () => {
         // KV namespace is set via setKVNamespace from Worker env binding
@@ -34,16 +39,15 @@ export default {
             const [value, cacheTtl] = await Promise.all([kvNamespace.get(key), kvNamespace.get(cacheTtlKey)]);
 
             if (value && refresh) {
-                const ttl = cacheTtl ? Number.parseInt(cacheTtl, 10) : config.cache.contentExpire;
+                const ttl = cacheTtl ? Number(cacheTtl) : config.cache.contentExpire;
                 // Refresh TTL by re-setting the value
                 // KV doesn't have a native expire refresh, so we need to re-put
                 // Use waitUntil pattern in production for non-blocking refresh
-                await Promise.all([kvNamespace.put(key, value, { expirationTtl: ttl }), cacheTtl ? kvNamespace.put(cacheTtlKey, cacheTtl, { expirationTtl: ttl }) : Promise.resolve()]);
+                await Promise.all([kvNamespace.put(key, value, { expirationTtl: toKVTtl(ttl) }), cacheTtl ? kvNamespace.put(cacheTtlKey, cacheTtl, { expirationTtl: toKVTtl(ttl) }) : Promise.resolve()]);
             }
             return value || '';
-        } else {
-            return null;
         }
+        return null;
     },
     has: async (key: string) => {
         if (key && status.available && kvNamespace) {
@@ -52,27 +56,24 @@ export default {
         }
         return false;
     },
-    set: async (key: string, value?: string | Record<string, any>, maxAge = config.cache.contentExpire) => {
+    set: async <T>(key: string, value?: string | T, maxAge = config.cache.contentExpire) => {
         if (!status.available || !kvNamespace) {
             return;
         }
-        if (!value || value === 'undefined') {
-            value = '';
+        const stored = stringify(value);
+        if (!key) {
+            return;
         }
-        if (typeof value === 'object') {
-            value = JSON.stringify(value);
-        }
-        if (key) {
-            const promises: Array<Promise<void>> = [kvNamespace.put(key, value, { expirationTtl: maxAge })];
 
-            if (maxAge !== config.cache.contentExpire) {
-                // Store the cache ttl if it is not the default value
-                promises.push(kvNamespace.put(getCacheTtlKey(key), String(maxAge), { expirationTtl: maxAge }));
-            }
+        const promises: Array<Promise<void>> = [kvNamespace.put(key, stored, { expirationTtl: toKVTtl(maxAge) })];
 
-            await Promise.all(promises);
+        if (maxAge !== config.cache.contentExpire) {
+            // Store the cache ttl if it is not the default value
+            promises.push(kvNamespace.put(getCacheTtlKey(key), String(maxAge), { expirationTtl: toKVTtl(maxAge) }));
         }
+
+        await Promise.all(promises);
     },
     clients: {},
     status,
-} as CacheModule;
+} satisfies CacheModule;

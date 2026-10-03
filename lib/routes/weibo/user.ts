@@ -49,7 +49,7 @@ export const route: Route = {
     maintainers: ['DIYgod', 'iplusx', 'Rongronggg9', 'Konano'],
     handler,
     description: `::: warning
-  部分博主仅登录可见，未提供 Cookie 的情况下不支持订阅，可以通过打开 \`https://m.weibo.cn/u/:uid\` 验证
+部分博主仅登录可见，未提供 Cookie 的情况下不支持订阅，可以通过打开 \`https://m.weibo.cn/u/:uid\` 验证
 :::`,
 };
 
@@ -126,10 +126,7 @@ async function handler(ctx) {
                 if (item.mblog === undefined) {
                     return false;
                 }
-                if (showRetweeted === '0' && item.mblog.retweeted_status) {
-                    return false;
-                }
-                return true;
+                return !(showRetweeted === '0' && item.mblog.retweeted_status);
             })
             .map(async (item) => {
                 // TODO: unify cache key and let weiboUtils.getShowData() handle the cache? It seems safe to do so.
@@ -154,7 +151,7 @@ async function handler(ctx) {
                         retweeted_status.created_at = data.retweeted_status.created_at;
                     }
                 } else {
-                    item.mblog.created_at = timezone(created_at, +8);
+                    item.mblog.created_at = timezone(created_at, 8);
                 }
 
                 // 转发的长微博处理

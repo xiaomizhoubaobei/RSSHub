@@ -1,7 +1,8 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
+import { getSubPath } from '@/utils/common-utils';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -25,16 +26,51 @@ const renderDescription = (image, description, score) =>
         </>
     );
 
+interface FinderSearchParams {
+    sortBy: string;
+    productType: string;
+    limit: number;
+    apiKey: string;
+    genres?: string;
+    releaseType?: string;
+    releaseYearMin?: string;
+    releaseYearMax?: string;
+    gamePlatformIds?: string;
+    streamingNetworkIds?: string;
+}
+
 export const route: Route = {
-    path: '/:type?/:sort?/:filter?',
-    name: 'Unknown',
-    maintainers: [],
+    path: '/game/:sort?/:filter?',
+    categories: ['new-media'],
+    example: '/metacritic/game',
+    parameters: {
+        sort: 'Sort, see below, `new` for Newest Releases by default',
+        filter: 'Filter',
+    },
+    description: `| Metascore | User Score | Most Popular | Newest Releases |
+| --------- | ---------- | ------------ | --------------- |
+| metascore | userscore  | popular      | new             |
+
+::: tip
+The Filter parameter comes from the corresponding page URL. The following is an example:
+
+The URL of [Action Games to Play on PS5](https://www.metacritic.com/browse/game/all/all/all-time/new/?platform=ps5\\&genre=action) is \`https://www.metacritic.com/browse/game/all/all/all-time/new/?platform=ps5&genre=action\`. The Filter parameter is \`platform=ps5&genre=action\` and the route is [\`/metacritic/game/new/platform=ps5&genre=action\`](https://rsshub.app/metacritic/game/new/platform=ps5\\&genre=action)
+:::`,
+    radar: [
+        {
+            source: ['metacritic.com/browse/game/*'],
+            target: '/game',
+        },
+    ],
+    name: 'Games',
+    maintainers: ['HenryQW', 'nczitzk'],
     handler,
 };
 
-async function handler(ctx) {
-    const { type = 'game', sort = 'new', filter } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+export async function handler(ctx) {
+    const type = getSubPath(ctx).split('/', 2)[1];
+    const { sort = 'new', filter } = ctx.req.param();
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const rootUrl = 'https://www.metacritic.com';
     const rootApiUrl = 'https://backend.metacritic.com';
@@ -48,7 +84,7 @@ async function handler(ctx) {
 
     const apiKey = currentResponse.match(/apiKey=(.*?)&/)[1];
 
-    const searchParams = {
+    const searchParams: FinderSearchParams = {
         sortBy: `-${sorts[sort].id}`,
         productType: types[type].id,
         limit,
@@ -81,15 +117,16 @@ async function handler(ctx) {
 
     if (platforms.length || networks.length) {
         const labels = {};
-        const labelPattern = String.raw`{label:"([^"]+)",value:(\d+),href:a,meta:{mcDisplayWeight`;
+        const labelPattern = String.raw`\{label:"([^"]+)",value:(\d+),href:a,meta:\{mcDisplayWeight`;
 
-        for (const m of currentResponse.match(new RegExp(labelPattern, 'g'))) {
+        const matches = currentResponse.match(new RegExp(labelPattern, 'g'));
+        for (const m of matches) {
             const matches = m.match(new RegExp(labelPattern));
 
             labels[
                 matches[1]
                     .toLowerCase()
-                    .split(/(\s\(|\\u002f(?!\s))/)[0]
+                    .split(/(\s\(|\\u002f(?!\s))/, 1)[0]
                     .replaceAll('-', '---')
                     .replaceAll(/\s\/\s/g, '-or-')
                     .replaceAll('+', '-plus')
@@ -132,21 +169,21 @@ async function handler(ctx) {
         category: item.genres?.map((c) => c.name),
         guid: `metacritic-${item.id}`,
         pubDate: parseDate(item.releaseDate),
-        upvotes: item.criticScoreSummary?.positiveCount ? Number.parseInt(item.criticScoreSummary?.positiveCount, 10) : 0,
-        downvotes: item.criticScoreSummary?.negativeCount ? Number.parseInt(item.criticScoreSummary?.negativeCount, 10) : 0,
-        comments: item.criticScoreSummary?.reviewCount ? Number.parseInt(item.criticScoreSummary?.reviewCount, 10) : 0,
+        upvotes: item.criticScoreSummary?.positiveCount ? Number(item.criticScoreSummary?.positiveCount) : 0,
+        downvotes: item.criticScoreSummary?.negativeCount ? Number(item.criticScoreSummary?.negativeCount) : 0,
+        comments: item.criticScoreSummary?.reviewCount ? Number(item.criticScoreSummary?.reviewCount) : 0,
     }));
 
     const $ = load(currentResponse);
 
-    const icon = new URL($('meta[data-hid="msapplication-task-metacritic"]').prop('content').split('icon-uri=').pop(), rootUrl).href;
+    const icon = new URL($('meta[data-hid="msapplication-task-metacritic"]').prop('content').split('icon-uri=').pop()!, rootUrl).href;
 
     return {
         item: items,
         title: $('title').text(),
         link: currentUrl,
         description: $('meta[name="description"]').prop('content'),
-        language: $('html').prop('lang'),
+        language: $('html').prop('lang') as Language,
         image: $('link[rel="icon"]').prop('content'),
         icon,
         logo: icon,

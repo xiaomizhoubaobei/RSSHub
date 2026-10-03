@@ -30,7 +30,7 @@ export const route: Route = {
     url: 'insider.finology.in/bullets',
 };
 
-async function handler() {
+async function handler(): Promise<Data> {
     const baseUrl = 'https://insider.finology.in/bullets';
 
     const response = await ofetch(baseUrl);
@@ -40,7 +40,7 @@ async function handler() {
         .toArray()
         .map((item) => {
             const $item = $(item);
-            const time = $item.find('div.timeline-info span').text().split(', ')[1];
+            const time = $item.find('div.timeline-info span').text().split(', ', 2)[1];
             const a = $item.find('a.timeline-title');
             const description = $item.find('div.bullet-desc').html();
             return {
@@ -59,5 +59,5 @@ async function handler() {
         logo: 'https://insider.finology.in/Images/favicon/favicon.ico',
         icon: 'https://insider.finology.in/Images/favicon/favicon.ico',
         language: 'en-us',
-    } as Data;
+    };
 }

@@ -36,7 +36,7 @@ async function handler(ctx: Context) {
     });
 
     const items = response.value.bundle.channelMessages.map((message) => ({
-        title: message.excerpt.split('\n')[0],
+        title: message.excerpt.split('\n', 1)[0],
         description: message.content,
         pubDate: parseDate(message.publishedAt),
         category: message.tags,
@@ -46,7 +46,7 @@ async function handler(ctx: Context) {
     const channelProfile = response.value.bundle.channels.find((channel) => channel.id === response.value.channel)?.profile;
 
     return {
-        title: channelProfile?.name,
+        title: channelProfile!.name,
         description: channelProfile?.description,
         link: `${baseUrl}/share/${shortId}`,
         image: channelProfile?.image,

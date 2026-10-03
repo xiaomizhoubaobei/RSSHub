@@ -31,17 +31,17 @@ export const route: Route = {
         const url = 'https://www.snnu.edu.cn/tzgg.htm';
         const response = await ofetch(url);
         const $ = load(response);
-        const list = $('.ul-txtq3 li').toArray().slice(0, 10);
+        const list = $('.ul-txtq3 li').slice(0, 10).toArray();
 
         const items = await Promise.all(
             list.map((item) => {
                 const $item = $(item);
-                const $link = $item.find('a').first();
+                const $link = $item.find('a');
                 const link = new URL($link.attr('href') || '', url).href;
 
-                const pubDate = parseDate($item.find('.date.date2').first().text());
+                const pubDate = parseDate($item.find('.date.date2').text());
 
-                let title = $item.find('a .txt h3').first().text();
+                let title = $item.find('a .txt h3').text();
                 if (!title) {
                     title = $link.text();
                 }
@@ -50,7 +50,7 @@ export const route: Route = {
                     try {
                         const detailResponse = await ofetch(link);
                         const $$ = load(detailResponse);
-                        const description = $$('.v_news_content').html() || $$('#vsb_content').html() || '';
+                        const description = $$('.v_news_content').html() || $$('#vsb_content').html();
 
                         return {
                             title,

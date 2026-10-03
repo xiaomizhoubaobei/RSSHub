@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Data, Route } from '@/types';
+import type { Data, DataItem, Route } from '@/types';
 import logger from '@/utils/logger';
 import { parseDate } from '@/utils/parse-date';
 import parser from '@/utils/rss-parser';
@@ -39,14 +39,14 @@ async function handler(ctx): Promise<Data> {
     const items = feed.items
         .filter((item) => !item.link?.includes('/feed') && !item.link?.includes('#respond'))
         .slice(0, limit)
-        .map((item) => {
+        .map((item): DataItem | Record<string, never> => {
             if (!item.link) {
                 return {};
             }
 
             try {
                 // Clean URL by removing query parameters
-                const cleanUrl = item.link.split('?')[0];
+                const cleanUrl = item.link.split('?', 1)[0];
 
                 return {
                     title: item.title || 'Untitled',
@@ -65,7 +65,7 @@ async function handler(ctx): Promise<Data> {
         });
 
     // Filter out empty items
-    const filteredItems = items.filter((item) => item && Object.keys(item).length > 0);
+    const filteredItems = items.filter((item): item is DataItem => item && Object.keys(item).length > 0);
 
     return {
         title: feed.title || 'CryptoSlate',
@@ -74,7 +74,7 @@ async function handler(ctx): Promise<Data> {
         item: filteredItems,
         language: feed.language || 'en',
         image: feed.image?.url,
-    } as Data;
+    };
 }
 
 function extractFullTextFromRSS(entry: any): string | null {

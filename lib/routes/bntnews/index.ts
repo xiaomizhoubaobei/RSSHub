@@ -32,8 +32,8 @@ export const route: Route = {
     name: 'Category',
     maintainers: ['iamsnn'],
     handler,
-    description: `| Beauty | Fashion | Star | Style+ | Photo | Life | Now |
-| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+    description: `| Beauty       | Fashion      | Star         | Style+       | Photo        | Life         | Now          |
+| ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
 | bnt003000000 | bnt002000000 | bnt004000000 | bnt007000000 | bnt009000000 | bnt005000000 | bnt008000000 |`,
 };
 
@@ -59,7 +59,7 @@ async function handler(ctx) {
             title: article.title,
             link,
             description: article.content,
-            pubDate: timezone(parseDate(article.firstPublishDate), +9),
+            pubDate: timezone(parseDate(article.firstPublishDate), 9),
             author: article.reporter?.[0]?.name || '',
         };
     });
@@ -78,7 +78,6 @@ async function handler(ctx) {
 
                 // Remove ads
                 $content.find('.googleBanner').remove();
-                $content.find('script').remove();
                 $content.find('style').remove();
 
                 if ($content.length > 0) {

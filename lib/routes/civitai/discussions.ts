@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
 import { config } from '@/config';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -53,7 +53,7 @@ async function handler(ctx) {
         }
     );
 
-    const items = [...data[0].result.data.json.reviews, ...data[1].result.data.json.comments]
+    const items: DataItem[] = [...data[0].result.data.json.reviews, ...data[1].result.data.json.comments]
         .map((item) =>
             item.images?.length || item.content
                 ? {
@@ -66,11 +66,11 @@ async function handler(ctx) {
                   }
                 : null
         )
-        .filter(Boolean);
+        .filter((item) => item !== null);
 
     return {
         title: `Civitai model ${params.modelId} discussions`,
-        link: `https://civitai.com/`,
+        link: 'https://civitai.com/',
         item: items,
     };
 }

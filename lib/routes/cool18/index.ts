@@ -2,6 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
+import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -16,6 +17,8 @@ type PageDataItem = {
 };
 
 type PostType = 'home' | 'gold' | 'threadsearch' | 'search';
+
+const isPostType = (type: string): type is PostType => ['home', 'gold', 'threadsearch', 'search'].includes(type);
 
 export const route: Route = {
     path: '/:id?/:type?/:keyword?',
@@ -65,7 +68,7 @@ function buildUrl(rootUrl: string, type: PostType, keyword: string | undefined, 
 function extractHomeList($: CheerioAPI, rootUrl: string, limit: number): DataItem[] {
     try {
         const scriptText = $('script:contains("_PageData")').text();
-        const match = scriptText.match(/const\s+_PageData\s*=\s*(\[[\s\S]*?]);/);
+        const match = scriptText.match(/const\s+_PageData\s*=\s*(\[[\s\S]*?\]);/);
 
         if (!match?.[1]) {
             return [];
@@ -142,7 +145,7 @@ function extractGlobalSearchList($: CheerioAPI, limit: number): DataItem[] {
                 .trim()
                 .replaceAll(/[【】]/g, '');
             const title = $pElements.filter('.lf').eq(1).text().trim();
-            const dateText = $pElements.filter('.lr').text().trim();
+            const dateText = $pElements.filter('.lr').text();
 
             return {
                 title: title || $link.text().trim(),
@@ -215,7 +218,10 @@ async function fetchArticleDetail(item: DataItem): Promise<DataItem> {
  */
 async function handler(ctx: Context) {
     const { id = 'bbs4', type = 'home', keyword } = ctx.req.param();
-    const postType = type as PostType;
+    if (!isPostType(type)) {
+        throw new InvalidParameterError(`Invalid type: ${type}. Use home, gold, threadsearch or search.`);
+    }
+    const postType = type;
     const isGlobal = id === 'global';
 
     const rootUrl = isGlobal ? 'https://www.cool18.com' : `https://www.cool18.com/${id}/index.php`;
@@ -225,7 +231,7 @@ async function handler(ctx: Context) {
     const $ = load(response);
 
     const limitQuery = ctx.req.query('limit');
-    const limit = limitQuery ? Number.parseInt(limitQuery as string, 10) : 20;
+    const limit = limitQuery ? Number(limitQuery) : 20;
 
     let list: DataItem[];
 

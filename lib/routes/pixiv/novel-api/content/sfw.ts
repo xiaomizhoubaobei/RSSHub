@@ -10,14 +10,14 @@ const baseUrl = 'https://www.pixiv.net';
 
 export async function getSFWNovelContent(novelId: string): Promise<NovelContent> {
     const url = `${baseUrl}/ajax/novel/${novelId}`;
-    return (await cache.tryGet(url, async () => {
+    return await cache.tryGet(url, async () => {
         const response = await got(url, {
             headers: {
                 referer: `${baseUrl}/novel/show.php?id=${novelId}`,
             },
         });
 
-        const novelDetail = response.data as SFWNovelDetail;
+        const novelDetail: SFWNovelDetail | undefined = response.data;
 
         if (!novelDetail) {
             throw new Error('No novel data found');
@@ -60,5 +60,5 @@ export async function getSFWNovelContent(novelId: string): Promise<NovelContent>
             seriesId: body.seriesNavData?.seriesId?.toString() || null,
             seriesTitle: body.seriesNavData?.title || null,
         };
-    })) as NovelContent;
+    });
 }

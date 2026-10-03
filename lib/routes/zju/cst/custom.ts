@@ -13,11 +13,11 @@ async function getPage(id) {
     const content = $('.lm_new ul li');
 
     return content.toArray().map((item) => {
-        item = $(item);
+        const $item = $(item);
 
-        const title = item.find('a').text();
-        const pubDate = parseDate(item.find('.fr').text());
-        const link = item.find('a').attr('href');
+        const title = $item.find('a').text();
+        const pubDate = parseDate($item.find('.fr').text());
+        const link = $item.find('a').attr('href');
 
         return {
             title,
@@ -54,10 +54,7 @@ async function handler(ctx) {
     const id = ctx.req.param('id').split('+');
     const tasks = id.map((id) => getPage(id));
     const results = await Promise.all(tasks);
-    let items = [];
-    for (const result of results) {
-        items = [...items, ...result];
-    }
+    const items = results.flat();
 
     return {
         title: '浙江大学软件学院通知',

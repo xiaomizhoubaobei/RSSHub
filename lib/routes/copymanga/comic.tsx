@@ -42,7 +42,7 @@ async function handler(ctx) {
         strBaseUrl,
         async () => {
             let bHasNextPage: boolean;
-            let chapters = [];
+            let chapters: any[] = [];
             let iReqOffSet = 0;
 
             do {
@@ -68,7 +68,7 @@ async function handler(ctx) {
                 }
                 iReqOffSet += iReqLimit;
 
-                chapters = [...chapters, ...results.list];
+                chapters.push(...results.list);
             } while (bHasNextPage);
 
             chapters = chapters

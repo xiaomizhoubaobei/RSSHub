@@ -42,12 +42,12 @@ async function handler(ctx) {
 
     // 解析页面内容并提取文章信息
     const list = $('.main_conR li')
-        .toArray()
         .slice(0, 15)
+        .toArray()
         .map((element) => {
             const $element = $(element);
             const $link = $element.find('a').first();
-            const link = new URL($link.attr('href'), typeDict[type][1]).href;
+            const link = new URL($link.attr('href')!, typeDict[type][1]).href;
             const title = $link.find('em').text().trim();
 
             // 获取发布时间

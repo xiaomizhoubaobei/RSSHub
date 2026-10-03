@@ -1,6 +1,6 @@
 import { raw } from 'hono/html';
+import { jsx } from 'hono/jsx';
 import { renderToString } from 'hono/jsx/dom/server';
-import type { JSX } from 'hono/jsx/jsx-runtime';
 
 type DescriptionImage = {
     src?: string;
@@ -34,10 +34,7 @@ const ScientificAmericanDescription = ({ images, intro, content }: DescriptionDa
             );
         })}
         {intro ? raw(intro) : null}
-        {content?.map((block) => {
-            const Tag = block.tag as keyof JSX.IntrinsicElements;
-            return <Tag>{raw(block.content)}</Tag>;
-        })}
+        {content?.map((block) => jsx(block.tag, null, raw(block.content)))}
     </>
 );
 

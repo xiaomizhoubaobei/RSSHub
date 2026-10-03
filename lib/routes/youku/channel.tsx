@@ -3,7 +3,7 @@ import path from 'node:path';
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Data, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -31,7 +31,7 @@ export const route: Route = {
     handler,
 };
 
-async function handler(ctx) {
+async function handler(ctx): Promise<Data> {
     const channelId = ctx.req.param('channelId');
     const embed = !ctx.req.param('embed');
 
@@ -55,12 +55,12 @@ async function handler(ctx) {
         item: list
             .toArray()
             .map((item) => {
-                item = $(item);
-                const title = item.find('a.videoitem_videolink').attr('title');
-                const cover = item.find('a.videoitem_videolink > img').attr('src');
-                const $link = item.find('a.videoitem_videolink');
+                const $item = $(item);
+                const title = $item.find('a.videoitem_videolink').attr('title')!;
+                const cover = $item.find('a.videoitem_videolink > img').attr('src');
+                const $link = $item.find('a.videoitem_videolink');
                 const link = $link.length > 0 ? `https:${$link.attr('href')}` : null;
-                const dateText = item.find('p.videoitem_subtitle').text().split('-').length === 2 ? `${new Date().getFullYear()}-${item.find('p.videoitem_subtitle').text()}` : item.find('p.videoitem_subtitle').text();
+                const dateText = $item.find('p.videoitem_subtitle').text().split('-').length === 2 ? `${new Date().getFullYear()}-${$item.find('p.videoitem_subtitle').text()}` : $item.find('p.videoitem_subtitle').text();
                 const pubDate = parseDate(dateText);
 
                 if (!link) {
@@ -80,6 +80,6 @@ async function handler(ctx) {
                     pubDate,
                 };
             })
-            .filter(Boolean),
+            .filter((item) => item !== null),
     };
 }

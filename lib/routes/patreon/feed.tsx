@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
@@ -8,14 +8,16 @@ import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
-import type { CreatorData, MediaRelation, PostData } from './types';
+import { renderContentJson } from './render-content-json';
+import type { CreatorData, PostData } from './types';
 
-const renderDescription = ({ attributes, relationships, included }) => {
+const renderDescription = ({ attributes, relationships, included, videoPreview }) => {
     const postType = attributes.post_type;
     const imageOrder = attributes.post_metadata?.image_order ?? [];
     const previewImage = attributes.image?.url ?? attributes.meta_image_url;
     const audioUrl = relationships.audio?.attributes?.download_url || relationships.audio_preview?.attributes?.download_url;
     const imageItems = imageOrder.map((mediaIdStr) => included.find((item) => item.id === mediaIdStr)).filter(Boolean);
+    const textContent = renderContentJson(attributes.content_json_string) || renderContentJson(attributes.teaser_text_json_string);
 
     return renderToString(
         <>
@@ -32,7 +34,7 @@ const renderDescription = ({ attributes, relationships, included }) => {
                 attributes.video_preview ? (
                     <>
                         <video controls preload="metadata" poster={attributes.image?.url}>
-                            <source src={relationships.video_preview?.attributes?.download_url} type="video/mp4" />
+                            <source src={videoPreview?.attributes?.download_url} type="video/mp4" />
                         </video>
                         <br />
                     </>
@@ -68,7 +70,7 @@ const renderDescription = ({ attributes, relationships, included }) => {
                 </>
             )}
 
-            {attributes.content || attributes.teaser_text ? raw(attributes.content || attributes.teaser_text) : null}
+            {textContent ? raw(textContent) : null}
 
             {relationships.attachments_media?.length
                 ? relationships.attachments_media.map((media) => (
@@ -113,15 +115,15 @@ async function handler(ctx) {
     const baseUrl = 'https://www.patreon.com';
     const link = `${baseUrl}/${creator}`;
 
-    const creatorData = (await cache.tryGet(`patreon:creator:${creator}`, async () => {
+    const creatorData = await cache.tryGet<CreatorData>(`patreon:creator:${creator}`, async () => {
         const response = await ofetch(link);
 
-        const $ = cheerio.load(response);
+        const $ = load(response);
 
         const ogUrl = $('meta[property="og:url"]').attr('content');
         if (ogUrl?.startsWith(`${baseUrl}/cw/`)) {
             const ogImage = $('meta[property="og:image"]').attr('content');
-            const creatorId = decodeURIComponent(ogImage || '').match(/card-teaser-image\/creator\/(\d+?)\?/)?.[1];
+            const creatorId = decodeURIComponent(ogImage || '').match(/card-teaser-image\/creator\/(\d+)/)?.[1];
             if (creatorId) {
                 const creator = await ofetch(`${baseUrl}/api/campaigns/${creatorId}`);
                 return {
@@ -139,7 +141,7 @@ async function handler(ctx) {
             id: bootstrapEnvelope.pageBootstrap.campaign.data.id,
             attributes: bootstrapEnvelope.pageBootstrap.campaign.data.attributes,
         };
-    })) as CreatorData;
+    });
 
     if (!creatorData.id) {
         throw new Error('Creator not found');
@@ -159,7 +161,7 @@ async function handler(ctx) {
                 'campaign,access_rules,access_rules.tier.null,attachments_media,audio,audio_preview.null,drop,images,media,native_video_insights,poll.choices,poll.current_user_responses.user,poll.current_user_responses.choice,poll.current_user_responses.poll,user,user_defined_tags,ti_checks,video.null,content_unlock_options.product_variant.null',
             'fields[campaign]': 'currency,show_audio_post_download_links,avatar_photo_url,avatar_photo_image_urls,earnings_visibility,is_nsfw,is_monthly,name,url',
             'fields[post]':
-                'change_visibility_at,comment_count,commenter_count,content,created_at,current_user_can_comment,current_user_can_delete,current_user_can_report,current_user_can_view,current_user_comment_disallowed_reason,current_user_has_liked,embed,image,insights_last_updated_at,is_paid,like_count,meta_image_url,min_cents_pledged_to_view,monetization_ineligibility_reason,post_file,post_metadata,published_at,patreon_url,post_type,pledge_url,preview_asset_type,thumbnail,thumbnail_url,teaser_text,title,upgrade_url,url,was_posted_by_campaign_owner,has_ti_violation,moderation_status,post_level_suspension_removal_date,pls_one_liners_by_category,video,video_preview,view_count,content_unlock_options,is_new_to_current_user,watch_state',
+                'change_visibility_at,comment_count,commenter_count,content_json_string,created_at,current_user_can_comment,current_user_can_delete,current_user_can_report,current_user_can_view,current_user_comment_disallowed_reason,current_user_has_liked,embed,image,insights_last_updated_at,is_paid,like_count,meta_image_url,min_cents_pledged_to_view,monetization_ineligibility_reason,post_file,post_metadata,published_at,patreon_url,post_type,pledge_url,preview_asset_type,thumbnail,thumbnail_url,teaser_text_json_string,title,upgrade_url,url,was_posted_by_campaign_owner,has_ti_violation,moderation_status,post_level_suspension_removal_date,pls_one_liners_by_category,video,video_preview,view_count,content_unlock_options,is_new_to_current_user,watch_state',
             'fields[post_tag]': 'tag_type,value',
             'fields[user]': 'image_url,full_name,url',
             'fields[access_rule]': 'access_rule_type,amount_cents',
@@ -177,31 +179,31 @@ async function handler(ctx) {
     });
 
     const items = posts.data.map(({ attributes, relationships }) => {
+        const category = relationships.user_defined_tags?.data.map((tag) => posts.included.find((i) => i.id === tag.id)?.attributes.value).filter((value) => value !== undefined);
+        const videoPreview = attributes.video_preview ? posts.included.find((i) => Number.parseInt(i.id) === attributes.video_preview?.media_id) : undefined;
+
         for (const [key, value] of Object.entries(relationships)) {
             if (value.data) {
                 relationships[key] = Array.isArray(value.data) ? value.data.map((item) => posts.included.find((i) => i.id === item.id)) : posts.included.find((i) => i.id === value.data.id);
             }
         }
-        if (attributes.video_preview) {
-            relationships.video_preview = posts.included.find((i) => Number.parseInt(i.id) === attributes.video_preview?.media_id) as unknown as MediaRelation;
-        }
-
         return {
             title: attributes.title,
             description: renderDescription({
                 attributes,
                 relationships,
                 included: posts.included,
+                videoPreview,
             }),
             link: attributes.url,
             pubDate: parseDate(attributes.published_at),
             image: attributes.thumbnail?.url ?? attributes.image?.url,
-            category: relationships.user_defined_tags?.map((tag) => tag.attributes.value),
+            category,
         };
     });
 
     return {
-        title: creatorData.attributes.name,
+        title: creatorData.attributes.name!,
         description: creatorData.attributes.creation_name,
         link,
         image:

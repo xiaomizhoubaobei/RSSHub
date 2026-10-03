@@ -55,7 +55,7 @@ const handler = async (ctx) => {
     }
 
     // Validate category parameter
-    if (!categories[category]) {
+    if (!Object.hasOwn(categories, category)) {
         throw new InvalidParameterError(`Invalid category: ${category}. Please refer to the category table in the documentation.`);
     }
 
@@ -97,18 +97,21 @@ const handler = async (ctx) => {
                 const $article = load(articleResponse);
 
                 const fullContent = $article('.post_content').html();
-                const articleDate = $article('.edited-view .date, p.date').first().text().trim();
+                const articleDate = $article('.edited-view .date, p.date').text();
 
                 // Parse date based on language
                 // English: "21 Jan 2026" with 'en' locale for month name recognition
                 // Chinese: "2026年01月20日" - numeric format, no locale needed
-                const pubDate = articleDate ? parseDate(articleDate, lang === 'en' ? 'DD MMM YYYY' : 'YYYY年MM月DD日', lang === 'en' ? 'en' : undefined) : undefined;
+                let pubDate: Date | undefined;
+                if (articleDate) {
+                    pubDate = lang === 'en' ? parseDate(articleDate, 'DD MMM YYYY', 'en') : parseDate(articleDate, 'YYYY年MM月DD日');
+                }
 
                 return {
                     title: item.title,
                     link: item.link!,
                     category: item.category,
-                    description: fullContent || undefined,
+                    description: fullContent,
                     pubDate,
                 };
             })

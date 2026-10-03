@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -28,9 +28,9 @@ export const route: Route = {
     handler,
     description: `\`User id\` is the field before \`.itch.io\` in the URL of the corresponding page, e.g. the URL of [The Baby In Yellow Devlog](https://teamterrible.itch.io/the-baby-in-yellow/devlog) is \`https://teamterrible.itch.io/the-baby-in-yellow/devlog\`, where the field before \`.itch.io\` is \`teamterrible\`.
 
-  \`Item id\` is the field between \`itch.io\` and \`/devlog\` in the URL of the corresponding page, e.g. the URL for [The Baby In Yellow Devlog](https://teamterrible.itch.io/the-baby-in-yellow/devlog) is \`https://teamterrible.itch.io/the-baby-in-yellow/devlog\`, where the field between \`itch.io\` and \`/devlog\` is \`the-baby-in-yellow\`.
+\`Item id\` is the field between \`itch.io\` and \`/devlog\` in the URL of the corresponding page, e.g. the URL for [The Baby In Yellow Devlog](https://teamterrible.itch.io/the-baby-in-yellow/devlog) is \`https://teamterrible.itch.io/the-baby-in-yellow/devlog\`, where the field between \`itch.io\` and \`/devlog\` is \`the-baby-in-yellow\`.
 
-  So the route is [\`/itch/devlogs/teamterrible/the-baby-in-yellow\`](https://rsshub.app/itch/devlogs/teamterrible/the-baby-in-yellow).`,
+So the route is [\`/itch/devlogs/teamterrible/the-baby-in-yellow\`](https://rsshub.app/itch/devlogs/teamterrible/the-baby-in-yellow).`,
 };
 
 async function handler(ctx) {
@@ -53,19 +53,19 @@ async function handler(ctx) {
     let items = $('.title')
         .toArray()
         .slice(0, limit)
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
             return {
-                title: item.text(),
-                link: item.attr('href'),
-                pubDate: timezone(parseDate(item.text()), +8),
+                title: $item.text(),
+                link: $item.attr('href'),
+                pubDate: timezone(parseDate($item.text()), 8),
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,
@@ -80,8 +80,8 @@ async function handler(ctx) {
                 item.description = renderDescription({
                     images: content('.post_image')
                         .toArray()
-                        .map((e) => content(e).attr('src')),
-                    description: content('.post_body').html(),
+                        .map((e) => content(e).attr('src')!),
+                    description: content('.post_body').html() ?? undefined,
                 });
 
                 return item;

@@ -1,12 +1,10 @@
-// import ofetch from '@/utils/ofetch';
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
 import type { Route } from '@/types';
-// import { config } from '@/config';
-import puppeteer from '@/utils/puppeteer';
+import ofetch from '@/utils/ofetch';
 
-const urlPath = 'dm514/new';
+const urlPath = 'dm539/new';
 
 export const route: Route = {
     path: '/new',
@@ -14,7 +12,7 @@ export const route: Route = {
     example: '/missav/new',
     features: {
         requireConfig: false,
-        requirePuppeteer: true,
+        requirePuppeteer: false,
         antiCrawler: false,
         supportBT: false,
         supportPodcast: false,
@@ -39,34 +37,22 @@ async function handler() {
     const baseUrl = 'https://missav.ws';
     const url = `${baseUrl}/${urlPath}`;
 
-    const browser = await puppeteer();
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-        request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' ? request.continue() : request.abort();
-    });
-    await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-    });
-    const response = await page.evaluate(() => document.documentElement.innerHTML);
-    await browser.close();
+    const response = await ofetch(url, { minVersion: 'TLSv1.3' });
 
-    // const response = await ofetch(`${baseUrl}/dm397/new`, {
-    //     headers: {
-    //         'User-Agent': config.trueUA,
-    //     },
-    // });
-
-    const $ = cheerio.load(response);
+    const $ = load(response);
 
     const items = $('.grid .group')
         .toArray()
         .map((item) => {
             const $item = $(item);
             const title = $item.find('.text-secondary');
-            const poster = new URL($item.find('img').data('src'));
+            const posterSrc = $item.find('img').attr('data-src');
+            const video = $item.find('video').attr('data-src');
+            if (!posterSrc || !video) {
+                return null;
+            }
+            const poster = new URL(posterSrc);
             poster.searchParams.set('class', 'normal');
-            const video = $item.find('video').data('src');
             return {
                 title: title.text().trim(),
                 link: title.attr('href'),
@@ -76,7 +62,8 @@ async function handler() {
                     </video>
                 ),
             };
-        });
+        })
+        .filter((item) => item !== null);
 
     return {
         title: $('head title').text(),

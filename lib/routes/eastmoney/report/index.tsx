@@ -6,7 +6,7 @@ import type { Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { parseDate } from '@/utils/parse-date';
+import { parseDateInTimezone } from '@/utils/parse-date-in-timezone';
 
 import { getEpsOrPeStr, getRatingChangeStr } from '../utils';
 
@@ -73,7 +73,7 @@ async function handler(ctx) {
     const initData = JSON.parse(
         $('script')
             .text()
-            .match(/var initdata(.=?)(.*?);/)[2]
+            .match(/var initdata(.=?)(.*?);/)![2]
     );
 
     const list = initData.data.map((item) => {
@@ -81,18 +81,18 @@ async function handler(ctx) {
         return {
             title: `[${item.orgSName}]${stockName}${item.title}`,
             link: `${baseUrl}/report/${linkType[category]}` + (category === 'stock' ? `/${item.infoCode}.html` : `.jshtml?encodeUrl=${item.encodeUrl}`),
-            pubDate: parseDate(item.publishDate),
+            pubDate: parseDateInTimezone(item.publishDate, 8),
             author: item.researcher,
             originItem: item, // temp use
         };
     });
 
     const items = await Promise.all(
-        list.map((item) => {
+        list.map(async (item) => {
             const tempOriginItem = item.originItem;
             delete item.originItem; // temp use
 
-            return cache.tryGet(item.link, async () => {
+            const cached = await cache.tryGet(item.link, async () => {
                 try {
                     const { data: response } = await got(item.link);
                     const $ = load(response);
@@ -115,14 +115,14 @@ async function handler(ctx) {
                                 <table>
                                     <tbody>
                                         <tr>
-                                            <th rowspan="2">股票代码</th>
-                                            <th rowspan="2">股票简称</th>
-                                            <th rowspan="2">报告名称</th>
-                                            <th rowspan="2">东财评级</th>
-                                            <th rowspan="2">评级变动</th>
-                                            <th colspan="2">{currentYear}盈利预测</th>
-                                            <th colspan="2">{nextYear}盈利预测</th>
-                                            <th rowspan="2">行业</th>
+                                            <th rowspan={2}>股票代码</th>
+                                            <th rowspan={2}>股票简称</th>
+                                            <th rowspan={2}>报告名称</th>
+                                            <th rowspan={2}>东财评级</th>
+                                            <th rowspan={2}>评级变动</th>
+                                            <th colspan={2}>{currentYear}盈利预测</th>
+                                            <th colspan={2}>{nextYear}盈利预测</th>
+                                            <th rowspan={2}>行业</th>
                                         </tr>
                                         <tr>
                                             <th>收益</th>
@@ -151,13 +151,14 @@ async function handler(ctx) {
                         );
                     } else {
                         item.link = $('.pdf-link').attr('href');
-                        item.description = $('.ctx-content').text();
+                        item.description = $('.ctx-content').html();
                     }
                     return item;
                 } catch {
                     return item;
                 }
             });
+            return { ...cached, pubDate: item.pubDate };
         })
     );
 

@@ -22,6 +22,7 @@ export const route: Route = {
     handler,
     features: {
         antiCrawler: true,
+        requirePuppeteer: false,
         requireConfig: [
             {
                 optional: true,
@@ -38,7 +39,7 @@ export const route: Route = {
         ],
     },
     description: `::: warning
-百合会BBS访问部分板块需要用户登录认证，请参考配置说明
+百合会 BBS 访问部分板块需要用户登录认证，请参考配置说明
 :::`,
 };
 
@@ -49,7 +50,7 @@ async function handler(ctx: Context): Promise<Data> {
 
     const params = new URLSearchParams();
     params.set('mod', 'forumdisplay');
-    params.set('fid', fid);
+    params.set('fid', fid!);
     params.set('orderby', 'dateline');
     if (type) {
         params.set('filter', 'typeid');
@@ -88,7 +89,7 @@ async function handler(ctx: Context): Promise<Data> {
     items = await pMap(
         items,
         async (item) =>
-            (await cache.tryGet(item.link!, async () => {
+            await cache.tryGet<DataItem>(item.link!, async () => {
                 let description: string | undefined;
                 const { data } = await fetchThread(item.id!);
                 if (data && !data.startsWith('<script type="text/javascript">')) {
@@ -108,7 +109,7 @@ async function handler(ctx: Context): Promise<Data> {
                     description,
                     pubDate: item.pubDate,
                 };
-            })) as DataItem,
+            }),
         { concurrency: 5 }
     );
 

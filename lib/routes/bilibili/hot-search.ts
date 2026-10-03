@@ -19,7 +19,10 @@ export const route: Route = {
     },
     radar: [
         {
-            source: ['www.bilibili.com/', 'm.bilibili.com/'],
+            source: ['www.bilibili.com/'],
+        },
+        {
+            source: ['m.bilibili.com/'],
         },
     ],
     name: '热搜',
@@ -35,9 +38,6 @@ async function handler() {
     const response = await got({
         method: 'get',
         url,
-        headers: {
-            Referer: `https://api.bilibili.com`,
-        },
     });
     const trending = response?.data?.data?.trending;
     const title = trending?.title;

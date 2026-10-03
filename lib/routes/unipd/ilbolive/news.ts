@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -33,7 +33,7 @@ export const route: Route = {
     handler,
 };
 
-async function handler() {
+async function handler(): Promise<Data> {
     const baseUrl = 'https://ilbolive.unipd.it';
     const homeUrl = `${baseUrl}/it/news`;
 
@@ -71,24 +71,20 @@ async function handler() {
                 // Picture
                 article.find('img').each((_, el) => {
                     const img = $(el);
-                    const src = img.attr('src');
-                    if (src && src.startsWith('/')) {
-                        img.attr('src', baseUrl + src);
-                    }
                     img.attr('style', 'max-width: 100%; height: auto;');
                 });
 
                 const datetime = article.find('time.date').attr('datetime');
                 const pubDate = datetime ? timezone(parseDate(datetime), 0) : undefined;
 
-                const author = article.find('.author a').text().trim();
+                const author = article.find('.author a').text();
 
                 // Delete header
                 article.find('.header').remove();
 
                 return {
                     ...item,
-                    description: article.html() ?? '',
+                    description: article.html(),
                     pubDate,
                     author,
                 };

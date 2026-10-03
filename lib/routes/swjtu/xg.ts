@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { FetchError } from 'ofetch';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { Route } from '@/types';
@@ -37,16 +38,15 @@ const getItem = (item, cache) => {
                 description: newsText,
             };
         } catch (error) {
-            if (error.response && error.response.status === 404) {
+            if (error instanceof FetchError && error.statusCode === 404) {
                 return {
                     title: newsTitle,
                     pubDate: parseDate(String(newsTime)),
                     link,
                     description: '',
                 };
-            } else {
-                throw error;
             }
+            throw error;
         }
     });
 };

@@ -42,17 +42,22 @@ async function handler() {
             const $item = $(item);
             const a = $item.find('.news-block-title a');
             const link = a.attr('href');
+            if (!link) {
+                return null;
+            }
+            const datetime = $item.find('time[datetime]').attr('datetime');
             return {
-                title: a.text().trim(),
-                link: link as string,
-                pubDate: parseDate($item.find('time[datetime]').attr('datetime') as string),
+                title: a.text(),
+                link,
+                pubDate: datetime ? parseDate(datetime) : undefined,
                 category: $item
                     .find('.category-header-name a')
                     .toArray()
                     .map((elem) => $(elem).text()),
                 description: '',
             };
-        });
+        })
+        .filter((item) => item !== null);
 
     const items = await Promise.all(
         list.map((item) =>
@@ -60,8 +65,8 @@ async function handler() {
                 const { data: response } = await got(item.link);
                 const $ = load(response);
 
-                const featuredImage = $('.single-featured-image').first().html() || '';
-                const fullContent = $('.single-body').first().html() || '';
+                const featuredImage = $('.single-featured-image').html() || '';
+                const fullContent = $('.single-body').html() || '';
                 item!.description = renderDescription({
                     featuredImage,
                     fullContent,

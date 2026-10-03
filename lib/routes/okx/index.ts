@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
-import type { DataItem, Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import ofetch from '@/utils/ofetch';
@@ -104,10 +104,9 @@ async function handler(ctx: Context) {
     const items = await Promise.all(
         itemsTemp.map((item) =>
             cache.tryGet(item.link, async () => {
-                const content = await got(item.link).then((response) => {
-                    const $ = load(response.data);
-                    return $('div[class^="index_richTextContent"]').html();
-                });
+                const response = await got(item.link);
+                const $ = load(response.data);
+                const content = $('div[class^="index_richTextContent"]').html();
 
                 return {
                     ...item,
@@ -120,7 +119,7 @@ async function handler(ctx: Context) {
     return {
         title: ssrData?.appContext?.serverSideProps?.sectionOutline?.title || 'Unknown',
         link: `${baseUrl}/zh-hans/help/section/announcements-${section}`,
-        item: items as DataItem[],
+        item: items,
         allowEmpty: true,
     };
 }

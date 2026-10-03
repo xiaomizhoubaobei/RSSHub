@@ -1,10 +1,10 @@
 import { config } from '@/config';
 import type { Route } from '@/types';
 import cache from '@/utils/cache';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import { getPuppeteerPage } from '@/utils/puppeteer';
 
-import { apiqRootUrl, parseThumbnail, rootUrl, typeMap } from './utils';
+import { apiRootUrl, parseThumbnail, rootUrl, typeMap } from './utils';
 
 const sortMap = {
     date: 'Latest',
@@ -32,7 +32,7 @@ export const route: Route = {
     maintainers: ['CaoMeiYouRen233'],
     handler,
     features: {
-        requirePuppeteer: true,
+        requirePuppeteer: false,
         nsfw: true,
     },
     radar: [
@@ -53,38 +53,21 @@ async function handler(ctx) {
     const { type = 'video', sort = 'date', rating = 'ecchi' } = ctx.req.param();
 
     const limit = ctx.req.query('limit') || 32;
-    const url = `${apiqRootUrl}/${type === 'video' ? 'videos' : 'images'}?sort=${sort}&rating=${rating}&limit=${limit}`;
+    const url = `${apiRootUrl}/${type === 'video' ? 'videos' : 'images'}?sort=${sort}&rating=${rating}&limit=${limit}`;
 
     const items = await cache.tryGet(
         `iwara:ranking:${type}:${sort}:${rating}`,
         async () => {
-            const { page, destory } = await getPuppeteerPage(url, {
-                onBeforeLoad: async (page) => {
-                    await page.setRequestInterception(true);
-                    page.on('request', (request) => {
-                        request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' || request.resourceType() === 'fetch' ? request.continue() : request.abort();
-                    });
-                },
-                gotoConfig: {
-                    waitUntil: 'networkidle0',
-                },
-            });
+            const response = await ofetch(url);
 
-            try {
-                const content = await page.evaluate(() => document.querySelector('pre')?.textContent || document.body.textContent);
-                const response = JSON.parse(content || '{}');
-
-                return response.results.map((item) => ({
-                    title: item.title,
-                    author: item.user.name,
-                    link: `${rootUrl}/${type === 'video' ? 'video' : 'image'}/${item.id}${item.slug ? `/${item.slug}` : ''}`,
-                    category: item.tags?.map((i) => i.id) || [],
-                    description: parseThumbnail(type, item),
-                    pubDate: parseDate(item.createdAt),
-                }));
-            } finally {
-                await destory();
-            }
+            return response.results.map((item) => ({
+                title: item.title,
+                author: item.user.name,
+                link: `${rootUrl}/${type === 'video' ? 'video' : 'image'}/${item.id}${item.slug ? `/${item.slug}` : ''}`,
+                category: item.tags?.map((i) => i.id) || [],
+                description: parseThumbnail(type, item),
+                pubDate: parseDate(item.createdAt),
+            }));
         },
         config.cache.routeExpire,
         false

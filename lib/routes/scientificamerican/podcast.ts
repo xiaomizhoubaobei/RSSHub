@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,14 +13,14 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '12', 10);
+    const limit = Number(ctx.req.query('limit') ?? '12');
 
     const baseUrl = 'https://www.scientificamerican.com';
     const targetUrl: string = new URL(`podcast${id ? `/${id}` : 's'}/`, baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language: string = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
     const data: string | undefined = response.match(/window\.__DATA__=JSON\.parse\(`(.*?)`\)/)?.[1];
     const parsedData = data ? JSON.parse(data.replaceAll(String.raw`\\`, '\\')) : undefined;
 
@@ -55,7 +55,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
               let processedItem: DataItem = {
                   title,
                   description,
-                  pubDate: pubDate ? timezone(parseDate(pubDate), +8) : undefined,
+                  pubDate: pubDate ? timezone(parseDate(pubDate), 8) : undefined,
                   link: linkUrl ? new URL(linkUrl, baseUrl).href : undefined,
                   category: categories,
                   author: authors,
@@ -68,7 +68,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                   },
                   image,
                   banner: image,
-                  updated: updated ? timezone(parseDate(updated), +8) : undefined,
+                  updated: updated ? timezone(parseDate(updated), 8) : undefined,
                   language,
               };
 
@@ -98,7 +98,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 }
 
                 return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                    const detailResponse = await ofetch(item.link);
+                    const detailResponse = await ofetch(item.link!);
 
                     const detailData: string | undefined = detailResponse.match(/window\.__DATA__=JSON\.parse\(`(.*?)`\)/)?.[1];
                     const parsedDetailData = detailData ? JSON.parse(detailData.replaceAll(String.raw`\\`, '\\')) : undefined;
@@ -138,7 +138,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     let processedItem: DataItem = {
                         title,
                         description,
-                        pubDate: pubDate ? timezone(parseDate(pubDate), +8) : undefined,
+                        pubDate: pubDate ? timezone(parseDate(pubDate), 8) : undefined,
                         category: categories,
                         author: authors,
                         doi: articleData.article_doi,
@@ -150,7 +150,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                         },
                         image,
                         banner: image,
-                        updated: updated ? timezone(parseDate(updated), +8) : undefined,
+                        updated: updated ? timezone(parseDate(updated), 8) : undefined,
                         language,
                     };
 
@@ -209,8 +209,7 @@ If you subscribe to [Science Quickly](https://www.scientificamerican.com/podcast
 
 | All | Science Quickly | Uncertain    |
 | --- | --------------- | ------------ |
-|     | science-quickly | science-talk |
-`,
+|     | science-quickly | science-talk |`,
     categories: ['new-media'],
     features: {
         requireConfig: false,
@@ -259,7 +258,6 @@ If you subscribe to [Science Quickly](https://www.scientificamerican.com/podcast
 
 | 全部 | Science Quickly | Uncertain    |
 | ---- | --------------- | ------------ |
-|      | science-quickly | science-talk |
-`,
+|      | science-quickly | science-talk |`,
     },
 };

@@ -11,11 +11,10 @@ const PATH_PREFIX = '/genossenschaften/' as const;
 
 export const route: Route = {
     name: 'Immobiliensuche',
-    path: '*',
+    path: '/:path{.+}?',
     maintainers: ['sk22'],
     categories: ['other'],
-    description: `
-Note that all parameters are optional and many can be specified multiple times
+    description: `Note that all parameters are optional and many can be specified multiple times
 (e.g. \`district=wien-1-innere-stadt&district=wien-2-leopoldstadt\`).
 
 Only returns the first page of search results, allowing you to keep track of
@@ -23,7 +22,7 @@ newly added apartments. If you're looking for an apartment, make sure to also
 look through the other pages on the website.
 
 ::: tip
-To get your query URL, go to https://genossenschaften.immo and apply all
+To get your query URL, go to <https://genossenschaften.immo> and apply all
 desired filters. If you want to filter by (all districts of a) federal state
 (e.g. \`/immobilien/regionen/wien/\`), please open the district selector and
 de- and re-select any district, so that the region in the URL gets replaced
@@ -40,6 +39,7 @@ filters, copy the part of the URL after the \`?\`.
         '&status=available&status=construction&status=planned' +
         '&type=residence&type=project',
     parameters: {
+        path: 'Query parameters copied from the search URL, without the leading `?`, composed of the parameters below',
         // labels are in german language because it's the same on the website
         cost: 'Miete bis (in €, number)',
         district: 'Bezirk (string, multiple)',
@@ -63,7 +63,7 @@ filters, copy the part of the URL after the \`?\`.
         supportScihub: false,
     },
     async handler(ctx) {
-        let path = ctx.req.path.slice(PATH_PREFIX.length);
+        let path = ctx.req.param('path') ?? '';
         if (path.startsWith('&')) {
             // in case request url is something like `/genossenschaften/&cost=…`
             path = path.slice(1);

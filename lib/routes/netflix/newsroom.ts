@@ -1,4 +1,4 @@
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -49,7 +49,10 @@ export const route: Route = {
     },
     radar: [
         {
-            source: ['about.netflix.com/:region/newsroom', 'netflix.com'],
+            source: ['about.netflix.com/:region/newsroom'],
+        },
+        {
+            source: ['netflix.com'],
         },
     ],
     name: 'Newsroom',
@@ -148,7 +151,7 @@ const render = (node) => {
         }
 
         case 'embedded-asset-block': {
-            const file = Object.values(node.data?.file)[0];
+            const file = Object.values<any>(node.data?.file)[0];
             if (!file || !file.url) {
                 return '';
             }
@@ -158,7 +161,8 @@ const render = (node) => {
             const title = Object.values(node.data?.title)[0] || '';
             if (contentType.startsWith('image/')) {
                 return `<img src="${url}" alt="${title}">`;
-            } else if (contentType.startsWith('video/')) {
+            }
+            if (contentType.startsWith('video/')) {
                 return renderVideo({ url, contentType });
             }
             return '';
@@ -167,13 +171,13 @@ const render = (node) => {
             let innerHTML = '';
             if (node.data.display === 'carousel') {
                 for (const img of node.data.images) {
-                    const file = Object.values(img.file)[0];
+                    const file = Object.values<any>(img.file)[0];
                     const url = file.url.startsWith('//') ? 'https:' + file.url : file.url;
 
                     innerHTML += renderImage({
                         url,
-                        alt: Object.values(img.title)[0],
-                        caption: img.description ? Object.values(img.description)[0] : '',
+                        alt: Object.values<string>(img.title)[0],
+                        caption: img.description ? Object.values<string>(img.description)[0] : '',
                     });
                 }
             }
@@ -182,7 +186,7 @@ const render = (node) => {
         case 'embedded-entry-inline': {
             const embedLink = node.data.embedLink;
             if (embedLink.startsWith('https://www.youtube.com/') || embedLink.startsWith('https://youtu.be/')) {
-                const youtubeId = node.data.embedLink.split('youtube.com/watch?v=')[1]?.split('&')[0] || node.data.embedLink.split('youtu.be/')[1]?.split('?')[0];
+                const youtubeId = node.data.embedLink.split('youtube.com/watch?v=', 2)[1]?.split('&', 1)[0] || node.data.embedLink.split('youtu.be/', 2)[1]?.split('?', 1)[0];
                 return renderYoutube(youtubeId);
             }
             return `<a href="${embedLink}" target="_blank" rel="noopener noreferrer">${node.data.title ?? embedLink}</a>`;
@@ -218,18 +222,18 @@ async function handler(ctx) {
         },
     });
 
-    const list = [...response.entities.region.regionArticles, ...response.entities.global.globalArticles].map((i) => ({
+    const list = [...response.entities.region.regionArticles, ...response.entities.global.globalArticles].map((i): DataItem & { slug: string } => ({
         title: i.title,
         link: `${baseUrl}/${region}/news/${i.slug}`,
         pubDate: parseDate(i.rawPublishedDate),
         category: [...new Set([...i.categories.map((category) => category.label), ...i.locations.map((location) => location.label)])],
-        image: i.heroImage?.url ? `https:${i.heroImage.url.replace('?w=2560', '')}` : null,
+        image: i.heroImage?.url ? `https:${i.heroImage.url.replace('?w=2560', '')}` : undefined,
         slug: i.slug,
     }));
 
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const response = await ofetch('https://about.netflix.com/api/data/entity', {
                     query: {
                         language: region,
@@ -247,7 +251,7 @@ async function handler(ctx) {
                         contentType: 'video/mp4',
                     });
                 } else if (slug.youtubeHero) {
-                    item.description += renderYoutube(slug.youtubeHero.videoLink.split('youtube.com/watch?v=')[1]);
+                    item.description += renderYoutube(slug.youtubeHero.videoLink.split('youtube.com/watch?v=', 2)[1]);
                 } else if (slug.heroGallery?.length) {
                     for (const image of slug.heroGallery) {
                         item.description += renderImage({

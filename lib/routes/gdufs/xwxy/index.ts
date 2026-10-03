@@ -9,13 +9,13 @@ const handler = async (ctx) => {
     const BASE_URL = 'https://xwxy.gdufs.edu.cn';
 
     const category = ctx.req.param('category') ?? 'news';
-    const pathMap: Record<string, string> = {
+    const pathMap = {
         news: '/xwzx/xyxw.htm',
         notices: '/xwzx/tzgg/tz.htm',
         announcements: '/xwzx/tzgg/gg.htm',
         media: '/xwzx/mtjj.htm',
     };
-    const titleMap: Record<string, string> = {
+    const titleMap = {
         news: '学院新闻',
         notices: '通知',
         announcements: '公告',
@@ -57,7 +57,7 @@ const handler = async (ctx) => {
         .filter((v): v is { title: string; link: string; pubDate: Date | undefined } => !!v && !!v.title && !!v.link);
 
     // 尊重 limit 参数，默认 10（与仓库常见写法保持一致）
-    const limit = Number.parseInt(ctx.req.query('limit') ?? '') || 10;
+    const limit = Number.parseInt(ctx.req.query('limit')) || 10;
     const limitedItems = items.slice(0, limit);
 
     const enhancedItems = await Promise.all(
@@ -104,7 +104,7 @@ const handler = async (ctx) => {
                     }
                 });
 
-                const content = $content.html() || '';
+                const content = $content.html();
                 // 提取作者/编辑等信息，并去除"发布时间"和日期
                 const metaTexts = $$('.show01 p i')
                     .toArray()

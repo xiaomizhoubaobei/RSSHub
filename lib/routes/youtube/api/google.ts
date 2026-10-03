@@ -1,19 +1,22 @@
-import * as cheerio from 'cheerio';
+import { auth as googleAuth, youtube as googleYoutube } from '@googleapis/youtube';
+import { load } from 'cheerio';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration.js';
-import { google } from 'googleapis';
 
 import { config } from '@/config';
 import NotFoundError from '@/errors/types/not-found';
 import type { Data } from '@/types';
 import cache from '@/utils/cache';
+import { isWorker } from '@/utils/is-worker';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
-import utils, { getVideoUrl } from '../utils';
+import { formatDescription, getChannelWithId, getChannelWithUsername, getPlaylist, getPlaylistItems, getPlaylistWithShortsFilter, getThumbnail, getVideos, getVideoUrl, renderYoutube } from '../utils';
 import { getSrtAttachmentBatch } from './subtitles';
 
-const { OAuth2 } = google.auth;
+const { OAuth2 } = googleAuth;
+const workerFetch: typeof fetch = (input, init) => fetch(input, init);
+const transportOptions = isWorker ? { fetchImplementation: workerFetch } : {};
 
 dayjs.extend(duration);
 
@@ -23,35 +26,59 @@ if (config.youtube && config.youtube.key) {
     const keys = config.youtube.key.split(',');
 
     for (const [index, key] of keys.entries()) {
-        if (key) {
-            youtube[index] = google.youtube({
-                version: 'v3',
-                auth: key,
-            });
-            count = index + 1;
+        if (!key) {
+            continue;
         }
+
+        youtube[index] = googleYoutube({
+            version: 'v3',
+            auth: key,
+            ...transportOptions,
+        });
+        count = index + 1;
     }
 }
+
+// Reasons Google attaches to a 403 when the project is out of quota. gaxios keeps the
+// raw error body under response.data; googleapis-common also copies `errors` onto the error.
+const quotaErrorReasons = new Set(['quotaExceeded', 'dailyLimitExceeded', 'rateLimitExceeded', 'userRateLimitExceeded']);
+const isQuotaError = (error) => {
+    const errors = error?.response?.data?.error?.errors ?? error?.errors;
+    return Array.isArray(errors) && errors.some((e) => quotaErrorReasons.has(e?.reason));
+};
 
 let index = -1;
 const exec = async (func) => {
     let result;
+    let lastError;
     for (let i = 0; i < count; i++) {
         index++;
         try {
             // eslint-disable-next-line no-await-in-loop
             result = await func(youtube[index % count]);
             break;
-        } catch {
-            // console.error(error);
+        } catch (error) {
+            lastError = error;
         }
+    }
+    // Every key failed. When that is because the quota is gone, returning undefined only
+    // moves the failure to the caller's `.data` access ("Cannot read properties of
+    // undefined"), which hides the actual cause. Surface it instead. Other failures keep
+    // returning undefined so callers that treat it as "not found" behave as before.
+    if (result === undefined && isQuotaError(lastError)) {
+        throw lastError;
     }
     return result;
 };
 
 let youtubeOAuth2Client;
 if (config.youtube && config.youtube.clientId && config.youtube.clientSecret && config.youtube.refreshToken) {
-    youtubeOAuth2Client = new OAuth2(config.youtube.clientId, config.youtube.clientSecret, 'https://developers.google.com/oauthplayground');
+    youtubeOAuth2Client = new OAuth2({
+        clientId: config.youtube.clientId,
+        clientSecret: config.youtube.clientSecret,
+        redirectUri: 'https://developers.google.com/oauthplayground',
+        transporterOptions: transportOptions,
+    });
     youtubeOAuth2Client.setCredentials({ refresh_token: config.youtube.refreshToken });
 }
 
@@ -63,11 +90,11 @@ export const getDataByUsername = async ({ username, embed, filterShorts, isJsonF
         userHandleData = await cache.tryGet(`youtube:handle:${username}`, async () => {
             const link = `https://www.youtube.com/${username}`;
             const response = await ofetch(link);
-            const $ = cheerio.load(response);
+            const $ = load(response);
             const ytInitialData = JSON.parse(
                 $('script')
                     .text()
-                    .match(/ytInitialData = ({.*?});/)?.[1] || '{}'
+                    .match(/ytInitialData = (\{.*?\});/)?.[1] || '{}'
             );
             const metadataRenderer = ytInitialData.metadata.channelMetadataRenderer;
 
@@ -75,7 +102,7 @@ export const getDataByUsername = async ({ username, embed, filterShorts, isJsonF
             const channelName = metadataRenderer.title;
             const image = metadataRenderer.avatar?.thumbnails?.[0]?.url;
             const description = metadataRenderer.description;
-            const playlistId = (await utils.getChannelWithId(channelId, 'contentDetails', cache)).data.items[0].contentDetails.relatedPlaylists.uploads;
+            const playlistId = (await getChannelWithId(channelId, 'contentDetails', cache)).data.items[0].contentDetails.relatedPlaylists.uploads;
 
             return {
                 channelName,
@@ -91,27 +118,26 @@ export const getDataByUsername = async ({ username, embed, filterShorts, isJsonF
         if (userHandleData?.playlistId) {
             const origPlaylistId = userHandleData.playlistId;
 
-            return utils.getPlaylistWithShortsFilter(origPlaylistId, filterShorts);
-        } else {
-            const channelData = await utils.getChannelWithUsername(username, 'contentDetails', cache);
-            const items = channelData.data.items;
-
-            if (!items) {
-                throw new NotFoundError(`The channel https://www.youtube.com/user/${username} does not exist.`);
-            }
-
-            const channelId = items[0].id;
-
-            return filterShorts ? utils.getPlaylistWithShortsFilter(channelId, filterShorts) : items[0].contentDetails.relatedPlaylists.uploads;
+            return getPlaylistWithShortsFilter(origPlaylistId, filterShorts);
         }
+        const channelData = await getChannelWithUsername(username, 'contentDetails', cache);
+        const items = channelData.data.items;
+
+        if (!items) {
+            throw new NotFoundError(`The channel https://www.youtube.com/user/${username} does not exist.`);
+        }
+
+        const channelId = items[0].id;
+
+        return filterShorts ? getPlaylistWithShortsFilter(channelId, filterShorts) : items[0].contentDetails.relatedPlaylists.uploads;
     })();
 
-    const playlistItems = await utils.getPlaylistItems(playlistId, 'snippet', cache);
+    const playlistItems = await getPlaylistItems(playlistId, 'snippet', cache);
     if (!playlistItems) {
         throw new NotFoundError("This channel doesn't have any content.");
     }
     const videoIds = playlistItems.data.items.map((item) => item.snippet.resourceId.videoId);
-    const videoDetails = await utils.getVideos(videoIds.join(','), 'contentDetails', cache);
+    const videoDetails = await getVideos(videoIds.join(','), 'contentDetails', cache);
     const subtitlesMap = isJsonFeed ? await getSrtAttachmentBatch(videoIds) : {};
 
     return {
@@ -124,13 +150,13 @@ export const getDataByUsername = async ({ username, embed, filterShorts, isJsonF
             .map((item) => {
                 const snippet = item.snippet;
                 const videoId = snippet.resourceId.videoId;
-                const img = utils.getThumbnail(snippet.thumbnails);
+                const img = getThumbnail(snippet.thumbnails);
                 const detail = videoDetails?.data.items.find((d) => d.id === videoId);
                 const srtAttachments = subtitlesMap ? subtitlesMap[videoId] || [] : [];
 
                 return {
                     title: snippet.title,
-                    description: utils.renderDescription(embed, videoId, img, utils.formatDescription(snippet.description)),
+                    description: renderYoutube(embed, videoId, img, formatDescription(snippet.description)),
                     pubDate: parseDate(snippet.publishedAt),
                     link: `https://www.youtube.com/watch?v=${videoId}`,
                     author: snippet.videoOwnerChannelTitle,
@@ -150,14 +176,14 @@ export const getDataByUsername = async ({ username, embed, filterShorts, isJsonF
 
 export const getDataByChannelId = async ({ channelId, embed, filterShorts, isJsonFeed }: { channelId: string; embed: boolean; filterShorts: boolean; isJsonFeed: boolean }): Promise<Data> => {
     // Get original uploads playlist ID if needed
-    const originalPlaylistId = filterShorts ? null : (await utils.getChannelWithId(channelId, 'contentDetails', cache)).data.items[0].contentDetails.relatedPlaylists.uploads;
+    const originalPlaylistId = filterShorts ? null : (await getChannelWithId(channelId, 'contentDetails', cache)).data.items[0].contentDetails.relatedPlaylists.uploads;
 
     // Use the utility function to get the appropriate playlist ID based on filterShorts setting
-    const playlistId = filterShorts ? utils.getPlaylistWithShortsFilter(channelId) : originalPlaylistId;
+    const playlistId = filterShorts ? getPlaylistWithShortsFilter(channelId) : originalPlaylistId;
 
-    const data = (await utils.getPlaylistItems(playlistId, 'snippet', cache)).data.items;
+    const data = (await getPlaylistItems(playlistId, 'snippet', cache)).data.items;
     const videoIds = data.map((item) => item.snippet.resourceId.videoId);
-    const videoDetails = await utils.getVideos(videoIds.join(','), 'contentDetails', cache);
+    const videoDetails = await getVideos(videoIds.join(','), 'contentDetails', cache);
     const subtitlesMap = isJsonFeed ? await getSrtAttachmentBatch(videoIds) : {};
 
     return {
@@ -169,13 +195,13 @@ export const getDataByChannelId = async ({ channelId, embed, filterShorts, isJso
             .map((item) => {
                 const snippet = item.snippet;
                 const videoId = snippet.resourceId.videoId;
-                const img = utils.getThumbnail(snippet.thumbnails);
+                const img = getThumbnail(snippet.thumbnails);
                 const detail = videoDetails?.data.items.find((d) => d.id === videoId);
                 const srtAttachments = subtitlesMap ? subtitlesMap[videoId] || [] : [];
 
                 return {
                     title: snippet.title,
-                    description: utils.renderDescription(embed, videoId, img, utils.formatDescription(snippet.description)),
+                    description: renderYoutube(embed, videoId, img, formatDescription(snippet.description)),
                     pubDate: parseDate(snippet.publishedAt),
                     link: `https://www.youtube.com/watch?v=${videoId}`,
                     author: snippet.videoOwnerChannelTitle,
@@ -194,11 +220,11 @@ export const getDataByChannelId = async ({ channelId, embed, filterShorts, isJso
 };
 
 export const getDataByPlaylistId = async ({ playlistId, embed, isJsonFeed }: { playlistId: string; embed: boolean; isJsonFeed: boolean }): Promise<Data> => {
-    const playlistTitle = (await utils.getPlaylist(playlistId, 'snippet', cache)).data.items[0].snippet.title;
+    const playlistTitle = (await getPlaylist(playlistId, 'snippet', cache)).data.items[0].snippet.title;
 
-    const data = (await utils.getPlaylistItems(playlistId, 'snippet', cache)).data.items.filter((d) => d.snippet.title !== 'Private video' && d.snippet.title !== 'Deleted video');
+    const data = (await getPlaylistItems(playlistId, 'snippet', cache)).data.items.filter((d) => d.snippet.title !== 'Private video' && d.snippet.title !== 'Deleted video');
     const videoIds = data.map((item) => item.snippet.resourceId.videoId);
-    const videoDetails = await utils.getVideos(videoIds.join(','), 'contentDetails', cache);
+    const videoDetails = await getVideos(videoIds.join(','), 'contentDetails', cache);
     const subtitlesMap = isJsonFeed ? await getSrtAttachmentBatch(videoIds) : {};
 
     return {
@@ -208,13 +234,13 @@ export const getDataByPlaylistId = async ({ playlistId, embed, isJsonFeed }: { p
         item: data.map((item) => {
             const snippet = item.snippet;
             const videoId = snippet.resourceId.videoId;
-            const img = utils.getThumbnail(snippet.thumbnails);
+            const img = getThumbnail(snippet.thumbnails);
             const detail = videoDetails?.data.items.find((d) => d.id === videoId);
             const srtAttachments = subtitlesMap ? subtitlesMap[videoId] || [] : [];
 
             return {
                 title: snippet.title,
-                description: utils.renderDescription(embed, videoId, img, utils.formatDescription(snippet.description)),
+                description: renderYoutube(embed, videoId, img, formatDescription(snippet.description)),
                 pubDate: parseDate(snippet.publishedAt),
                 link: `https://www.youtube.com/watch?v=${videoId}`,
                 author: snippet.videoOwnerChannelTitle,

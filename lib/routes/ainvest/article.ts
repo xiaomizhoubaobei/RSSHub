@@ -26,13 +26,13 @@ export const route: Route = {
 };
 
 async function handler(ctx) {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 5;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 5;
     const items = await fetchContentItems([109], limit);
 
     return {
         title: 'AInvest - Latest Articles',
         link: 'https://www.ainvest.com/news/articles-latest/',
-        language: 'en',
+        language: 'en' as const,
         item: items,
     };
 }

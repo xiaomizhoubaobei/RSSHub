@@ -1,8 +1,11 @@
+import type { SecureVersion } from 'node:tls';
+
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { PacProxyAgent } from 'pac-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { ProxyAgent } from 'undici';
 
+import type { Config } from '@/config';
 import { config } from '@/config';
 import logger from '@/utils/logger';
 
@@ -17,40 +20,52 @@ interface ProxyExport {
     agent: PacProxyAgent<string> | HttpsProxyAgent<string> | SocksProxyAgent | null;
     dispatcher: ProxyAgent | null;
     proxyUri?: string;
-    proxyObj: Record<string, any>;
+    proxyObj: Config['proxy'];
     proxyUrlHandler?: URL | null;
     multiProxy?: MultiProxyResult;
     getCurrentProxy: () => ProxyState | null;
     markProxyFailed: (proxyUri: string) => void;
     getAgentForProxy: (proxyState: ProxyState) => any;
-    getDispatcherForProxy: (proxyState: ProxyState) => ProxyAgent | null;
+    getDispatcherForProxy: (proxyState: ProxyState, minVersion?: SecureVersion) => ProxyAgent | null;
 }
 
 let proxyUri: string | undefined;
-let proxyObj: Record<string, any> = {};
+let proxyObj: Config['proxy'];
 let proxyUrlHandler: URL | null = null;
 let multiProxy: MultiProxyResult | undefined;
 
-const createAgentForProxy = (uri: string, proxyObj: Record<string, any>): any => {
+const createAgentForProxy = (uri: string, proxyObj: Config['proxy']): any => {
     if (uri.startsWith('http')) {
         return new HttpsProxyAgent(uri, {
             headers: {
                 'proxy-authorization': proxyObj?.auth ? `Basic ${proxyObj.auth}` : undefined,
             },
         });
-    } else if (uri.startsWith('socks')) {
+    }
+    if (uri.startsWith('socks')) {
         return new SocksProxyAgent(uri);
     }
     return null;
 };
 
-const createDispatcherForProxy = (uri: string, proxyObj: Record<string, any>): ProxyAgent | null => {
+const createDispatcherForProxy = (uri: string, proxyObj: Config['proxy'], minVersion?: SecureVersion): ProxyAgent | null => {
     if (uri.startsWith('http')) {
         return new ProxyAgent({
             uri,
             token: proxyObj?.auth ? `Basic ${proxyObj.auth}` : undefined,
             requestTls: {
                 rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
+                preferH2: true,
+                minVersion,
+            },
+        });
+    }
+    if (uri.startsWith('socks')) {
+        return new ProxyAgent({
+            uri,
+            requestTls: {
+                ALPNProtocols: ['h2', 'http/1.1'],
+                minVersion,
             },
         });
     }
@@ -68,7 +83,7 @@ if (proxyIsPAC) {
     const currentProxy = multiProxy.getNextProxy();
     if (currentProxy) {
         proxyUri = currentProxy.uri;
-        proxyUrlHandler = currentProxy.urlHandler;
+        proxyUrlHandler = currentProxy.urlHandler ?? null;
     }
     logger.info(`Multi-proxy initialized with ${config.proxyUris.length} proxies`);
 } else {
@@ -104,27 +119,28 @@ const getCurrentProxy = (): ProxyState | null => {
 };
 
 const markProxyFailed = (failedProxyUri: string) => {
-    if (multiProxy) {
-        multiProxy.markProxyFailed(failedProxyUri);
-        const nextProxy = multiProxy.getNextProxy();
-        if (nextProxy) {
-            proxyUri = nextProxy.uri;
-            proxyUrlHandler = nextProxy.urlHandler || null;
-            agent = createAgentForProxy(nextProxy.uri, proxyObj);
-            dispatcher = createDispatcherForProxy(nextProxy.uri, proxyObj);
-            logger.info(`Switched to proxy: ${nextProxy.uri}`);
-        } else {
-            logger.warn('No available proxies remaining');
-            agent = null;
-            dispatcher = null;
-            proxyUri = undefined;
-        }
+    if (!multiProxy) {
+        return;
+    }
+    multiProxy.markProxyFailed(failedProxyUri);
+    const nextProxy = multiProxy.getNextProxy();
+    if (nextProxy) {
+        proxyUri = nextProxy.uri;
+        proxyUrlHandler = nextProxy.urlHandler || null;
+        agent = createAgentForProxy(nextProxy.uri, proxyObj);
+        dispatcher = createDispatcherForProxy(nextProxy.uri, proxyObj);
+        logger.info(`Switched to proxy: ${nextProxy.uri}`);
+    } else {
+        logger.warn('No available proxies remaining');
+        agent = null;
+        dispatcher = null;
+        proxyUri = undefined;
     }
 };
 
 const getAgentForProxy = (proxyState: ProxyState) => createAgentForProxy(proxyState.uri, proxyObj);
 
-const getDispatcherForProxy = (proxyState: ProxyState) => createDispatcherForProxy(proxyState.uri, proxyObj);
+const getDispatcherForProxy = (proxyState: ProxyState, minVersion?: SecureVersion) => createDispatcherForProxy(proxyState.uri, proxyObj, minVersion);
 
 const proxyExport: ProxyExport = {
     agent,

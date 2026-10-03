@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import type { Context } from 'hono';
 
 import type { Data, Route } from '@/types';
@@ -71,15 +71,15 @@ async function handler(ctx: Context): Promise<Data> {
     const link = `https://fanqienovel.com/page/${bookId}`;
 
     const response = await ofetch(link);
-    const $ = cheerio.load(response);
+    const $ = load(response);
 
     const initialState = JSON.parse(
         $('script:contains("window.__INITIAL_STATE__")')
             .text()
-            .match(/window\.__INITIAL_STATE__\s*=\s*(.*);/)?.[1] ?? '{}'
+            .match(/window\.__INITIAL_STATE__\s*=\s*(\S.*);/)?.[1] ?? '{}'
     );
 
-    const page = initialState.page as Page;
+    const page: Page = initialState.page;
     const items = page.chapterListWithVolume.flatMap((volume) =>
         volume.map((chapter) => ({
             title: chapter.title,

@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,7 +13,7 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { category = 'latest' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const baseUrl = 'https://www.oschina.net';
     const targetUrl: string = new URL(`event?tab=${category}`, baseUrl).href;
@@ -29,12 +29,12 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $target: CheerioAPI = load(targetResponse);
-    const language = $target('html').attr('lang') ?? 'zh-CN';
+    const language = ($target('html').attr('lang') ?? 'zh-CN') as Language;
 
     let items: DataItem[] = $('div.event-item')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('a.summary').text();
@@ -48,11 +48,11 @@ export const handler = async (ctx: Context): Promise<Data> => {
                           },
                       ]
                     : undefined,
-                description: $el.html(),
+                description: $el.html() ?? undefined,
             });
             const pubDateStr: string | undefined = $el.find('footer.when-where label').first().text();
             const linkUrl: string | undefined = $el.find('a.summary').attr('href');
-            const categoryEl: Element = $el.find('footer.when-where label').last();
+            const categoryEl: Cheerio<Element> = $el.find('footer.when-where label').last();
             const categories: string[] = [categoryEl.text()];
             const authorEls: Element[] = $el.find('div.sponsor').toArray();
             const authors: DataItem['author'] = authorEls.map((authorEl) => {
@@ -92,7 +92,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 }
 
                 return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                    const detailResponse = await ofetch(item.link);
+                    const detailResponse = await ofetch(item.link!);
                     const $$: CheerioAPI = load(detailResponse);
 
                     const title: string = $$('h1').text();
@@ -106,13 +106,13 @@ export const handler = async (ctx: Context): Promise<Data> => {
                                   },
                               ]
                             : undefined,
-                        description: $$('div.event-detail').html(),
+                        description: $$('div.event-detail').html() ?? undefined,
                     });
                     const pubDateStr: string | undefined = $$('span.box-fl')
                         .filter((_, el) => $$(el).text().includes('时间'))
                         .next()
                         .text()
-                        ?.split('至')[0]
+                        ?.split('至', 1)[0]
                         ?.trim();
                     const linkUrl: string | undefined = $$('val[data-name="weixinUrl"]').attr('data-value');
                     const categories: string[] = [...(item.category ?? []), $$('div.cost span.c').text()].filter(Boolean);
@@ -203,8 +203,7 @@ export const route: Route = {
 
 | 强力推荐  | 最新活动 |
 | --------- | -------- |
-| recommend | latest   |
-`,
+| recommend | latest   |`,
     categories: ['programming'],
     features: {
         requireConfig: false,

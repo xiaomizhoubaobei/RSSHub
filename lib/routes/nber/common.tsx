@@ -29,7 +29,7 @@ export async function handler(ctx) {
                     return {
                         title: article.title,
                         author: $('meta[name="dcterms.creator"]').attr('content'),
-                        pubDate: parseDate($('meta[name="citation_publication_date"]').attr('content'), 'YYYY/MM/DD'),
+                        pubDate: parseDate($('meta[name="citation_publication_date"]').attr('content')!, 'YYYY/MM/DD'),
                         link,
                         doi: $('meta[name="citation_doi"]').attr('content'),
                         description: renderToString(
@@ -47,6 +47,6 @@ export async function handler(ctx) {
         title: 'NBER Working Paper',
         link: 'https://www.nber.org/papers',
         item: items,
-        description: `National Bureau of Economic Research Working Papers articles`,
+        description: 'National Bureau of Economic Research Working Papers articles',
     };
 }

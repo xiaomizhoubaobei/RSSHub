@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Config } from '@/config';
 import pacProxy from '@/utils/proxy/pac-proxy';
 
-const emptyProxyObj = {
+const emptyProxyObj: Config['proxy'] = {
     protocol: undefined,
     host: undefined,
     port: undefined,
     auth: undefined,
     url_regex: '.*',
+    strategy: 'all',
 };
 
 const effectiveExpect = ({ proxyUri, proxyObj }, expectUri, expectObj) => {

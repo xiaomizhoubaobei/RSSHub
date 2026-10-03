@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
 import type { Route } from '@/types';
-import got from '@/utils/got';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
@@ -30,38 +30,38 @@ export const route: Route = {
 };
 
 async function handler() {
-    let data;
-    const response = await got.extend({ followRedirect: false }).get({
-        url: `https://trow.cc`,
+    const response = await ofetch.raw('https://trow.cc', {
+        redirect: 'manual',
     });
-    if (response.statusCode === 302) {
-        const response2 = await got.extend({ followRedirect: false }).get({
-            url: `https://trow.cc`,
+    let data = response._data;
+    if (response.status === 302) {
+        data = await ofetch('https://trow.cc', {
             headers: {
-                cookie: response.headers['set-cookie'],
+                cookie: response.headers
+                    .getSetCookie()
+                    .map((cookie) => cookie.split(';', 1)[0])
+                    .join('; '),
             },
+            redirect: 'manual',
         });
-        data = response2.data;
-    } else {
-        data = response.data;
     }
 
     const $ = load(data);
     const list = $('#portal_content .borderwrap[style="display:show"]');
 
     return {
-        title: `The Ring of Wonder - Portal`,
-        link: `https://trow.cc`,
-        description: `The Ring of Wonder 首页更新`,
+        title: 'The Ring of Wonder - Portal',
+        link: 'https://trow.cc',
+        description: 'The Ring of Wonder 首页更新',
         item: list.toArray().map((item) => {
-            item = $(item);
-            const dateraw = item.find('.postdetails').text();
+            const $item = $(item);
+            const dateraw = $item.find('.postdetails').text();
             return {
-                title: item.find('.maintitle p:nth-child(2) > a').text(),
-                description: item.find('.portal_news_content .row18').html(),
-                link: item.find('.maintitle p:nth-child(2) > a').attr('href'),
-                author: item.find('.postdetails a').text(),
-                pubDate: timezone(parseDate(dateraw.slice(3), 'YYYY-MM-DD, HH:mm'), +8),
+                title: $item.find('.maintitle p:nth-child(2) > a').text(),
+                description: $item.find('.portal_news_content .row18').html(),
+                link: $item.find('.maintitle p:nth-child(2) > a').attr('href'),
+                author: $item.find('.postdetails a').text(),
+                pubDate: timezone(parseDate(dateraw.slice(3), 'YYYY-MM-DD, HH:mm'), 8),
             };
         }),
     };

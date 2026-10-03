@@ -1,14 +1,16 @@
 import { load } from 'cheerio';
 
+import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
+import { isValidHost } from '@/utils/valid-host';
 
 const rootURL = 'http://www.zzb.sz.gov.cn/';
 
 export const route: Route = {
-    path: '/shenzhen/zzb/:caty/:page?',
+    path: '/zzb/:caty/:page?',
     categories: ['government'],
     example: '/gov/shenzhen/zzb/tzgg',
     parameters: { caty: '信息类别', page: '页码' },
@@ -36,6 +38,10 @@ export const route: Route = {
 
 async function handler(ctx) {
     const categoryID = ctx.req.param('caty');
+    if (!isValidHost(categoryID)) {
+        throw new InvalidParameterError('Invalid caty');
+    }
+
     const page = ctx.req.param('page') ?? '1';
 
     const pageParam = Number.parseInt(page) > 1 ? `_${page}` : '';

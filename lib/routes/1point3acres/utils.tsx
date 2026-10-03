@@ -3,6 +3,7 @@ import presetHTML5 from '@bbob/preset-html5';
 import type { BBobCoreTagNodeTree } from '@bbob/types';
 import { renderToString } from 'hono/jsx/dom/server';
 
+import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -16,7 +17,7 @@ const types = {
 
 const swapLinebreak = (tree: BBobCoreTagNodeTree) =>
     tree.walk((node) => {
-        if (typeof node === 'string' && node === '\n') {
+        if (node === '\n') {
             return {
                 tag: 'br',
                 content: null,
@@ -25,7 +26,7 @@ const swapLinebreak = (tree: BBobCoreTagNodeTree) =>
         return node;
     });
 
-const ProcessThreads = async (tryGet, apiUrl, order) => {
+const ProcessThreads = async (apiUrl, order) => {
     const response = await got({
         method: 'get',
         url: apiUrl,
@@ -46,7 +47,7 @@ const ProcessThreads = async (tryGet, apiUrl, order) => {
                 category: [item.forum_name, ...(item.tags ? item.tags.map((t) => t.displayname) : [])],
             };
 
-            return tryGet(result.link, async () => {
+            return cache.tryGet(result.link, async () => {
                 try {
                     const detailResponse = await got({
                         method: 'get',
@@ -84,7 +85,7 @@ const ProcessThreads = async (tryGet, apiUrl, order) => {
                             };
                         },
                         url: (node) => {
-                            const link = Object.keys(node.attrs as Record<string, string>)[0];
+                            const link = Object.keys(node.attrs ?? {})[0];
                             if (link.startsWith('https://link.1p3a.com/?url=')) {
                                 const url = decodeURIComponent(link.replace('https://link.1p3a.com/?url=', ''));
                                 return {

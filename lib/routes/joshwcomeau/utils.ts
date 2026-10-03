@@ -7,8 +7,13 @@ import { parseDate } from '@/utils/parse-date';
 
 export const rootUrl = 'https://www.joshwcomeau.com';
 
-export async function getRelativeUrlList(url, selector) {
-    const response = await ofetch(url);
+interface PostLink {
+    url: string;
+    cardTitle: string;
+}
+
+export async function getRelativeUrlList(url: string, selector: string) {
+    const response = await ofetch<string>(url);
     const $ = load(response);
     const heading = $('header>h1').text();
     const urls = $(selector)
@@ -16,25 +21,26 @@ export async function getRelativeUrlList(url, selector) {
         .map((element) => {
             const itemRelativeUrl = $(element).attr('href');
             const cardTitle = $(element).find('span').text();
-            return { url: itemRelativeUrl as string, cardTitle };
-        });
+            return { url: itemRelativeUrl, cardTitle };
+        })
+        .filter((item): item is PostLink => item.url !== undefined);
     return { heading, urls };
 }
 
-export async function processList(list) {
+export async function processList(list: PostLink[]): Promise<DataItem[]> {
     const listPromise = await Promise.allSettled(list.map(async (item) => await cache.tryGet(`joshwcomeau:${item.url}`, async () => await getPostContent(item))));
-    return listPromise.map((item, index) => (item.status === 'fulfilled' ? item.value : ({ title: 'Error Reading Item', link: `${rootUrl}${list[index]?.url}` } as DataItem)));
+    return listPromise.map((item, index) => (item.status === 'fulfilled' ? item.value : { title: 'Error Reading Item', link: `${rootUrl}${list[index]?.url}` }));
 }
 
-export async function getPostContent({ url, cardTitle }) {
+export async function getPostContent({ url, cardTitle }: PostLink): Promise<DataItem> {
     if (url.startsWith('https')) {
         return {
             title: cardTitle ?? 'External Content',
             description: 'Read it on external Site',
             link: url,
-        } as DataItem;
+        };
     }
-    const response = await ofetch(`${rootUrl}${url}`);
+    const response = await ofetch<string>(`${rootUrl}${url}`);
     const $ = load(response);
     const title = $('meta[property="og:title"]').attr('content')?.replace('• Josh W. Comeau', '');
     const summary = $('meta[property="og:description"]').attr('content');
@@ -45,7 +51,7 @@ export async function getPostContent({ url, cardTitle }) {
     const updateDate = dateDiv.find('dl:last-child > dd:has(span):not(:last-child)').text();
     const description = $('main > article').html();
     return {
-        title,
+        title: title ?? cardTitle,
         description,
         author,
         pubDate: processDate(pubDate),
@@ -53,7 +59,7 @@ export async function getPostContent({ url, cardTitle }) {
         link: `${rootUrl}${url}`,
         content: { html: description, text: summary },
         category: [tag],
-    } as DataItem;
+    };
 }
 
 function processDate(date: string) {

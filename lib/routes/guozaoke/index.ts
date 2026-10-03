@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import pMap from 'p-map';
 
 import { config } from '@/config';
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseRelativeDate } from '@/utils/parse-date';
@@ -43,14 +43,14 @@ async function handler() {
 
     const items = list
         .slice(0, maxItems)
-        .map((item) => {
+        .map((item): DataItem | undefined => {
             const $item = $(item);
             const title = $item.find('h3.title a').text();
             const url = $item.find('h3.title a').attr('href');
             const author = $item.find('span.username a').text();
             const lastTouched = $item.find('span.last-touched').text();
             const pubDate = parseRelativeDate(lastTouched);
-            const link = url ? url.split('#')[0] : undefined;
+            const link = url ? url.split('#', 1)[0] : undefined;
             return link ? { title, link, author, pubDate } : undefined;
         })
         .filter((item) => item !== undefined);
@@ -58,7 +58,7 @@ async function handler() {
     const out = await pMap(
         items,
         (item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const url = `https://www.guozaoke.com${item.link}`;
                 const res = await got({
                     method: 'get',

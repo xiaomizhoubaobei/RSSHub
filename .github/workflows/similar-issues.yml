@@ -18,15 +18,16 @@ jobs:
             issues: write
         steps:
             - name: Checkout repository
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: Set up Bun
-              uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2.1.3
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
             - name: Install opencode
               run: curl -fsSL https://opencode.ai/install | bash
 
             - name: Check for duplicate issues
+
               env:
                   OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -35,7 +36,8 @@ jobs:
                       {
                         "bash": {
                           "*": "deny",
-                          "gh issue*": "allow"
+                          "gh issue*": "allow",
+                          "gh search*": "allow"
                         },
                         "webfetch": "deny"
                       }
@@ -50,7 +52,7 @@ jobs:
                   Issue number:
                   $ISSUE_NUMBER
 
-                  Lookup this issue and search through existing issues (excluding #$ISSUE_NUMBER) in this repository to find any potential duplicates of this new issue.
+                  Lookup this issue and search through existing issues (excluding #$ISSUE_NUMBER) in this repository (DIYgod/RSSHub) to find any potential duplicates of this new issue.
                   Consider:
                   1. Similar titles or descriptions
                   2. Same error messages or symptoms

@@ -25,11 +25,14 @@ function getNews(data) {
     const $ = load(data);
     return $('div[class="classnews"] ul li a')
         .toArray()
-        .map((elem) => ({
-            link: baseUrl + elem.attribs.href,
-            title: elem.children[0].data,
-            pubDate: timezone(parseDate(elem.attribs.href.split('/')[3].split('.')[0].slice(0, 14), 'YYYYMMDDHHmmss'), 8),
-        }));
+        .map((elem) => {
+            const textNode = elem.children[0];
+            return {
+                link: baseUrl + elem.attribs.href,
+                title: textNode?.nodeType === 3 ? textNode.data : undefined,
+                pubDate: timezone(parseDate(elem.attribs.href.split('/', 4)[3].split('.', 1)[0].slice(0, 14), 'YYYYMMDDHHmmss'), 8),
+            };
+        });
 }
 
 export const route: Route = {
@@ -59,11 +62,7 @@ async function handler(ctx) {
         type = 'all';
     }
 
-    const responseData = {
-        title: '北京科技大学天津学院新闻动态',
-        link: baseUrl,
-        item: null,
-    };
+    let item;
 
     if (type === 'all') {
         const all = await Promise.all(
@@ -73,12 +72,15 @@ async function handler(ctx) {
                 return news;
             })
         );
-        responseData.item = all.flat();
+        item = all.flat();
     } else {
         const response = await got(baseUrl + maps[type]);
-        const news = getNews(response.data);
-        responseData.item = news;
+        item = getNews(response.data);
     }
 
-    return responseData;
+    return {
+        title: '北京科技大学天津学院新闻动态',
+        link: baseUrl,
+        item,
+    };
 }

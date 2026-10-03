@@ -28,18 +28,18 @@ async function handler(ctx) {
     const response = await got(`${baseUrl}/siteindex`, { cookieJar });
     const $ = load(response.data);
 
-    let items = $('li[class^="grid mq640-grid-12"]')
+    const items = $('li[class^="grid mq640-grid-12"]')
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
             return {
-                title: item.find('a').attr('href').replaceAll('/', ''),
-                name: item.find('a').text(),
-                link: baseUrl + item.find('a').attr('href'),
+                title: $item.find('a').attr('href')!.replaceAll('/', ''),
+                name: $item.find('a').text(),
+                link: baseUrl + $item.find('a').attr('href'),
             };
         });
 
-    items = await Promise.all(
+    const detailedItems = await Promise.all(
         items.map((item) =>
             cache.tryGet(`nature:siteindex:${item.title}`, async () => {
                 try {
@@ -74,11 +74,11 @@ async function handler(ctx) {
     );
 
     ctx.set('json', {
-        items,
+        items: detailedItems,
     });
     return {
         title: 'Nature siteindex',
         link: response.url,
-        item: items,
+        item: detailedItems,
     };
 }

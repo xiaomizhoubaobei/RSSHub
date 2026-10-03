@@ -18,10 +18,11 @@ const graphQLEndpointsPlain = [
     '/graphql/BbGLL1ZfMibdFNWlk7a0Pw/ListTimeline',
 ];
 
-const gqlMap = Object.fromEntries(graphQLEndpointsPlain.map((endpoint) => [endpoint.split('/')[3].replace(/V2$|Query$|QueryV2$/, ''), endpoint]));
+const gqlMap = Object.fromEntries(graphQLEndpointsPlain.map((endpoint) => [endpoint.split('/', 4)[3].replace(/V2$|Query$|QueryV2$/, ''), endpoint]));
 
 const gqlFeatures = JSON.stringify({
     android_graphql_skip_api_media_color_palette: false,
+    // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names
     blue_business_profile_image_shape_enabled: false,
     creator_subscriptions_subscription_count_enabled: false,
     creator_subscriptions_tweet_preview_api_enabled: true,

@@ -55,27 +55,24 @@ async function handler() {
 
             const title = currentItem.find('.list-tx h3').text().trim();
             const description = currentItem.find('.list-tx p').text().trim();
-            const day = currentItem.find('.date p').text().trim();
-            const yearMonth = currentItem.find('.date span').text().trim();
+            const day = currentItem.find('.date p').text();
+            const yearMonth = currentItem.find('.date span').text();
             const dateText = `${yearMonth}-${day.padStart(2, '0')}`;
 
             return {
                 title,
                 link: new URL(link, baseUrl).href,
                 description: description || title,
-                pubDate: timezone(parseDate(dateText, 'YYYY-MM-DD'), +8),
+                pubDate: timezone(parseDate(dateText, 'YYYY-MM-DD'), 8),
             };
         })
-        .filter(Boolean);
+        .filter((item) => item !== null);
 
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item?.link || '', async () => {
-                if (!item) {
-                    return '';
-                }
+            cache.tryGet(item.link, async () => {
                 try {
-                    const detailResponse = await ofetch(item?.link);
+                    const detailResponse = await ofetch(item.link);
                     if (!detailResponse) {
                         return {
                             ...item,
@@ -88,13 +85,6 @@ async function handler() {
 
                     if (content) {
                         const $content = load(content);
-                        $content('a').each(function () {
-                            const a = $(this);
-                            const href = a.attr('href');
-                            if (href && !href.startsWith('http')) {
-                                a.attr('href', new URL(href, baseUrl).href);
-                            }
-                        });
                         item.description = $content.html();
                     }
 

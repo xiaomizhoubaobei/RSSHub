@@ -1,7 +1,8 @@
 import { load } from 'cheerio';
+import type { Context } from 'hono';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -24,8 +25,8 @@ export const route: Route = {
     ],
 };
 
-async function handler(ctx) {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+async function handler(ctx: Context): Promise<Data> {
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'https://www.fanxinzhui.com';
     const currentUrl = new URL('lastest', rootUrl).href;
@@ -38,17 +39,17 @@ async function handler(ctx) {
         .slice(0, limit)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const season = item.find('span.season').text();
-            const name = item.find('span.name').text();
-            const link = new URL(item.prop('href'), rootUrl).href;
+            const season = $item.find('span.season').text();
+            const name = $item.find('span.name').text();
+            const link = new URL($item.prop('href')!, rootUrl).href;
 
             return {
                 title: `${season} ${name}`,
                 link,
                 guid: `${link}#${season}`,
-                pubDate: timezone(parseDate(item.find('span.time').text()), +8),
+                pubDate: timezone(parseDate($item.find('span.time').text()), 8),
             };
         });
 
@@ -59,31 +60,31 @@ async function handler(ctx) {
 
                 const content = load(detailResponse);
 
-                item.author = undefined;
-                item.category = [];
+                let author: string | undefined;
+                let category: string[] = [];
 
                 content('div.info ul li').each((_, el) => {
-                    el = content(el);
+                    const $el = content(el);
 
-                    const key = el.find('span').text().split(/:/)[0];
-                    const value = el.contents().last().text().trim();
+                    const key = $el.find('span').text().split(/:/, 1)[0];
+                    const value = $el.contents().last().text().trim();
 
                     if (key === '类型') {
-                        item.category = [...item.category, ...value.split(/\//)];
+                        category = [...category, ...value.split(/\//)];
                     } else if (key === '首播日期') {
                         return;
                     } else {
-                        item.author = `${item.author ? `${item.author}/` : ''}${value}`;
-                        item.category = [...item.category, ...value.split(/\//)].filter((c) => c !== '等');
+                        author = `${author ? `${author}/` : ''}${value}`;
+                        category = [...category, ...value.split(/\//)].filter((c) => c !== '等');
                     }
                 });
 
                 content('div.image').each((_, el) => {
-                    el = content(el);
+                    const $el = content(el);
 
-                    const image = el.find('img').prop('src');
+                    const image = $el.find('img').prop('src');
 
-                    el.replaceWith(
+                    $el.replaceWith(
                         renderDescription(
                             image
                                 ? [
@@ -98,21 +99,24 @@ async function handler(ctx) {
                 });
 
                 content('a.password').each((_, el) => {
-                    el = content(el);
+                    const $el = content(el);
 
-                    el.replaceWith(el.text());
+                    $el.replaceWith($el.text());
                 });
 
-                item.description = content('div.middle_box').html();
-                item.enclosure_url = content('p.way span a').prop('href');
-
-                return item;
+                return {
+                    ...item,
+                    author,
+                    category,
+                    description: content('div.middle_box').html(),
+                    enclosure_url: content('p.way span a').prop('href'),
+                };
             })
         )
     );
 
     const title = $('title').text();
-    const image = new URL($('img.logo').prop('src'), rootUrl).href;
+    const image = new URL($('img.logo').prop('src')!, rootUrl).href;
 
     return {
         item: items,

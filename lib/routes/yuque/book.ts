@@ -46,7 +46,7 @@ async function handler(ctx) {
         cookieJar,
     });
     const $ = load(bookHtml);
-    const appData = JSON.parse(decodeURIComponent($('script').text().match(APP_DATA_REGEX)[1]));
+    const appData = JSON.parse(decodeURIComponent($('script').text().match(APP_DATA_REGEX)![1]));
 
     const bookId = appData.book.id;
 
@@ -87,27 +87,28 @@ async function handler(ctx) {
                 $('[data-lake-id]').removeAttr('data-lake-id');
                 $('[id]').removeAttr('id');
                 $('p').each((_, elem) => {
-                    elem = $(elem);
-                    if (elem.children().length === 1 && elem.children().is('br')) {
-                        elem.remove();
+                    const $elem = $(elem);
+                    if ($elem.children().length === 1 && $elem.children().is('br')) {
+                        $elem.remove();
                     }
-                    if (elem.children().length === 2 && elem.children().eq(0).is('span') && elem.children().eq(0).text().length === 1 && elem.children().eq(1).is('br')) {
-                        elem.remove();
+                    if ($elem.children().length === 2 && $elem.children().eq(0).is('span') && $elem.children().eq(0).text().length === 1 && $elem.children().eq(1).is('br')) {
+                        $elem.remove();
                     }
                 });
                 // obtain real video src
                 for await (const v of $('video').toArray()) {
                     const $v = $(v);
                     const src = $v.attr('src');
-                    if (src.startsWith('inputs')) {
-                        const { data } = await got(`${baseUrl}/api/video`, {
-                            searchParams: {
-                                video_id: src,
-                            },
-                        });
-                        const { info } = data.data;
-                        $v.replaceWith(`<video controls preload='none' poster='${info.cover}'><source src='${info.url}' type='video/mp4'></video>`);
+                    if (!src!.startsWith('inputs')) {
+                        continue;
                     }
+                    const { data } = await got(`${baseUrl}/api/video`, {
+                        searchParams: {
+                            video_id: src,
+                        },
+                    });
+                    const { info } = data.data;
+                    $v.replaceWith(`<video controls preload='none' poster='${info.cover}'><source src='${info.url}' type='video/mp4'></video>`);
                 }
 
                 item.description = $.html();

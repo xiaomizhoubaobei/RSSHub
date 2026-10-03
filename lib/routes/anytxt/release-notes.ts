@@ -3,32 +3,32 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
 export const handler = async (ctx: Context): Promise<Data> => {
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const baseUrl = 'https://anytxt.net';
     const targetUrl: string = new URL('download/', baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'en-US';
+    const language = ($('html').attr('lang') ?? 'en-US') as Language;
 
     const image: string | undefined = $('meta[property="og:image"]').attr('content');
 
     const items: DataItem[] = $('p.has-medium-font-size')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.text();
-            const description: string | undefined = $el.next().html() ?? '';
-            const pubDateStr: string | undefined = title.split(/\s/)[0];
+            const description = $el.next().html();
+            const pubDateStr: string | undefined = title.split(/\s/, 1)[0];
             const linkUrl: string | undefined = targetUrl;
             const upDatedStr: string | undefined = pubDateStr;
 

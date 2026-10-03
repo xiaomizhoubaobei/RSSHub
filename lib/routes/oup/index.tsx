@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -39,20 +39,20 @@ async function handler(ctx) {
     const response = await ofetch.raw(url);
     const cookies = response.headers
         .getSetCookie()
-        .map((item) => item.split(';')[0])
+        .map((item) => item.split(';', 1)[0])
         .join(';');
     const $ = load(response._data);
     const list = $('div.al-article-items')
         .toArray()
-        .map((item) => ({
+        .map((item): DataItem => ({
             title: $(item).find('a.at-articleLink').text(),
-            link: new URL($(item).find('a.at-articleLink').attr('href'), rootUrl).href,
+            link: new URL($(item).find('a.at-articleLink').attr('href')!, rootUrl).href,
         }));
 
     const items = await Promise.all(
         list.map((item) =>
-            cache.tryGet(item.link, async () => {
-                const detailResponse = await ofetch(item.link, {
+            cache.tryGet(item.link!, async () => {
+                const detailResponse = await ofetch(item.link!, {
                     headers: {
                         Cookie: cookies,
                     },
@@ -80,6 +80,6 @@ async function handler(ctx) {
         title: `OUP - ${name}`,
         link: url,
         item: items,
-        language: $('html').attr('lang'),
+        language: $('html').attr('lang') as Language,
     };
 }

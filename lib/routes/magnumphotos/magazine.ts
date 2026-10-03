@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -27,7 +27,7 @@ export const route: Route = {
         },
     ],
     name: 'Magazine',
-    maintainers: ['EthanWng97'],
+    maintainers: ['IvanWng97'],
     handler,
     url: 'magnumphotos.com/',
 };
@@ -36,32 +36,35 @@ async function handler() {
     const rssUrl = `${host}/feed/`;
     const feed = await parser.parseURL(rssUrl);
     const items = await Promise.all(
-        feed.items.map((item) =>
-            cache.tryGet(item.link, async () => {
-                if (!item.link) {
-                    return;
-                }
-                const data = await ofetch(item.link);
+        feed.items.map((item) => {
+            const link = item.link!;
+            const title = item.title;
+            if (!title) {
+                return null;
+            }
+
+            return cache.tryGet(link, async (): Promise<DataItem> => {
+                const data = await ofetch(link);
                 const $ = load(data);
                 const description = $('#content');
                 description.find('ul.share').remove();
                 description.find('h1').remove();
 
                 return {
-                    title: item.title,
+                    title,
                     pubDate: item.pubDate,
-                    link: item.link,
+                    link,
                     category: item.categories,
                     description: description.html(),
                 };
-            })
-        )
+            });
+        })
     );
 
     return {
         title: 'Magnum Photos',
         link: host,
         description: 'Magnum is a community of thought, a shared human quality, a curiosity about what is going on in the world, a respect for what is going on and a desire to transcribe it visually',
-        item: items,
+        item: items.filter((item) => item !== null),
     };
 }

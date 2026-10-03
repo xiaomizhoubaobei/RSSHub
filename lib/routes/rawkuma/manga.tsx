@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -32,7 +32,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 50;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 50;
 
     const rootUrl = 'https://rawkuma.com';
     const currentUrl = new URL(`/manga/${id}`, rootUrl).href;
@@ -49,28 +49,28 @@ async function handler(ctx) {
     let items = $('div.eph-num')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
             return {
-                title: item.find('span.chapternum').text(),
-                link: item.find('a').prop('href'),
+                title: $item.find('span.chapternum').text(),
+                link: $item.find('a').prop('href'),
                 author,
                 category,
-                pubDate: parseDate(item.find('span.chapterdate').text(), 'MMMM DD'),
-                enclosure_url: item.next().find('a.dload').prop('href'),
+                pubDate: parseDate($item.find('span.chapterdate').text(), 'MMMM DD'),
+                enclosure_url: $item.next().find('a.dload').prop('href'),
                 enclosure_type: 'application/zip',
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const { data: detailResponse } = await got(item.link);
 
                 const content = load(detailResponse);
 
-                const imageMatches = detailResponse.match(/"images":(\[.*?])}],"lazyload"/);
+                const imageMatches = detailResponse.match(/"images":(\[.*?\])\}\],"lazyload"/);
 
                 const images = imageMatches ? JSON.parse(imageMatches[1]) : [];
 
@@ -94,7 +94,7 @@ async function handler(ctx) {
     );
 
     const icon = $('link[rel="apple-touch-icon"]')
-        .prop('href')
+        .prop('href')!
         .replace(/-\d+x\d+/, '');
 
     return {

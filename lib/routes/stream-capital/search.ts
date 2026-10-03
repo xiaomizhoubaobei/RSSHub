@@ -1,4 +1,4 @@
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -21,6 +21,8 @@ export const route: Route = {
     ],
 };
 
+const decryptJson = <T>(encrypted: string): T => JSON.parse(decrypt(encrypted));
+
 async function handler() {
     const baseUrl = 'https://www.stream-capital.com';
     const apiBaseUrl = 'https://api.yuanchuan.cn';
@@ -39,14 +41,16 @@ async function handler() {
         ),
     });
 
-    const list = (JSON.parse(decrypt(response.data)).list as WebBlog[]).map((item) => ({
+    const { list: blogs } = decryptJson<{ list: WebBlog[] }>(response.data);
+
+    const list = blogs.map((item): DataItem & { link: string } => ({
         title: item.title,
         author: item.userName,
         pubDate: timezone(parseDate(item.ctime, 'YYYY-MM-DD HH:mm:ss'), 8),
         link: `${baseUrl}/article/${item.id}`,
         description: item.content,
         category: item.tags.map((t) => t.tagName),
-        id: item.id,
+        id: String(item.id),
     }));
 
     const items = await Promise.all(
@@ -64,7 +68,7 @@ async function handler() {
                     ),
                 });
 
-                item.description = (JSON.parse(decrypt(response.data)) as WebBlog).detailInfo.articleContent;
+                item.description = decryptJson<WebBlog>(response.data).detailInfo.articleContent;
 
                 return item;
             })
@@ -74,7 +78,7 @@ async function handler() {
     return {
         title: '最新 - 远川研究所',
         link: `${baseUrl}/search`,
-        language: 'zh',
+        language: 'zh' as const,
         item: items,
     };
 }

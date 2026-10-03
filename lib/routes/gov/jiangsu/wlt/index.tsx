@@ -1,13 +1,13 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
 export const route: Route = {
-    path: '/jiangsu/wlt/:page?',
+    path: '/wlt/:page?',
     categories: ['government'],
     example: '/gov/jiangsu/wlt',
     parameters: { page: '页数，默认第 1 页' },
@@ -22,10 +22,10 @@ export const route: Route = {
     radar: [
         {
             source: ['wlt.jiangsu.gov.cn/'],
-            target: '/jiangsu/wlt',
+            target: '/wlt',
         },
     ],
-    name: '江苏文旅局审批公告',
+    name: '文旅局审批公告',
     maintainers: ['GideonSenku'],
     handler,
     url: 'wlt.jiangsu.gov.cn/',
@@ -48,14 +48,13 @@ async function handler(ctx) {
     const $ = load(response.data);
     const list = $('.tg_tb1')
         .toArray()
-        .map((item) => {
+        .map((item): DataItem & { link: string } => {
             const i = $(item);
             const id = i.prop('onclick').match(/openDetail\('(\d+)'\)/)?.[1] || '';
             return {
                 title: i.text(),
                 link: id ? `${baseUrl}/detail.do?iid=${id}` : '',
                 description: '',
-                pubDate: '',
             };
         })
         .filter((e) => e.link);

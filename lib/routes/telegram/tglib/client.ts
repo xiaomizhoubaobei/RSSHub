@@ -1,11 +1,16 @@
-import { Api, TelegramClient } from 'telegram';
-import type { UserAuthParams } from 'telegram/client/auth';
-import { StringSession } from 'telegram/sessions/index.js';
+import { Api, TelegramClient } from 'teleproto';
+import type { UserAuthParams } from 'teleproto/client/auth';
+import { StringSession } from 'teleproto/sessions/index.js';
 
 import { config } from '@/config';
 import ConfigNotFoundError from '@/errors/types/config-not-found';
 
 let client: TelegramClient | undefined;
+
+const onError = (err: Error) => {
+    throw new Error('Cannot start TG: ' + err);
+};
+
 export async function getClient(authParams?: UserAuthParams, session?: string) {
     if (!config.telegram.session && session === undefined) {
         throw new ConfigNotFoundError('TELEGRAM_SESSION is not configured');
@@ -13,7 +18,7 @@ export async function getClient(authParams?: UserAuthParams, session?: string) {
     if (client) {
         return client;
     }
-    const apiId = Number(config.telegram.apiId ?? 4);
+    const apiId = config.telegram.apiId ?? 4;
     const apiHash = config.telegram.apiHash ?? '014b35b6184100b085b0d0572f9b5103';
 
     const stringSession = new StringSession(session ?? config.telegram.session);
@@ -21,31 +26,25 @@ export async function getClient(authParams?: UserAuthParams, session?: string) {
         connectionRetries: Infinity,
         autoReconnect: true,
         retryDelay: 3000,
-        maxConcurrentDownloads: Number(config.telegram.maxConcurrentDownloads ?? 10),
+        maxConcurrentDownloads: config.telegram.maxConcurrentDownloads ?? 10,
         proxy:
             config.telegram.proxy?.host && config.telegram.proxy.port && config.telegram.proxy.secret
                 ? {
                       ip: config.telegram.proxy.host,
-                      port: Number(config.telegram.proxy.port),
+                      port: config.telegram.proxy.port,
                       MTProxy: true,
                       secret: config.telegram.proxy.secret,
                   }
                 : undefined,
     });
 
-    await client.start(
-        Object.assign(authParams ?? {}, {
-            onError: (err: Error) => {
-                throw new Error('Cannot start TG: ' + err);
-            },
-        }) as any
-    );
+    await client.start({ ...authParams, onError } as UserAuthParams);
     return client;
 }
 
 export function getFilename(x: Api.TypeMessageMedia) {
-    if (x instanceof Api.MessageMediaDocument) {
-        for (const a of (x.document as Api.Document).attributes) {
+    if (x instanceof Api.MessageMediaDocument && x.document instanceof Api.Document) {
+        for (const a of x.document.attributes) {
             if (a instanceof Api.DocumentAttributeFilename) {
                 return a.fileName;
             }

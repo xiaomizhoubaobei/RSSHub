@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -19,7 +19,7 @@ export const route: Route = {
         supportScihub: false,
     },
     name: '栏目',
-    maintainers: [],
+    maintainers: ['nczitzk'],
     handler,
     description: `| 栏目名称          | 栏目 id |
 | ----------------- | ------- |
@@ -34,7 +34,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { id = '10' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 15;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 15;
 
     const rootUrl = 'http://www.gdsrx.org.cn';
     const currentUrl = new URL(`portal/list/index/id/${id}.html`, rootUrl).href;
@@ -46,19 +46,19 @@ async function handler(ctx) {
     let items = $('a.xn-item, a.t-item')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
             return {
-                title: item.find('div.xn-d, div.t-e').text(),
-                link: new URL(item.prop('href'), rootUrl).href,
-                pubDate: parseDate(item.find('div.xn-time, div.t-f').text()),
+                title: $item.find('div.xn-d, div.t-e').text(),
+                link: new URL($item.prop('href')!, rootUrl).href,
+                pubDate: parseDate($item.find('div.xn-time, div.t-f').text()),
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const { data: detailResponse } = await got(item.link);
 
                 const content = load(detailResponse);
@@ -92,7 +92,7 @@ async function handler(ctx) {
         title: `${author} - ${subtitle}`,
         link: currentUrl,
         description: $('meta[name="description"]').prop('content'),
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         image,
         icon,
         logo: icon,

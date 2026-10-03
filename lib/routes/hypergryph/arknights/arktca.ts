@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Data, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -34,7 +34,7 @@ export const route: Route = {
     handler,
 };
 
-async function handler() {
+async function handler(): Promise<Data> {
     const baseUrl = `https://${url}`;
     const { data: allResponse } = await got(`${baseUrl}/posts/`);
     const $ = load(allResponse);
@@ -48,7 +48,7 @@ async function handler() {
         allUrlList.map(async (item) => {
             const { data: response } = await got(item);
             const $$ = load(response);
-            const regVol = /(?<=Vol. )(\w+)/;
+            const regVol = /(?<=Vol. )\w+/;
             const match = regVol.exec($$('div.vp-page-title').find('h1').text());
             const volume = match ? match[0] : '';
             const links = $$('div.theme-hope-content > ul a')
@@ -94,7 +94,7 @@ async function handler() {
                             const comments = Number.parseInt($$('span.wl-num').text());
                             return {
                                 title,
-                                language,
+                                language: language as Language,
                                 author,
                                 pubDate,
                                 category,
@@ -120,6 +120,6 @@ async function handler() {
         image: logoUrl,
         author,
         language: 'zh-CN',
-        item: journals.flat(Infinity),
+        item: journals.flat(),
     };
 }

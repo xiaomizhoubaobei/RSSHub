@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -9,7 +9,7 @@ import timezone from '@/utils/timezone';
 
 export const handler = async (ctx) => {
     const { category = 'zx' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 20;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 20;
 
     const rootUrl = 'https://005.tv';
     const currentUrl = new URL(category ? `${category}/` : '', rootUrl).href;
@@ -18,16 +18,16 @@ export const handler = async (ctx) => {
 
     const $ = load(response);
 
-    const language = $('html').prop('lang');
+    const language = $('html').prop('lang') as Language;
 
     let items = $('div.article-list ul li')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { link: string } => {
+            const $item = $(item);
 
-            const title = item.find('h3').text();
-            const image = item.find('img').prop('src');
+            const title = $item.find('h3').text();
+            const image = $item.find('img').prop('src');
 
             const description = renderToString(
                 <>
@@ -36,18 +36,18 @@ export const handler = async (ctx) => {
                             <img src={image} alt={title} />
                         </figure>
                     ) : null}
-                    {item.find('div.p-row').text() ? <blockquote>{item.find('div.p-row').text()}</blockquote> : null}
+                    {$item.find('div.p-row').text() ? <blockquote>{$item.find('div.p-row').text()}</blockquote> : null}
                 </>
             );
 
             return {
                 title,
                 description,
-                pubDate: parseDate(item.find('span.time').text()),
-                link: new URL(item.find('h3 a').prop('href'), rootUrl).href,
+                pubDate: parseDate($item.find('span.time').text()),
+                link: new URL($item.find('h3 a').prop('href')!, rootUrl).href,
                 content: {
                     html: description,
-                    text: item.find('div.p-row').text(),
+                    text: $item.find('div.p-row').text(),
                 },
                 image,
                 banner: image,
@@ -66,11 +66,11 @@ export const handler = async (ctx) => {
                 const description = $$('div.articleContent').html();
 
                 item.title = title;
-                item.description = description;
-                item.pubDate = timezone(parseDate($$('.time').text()), +8);
+                item.description = description ?? '';
+                item.pubDate = timezone(parseDate($$('.time').text()), 8);
                 item.category = $$('meta[name="keywords"]').prop('content').split(/,/);
                 item.content = {
-                    html: description,
+                    html: description ?? '',
                     text: $$('div.articleContent').text(),
                 };
                 item.language = language;
@@ -85,7 +85,7 @@ export const handler = async (ctx) => {
 
     return {
         title,
-        description: title.split(/_/)[0],
+        description: title.split(/_/, 1)[0],
         link: currentUrl,
         item: items,
         allowEmpty: true,
@@ -99,15 +99,13 @@ export const route: Route = {
     path: '/:category?',
     name: '资讯',
     url: '005.tv',
-    maintainers: ['nczitzk'],
+    maintainers: ['junfengP', 'nczitzk'],
     handler,
     example: '/005/zx',
     parameters: { category: '分类，可在对应分类页 URL 中找到，默认为二次元资讯' },
-    description: `
-| 二次元资讯 | 慢慢说 | 道听途说 | 展会资讯 |
+    description: `| 二次元资讯 | 慢慢说 | 道听途说 | 展会资讯 |
 | ---------- | ------ | -------- | -------- |
-| zx         | zwh    | dtts     | zh       |
-    `,
+| zx         | zwh    | dtts     | zh       |`,
     categories: ['anime'],
 
     features: {

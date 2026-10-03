@@ -1,9 +1,11 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
+import { isValidHost } from '@/utils/valid-host';
 
 import { renderDescription } from './templates/description';
 
@@ -74,7 +76,11 @@ export const route: Route = {
 
 async function handler(ctx) {
     const { column = 'article', category = '0' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    if (!isValidHost(column)) {
+        throw new InvalidParameterError('Invalid column');
+    }
+
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'https://dt.yicai.com';
     const apiUrl = new URL('api/getNewsList', rootUrl).href;
@@ -124,15 +130,15 @@ async function handler(ctx) {
                 content('div.logintips').remove();
 
                 content('img').each((_, e) => {
-                    e = content(e);
+                    const $e = content(e);
 
-                    content(e).replaceWith(
+                    content($e).replaceWith(
                         renderDescription({
                             image: {
-                                src: e.prop('data-original') ?? e.prop('src'),
-                                alt: e.prop('alt'),
-                                width: e.prop('width'),
-                                height: e.prop('height'),
+                                src: $e.prop('data-original') ?? $e.prop('src'),
+                                alt: $e.prop('alt'),
+                                width: $e.prop('width'),
+                                height: $e.prop('height'),
                             },
                         })
                     );
@@ -154,14 +160,14 @@ async function handler(ctx) {
 
     const title = $('title').text();
     const image = $('div.logo a img').prop('src');
-    const icon = new URL($('link[rel="shortcut icon"]').prop('href'), rootUrl).href;
+    const icon = new URL($('link[rel="shortcut icon"]').prop('href')!, rootUrl).href;
 
     return {
         item: items,
         title: `${$(`a[data-cid="${category}"]`).text()}${title}`,
         link: currentUrl,
         description: $('meta[name="keywords"]').prop('content'),
-        language: 'zh',
+        language: 'zh' as const satisfies Language,
         image,
         icon,
         logo: icon,

@@ -3,7 +3,7 @@ import { result } from './response/teamStandingList.json';
 
 const NBA_TEAMS = [...result.rankTypeListMap.E, ...result.rankTypeListMap.W];
 
-const NBA_TEAM_NAMES: Record<string, string> = {
+const NBA_TEAM_NAMES = {
     活塞: 'Pistons',
     尼克斯: 'Knicks',
     猛龙: 'Raptors',
@@ -34,13 +34,10 @@ const NBA_TEAM_NAMES: Record<string, string> = {
     快船: 'Clippers',
     国王: 'Kings',
     鹈鹕: 'Pelicans',
-};
+} satisfies Record<string, string>;
 
-export const NBA_TEAMS_ID_MAP = NBA_TEAMS.reduce(
-    (map, team) => {
-        const englishName = NBA_TEAM_NAMES[team.teamName];
-        map[englishName.toLowerCase()] = team;
-        return map;
-    },
-    {} as Record<string, (typeof NBA_TEAMS)[number] | undefined>
-);
+export const NBA_TEAMS_ID_MAP: Record<string, (typeof NBA_TEAMS)[number] | undefined> = {};
+for (const team of NBA_TEAMS) {
+    const englishName = NBA_TEAM_NAMES[team.teamName];
+    NBA_TEAMS_ID_MAP[englishName.toLowerCase()] = team;
+}

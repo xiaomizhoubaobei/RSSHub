@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
+import { config } from '@/config';
 import type { Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -37,12 +38,12 @@ export const route: Route = {
     description: `Sources
 
 | Posts | OnlyFans | Fansly | CandFans |
-| ----- | -------- | ------- | -------- |
-| posts | onlyfans | fansly   | candfans |
+| ----- | -------- | ------ | -------- |
+| posts | onlyfans | fansly | candfans |
 
 ::: tip
-  When \`posts\` is selected as the value of the parameter **source**, the parameter **id** does not take effect.
-  There is an optinal parameter **limit** which controls the number of posts to fetch, default value is 25.
+When \`posts\` is selected as the value of the parameter **source**, the parameter **id** does not take effect.
+There is an optinal parameter **limit** which controls the number of posts to fetch, default value is 25.
 :::`,
 };
 
@@ -52,7 +53,8 @@ async function handler(ctx) {
     const id = ctx.req.param('id');
     const isPosts = source === 'posts';
 
-    const rootUrl = 'https://coomer.st';
+    const rootUrl = config.coomer.rootUrl;
+    const assetsUrl = config.coomer.assetsUrl;
     const apiUrl = `${rootUrl}/api/v1`;
     const currentUrl = isPosts ? `${apiUrl}/posts` : `${apiUrl}/${source}/user/${id}/posts`;
 
@@ -65,7 +67,7 @@ async function handler(ctx) {
 
     const author = isPosts ? '' : await getAuthor(`${apiUrl}/${source}/user/${id}`);
     const title = isPosts ? 'Coomer Posts' : `Posts of ${author} from ${source} | Coomer`;
-    const image = isPosts ? `${rootUrl}/favicon.ico` : `https://img.coomer.st/icons/${source}/${id}`;
+    const image = isPosts ? `${rootUrl}/favicon.ico` : `${assetsUrl}/icons/${source}/${id}`;
     const items = responseData
         .filter((i) => i.content || i.attachments)
         .slice(0, limit)
@@ -87,9 +89,7 @@ async function handler(ctx) {
             }
             const filesHTML = renderSource(i);
             let $ = load(filesHTML);
-            const coomerFiles = $('img, a, audio, video').map(function () {
-                return $(this).prop('outerHTML')!;
-            });
+            const coomerFiles = $('img, a, audio, video').map((_, el) => $(el).prop('outerHTML')!);
             let desc = '';
             if (i.content) {
                 desc += `<div>${i.content}</div>`;
@@ -97,21 +97,24 @@ async function handler(ctx) {
             $ = load(desc);
             let count = 0;
             const regex = /downloads.fanbox.cc/;
-            $('a').each(function () {
-                const link = $(this).attr('href');
-                if (regex.test(link!)) {
-                    count++;
-                    $(this).replaceWith(coomerFiles[count]);
+            $('a').each((_, el) => {
+                const link = $(el).attr('href');
+                if (!regex.test(link!)) {
+                    return;
                 }
+
+                count++;
+                $(el).replaceWith(coomerFiles[count]);
             });
             desc = (coomerFiles.length > 0 ? coomerFiles[0] : '') + $.html();
-            for (const coomerFile of coomerFiles.slice(count + 1)) {
+            const remainingCoomerFiles = coomerFiles.slice(count + 1);
+            for (const coomerFile of remainingCoomerFiles) {
                 desc += coomerFile;
             }
 
             let enclosureInfo = {};
-            load(desc)('audio source, video source').each(function () {
-                const src = $(this).attr('src') ?? '';
+            load(desc)('audio source, video source').each((_, el) => {
+                const src = $(el).attr('src') ?? '';
                 const mimeType =
                     {
                         m4a: 'audio/mp4',
@@ -124,7 +127,7 @@ async function handler(ctx) {
                 }
 
                 enclosureInfo = {
-                    enclosure_url: new URL(src, rootUrl).toString(),
+                    enclosure_url: new URL(src, rootUrl).href,
                     enclosure_type: mimeType,
                 };
             });
@@ -152,14 +155,15 @@ const renderSource = (item): string =>
     renderToString(
         <>
             {item.files?.map((file, index) => {
+                const mediaUrl = `${config.coomer.assetsUrl}${file.path}`;
                 if (['jpg', 'png', 'webp', 'jpeg', 'jfif'].includes(file.extension)) {
-                    return <img key={`image-${index}`} src={file.path} />;
+                    return <img key={`image-${index}`} src={mediaUrl} />;
                 }
 
                 if (['m4a', 'mp3', 'ogg'].includes(file.extension)) {
                     return (
                         <audio key={`audio-${index}`} controls>
-                            <source src={file.path} type={`audio/${file.extention}`} />
+                            <source src={mediaUrl} type={`audio/${file.extention}`} />
                         </audio>
                     );
                 }
@@ -167,13 +171,13 @@ const renderSource = (item): string =>
                 if (['mp4', 'webm'].includes(file.extension)) {
                     return (
                         <video key={`video-${index}`} controls>
-                            <source src={file.path} type={`video/${file.extention}`} />
+                            <source src={mediaUrl} type={`video/${file.extention}`} />
                         </video>
                     );
                 }
 
                 return (
-                    <a key={`file-${index}`} href={file.path}>
+                    <a key={`file-${index}`} href={mediaUrl}>
                         {file.name}
                     </a>
                 );

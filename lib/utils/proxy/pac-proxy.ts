@@ -8,13 +8,9 @@ const pacProxy = (pacUri: Config['pacUri'], pacScript: Config['pacScript'], prox
 
     // Validate PAC_URI / PAC_SCRIPT
     if (pacScript) {
-        if (typeof pacScript === 'string') {
-            pacUri = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(pacScript);
-        } else {
-            logger.error('Invalid PAC_SCRIPT, use PAC_URI instead');
-        }
+        pacUri = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(pacScript);
     }
-    if (pacUri && typeof pacUri === 'string') {
+    if (pacUri) {
         try {
             pacUrlHandler = new URL(pacUri);
         } catch (error: any) {
@@ -49,7 +45,7 @@ const pacProxy = (pacUri: Config['pacUri'], pacScript: Config['pacScript'], prox
             logger.warn('PAC_URI contains username and/or password, ignoring PROXY_AUTH');
             proxyObj.auth = undefined;
         } else if (['http:', 'https:'].includes(pacUrlHandler.protocol)) {
-            logger.info('PROXY_AUTH is set and will be used for requests from Node.js. However, requests from puppeteer will not use it');
+            logger.info('PROXY_AUTH is set and will be used for requests from Node.js. However, requests from Playwright will not use it');
             promptProxyUri = true;
         } else {
             logger.warn(`PROXY_AUTH is only supported by HTTP(S) proxies, but got ${pacUrlHandler.protocol}, ignoring`);

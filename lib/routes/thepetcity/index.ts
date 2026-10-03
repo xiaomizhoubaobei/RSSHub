@@ -21,19 +21,19 @@ export const route: Route = {
     maintainers: ['TonyRL', 'bigfei'],
     handler,
     url: 'thepetcity.co/',
-    description: `| Column Name       | TermID |
-| -------------------- | ------ |
-| Knowledge飼養大全     | 3      |
-| Funny News毛孩趣聞    | 2      |
-| Raise Pets 養寵物新手  | 5      |
-| Hot Spot 毛孩打卡點    | 4      |
+    description: `| Column Name           | TermID |
+| --------------------- | ------ |
+| Knowledge 飼養大全    | 3      |
+| Funny News 毛孩趣聞   | 2      |
+| Raise Pets 養寵物新手 | 5      |
+| Hot Spot 毛孩打卡點   | 4      |
 | Pet Staff 毛孩好物    | 1      |`,
 };
 
 async function handler(ctx) {
     const term = ctx.req.param('term');
     const searchParams = term ? { pageId: 977_080_509_047_743, term } : { pageId: 977_080_509_047_743 };
-    const data = await ofetch(`${baseUrl}/node_api/v1/articles/posts`, { query: { ...searchParams } });
+    const data = await ofetch(`${baseUrl}/node_api/v1/articles/posts`, { query: searchParams });
 
     const list = data.data.posts.map((post) => ({
         title: post.title,
@@ -61,7 +61,7 @@ async function handler(ctx) {
     );
 
     return {
-        title: termsMap[term] ? termsMap[term].title : termsMap[''].title,
+        title: Object.hasOwn(termsMap, term) ? termsMap[term].title : termsMap[''].title,
         description: '專屬毛孩愛好者的資訊平台，不論你是貓奴、狗奴，還是其他動物控，一起發掘最新的萌寵趣聞、有趣的寵物飼養知識、訓練動物、竉物用品推介、豐富多樣的寵物可愛影片。',
         link: baseUrl,
         image: 'https://assets.presslogic.com/presslogic-hk-pc/static/favicon.ico',
