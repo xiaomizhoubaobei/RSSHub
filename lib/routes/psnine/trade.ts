@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 import type { Route } from '@/types';
 import ofetch from '@/utils/ofetch';
@@ -8,7 +8,7 @@ const handler = async () => {
     const url = 'https://www.psnine.com/trade';
     const response = await ofetch(url);
 
-    const $ = cheerio.load(response);
+    const $ = load(response);
 
     const out = $('.list li')
         .toArray()
@@ -26,7 +26,7 @@ const handler = async () => {
                         .filter((_, i) => i.nodeType === 3)
                         .text()
                         .trim()
-                        .split(/\s{2,}/)[0]
+                        .split(/\s{2,}/, 1)[0]
                 ),
                 author: $item.find('.psnnode').text(),
                 category: $item

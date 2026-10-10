@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 import iconv from 'iconv-lite';
 
-import type { Route } from '@/types';
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -41,11 +41,11 @@ export const route: Route = {
 
 | 徒步 | 露营 | 安全急救 | 领队 | 登雪山 |
 | ---- | ---- | -------- | ---- | ------ |
-| 242  | 950  | 931    | 920  | 915  |
+| 242  | 950  | 931      | 920  | 915    |
 
 | 攀岩 | 骑行 | 跑步 | 滑雪 | 水上运动 |
 | ---- | ---- | ---- | ---- | -------- |
-| 916  | 917  | 918  | 919  | 921    |
+| 916  | 917  | 918  | 919  | 921      |
 
 | 钓鱼 | 潜水 | 攀冰 | 冲浪 | 网球 |
 | ---- | ---- | ---- | ---- | ---- |
@@ -53,7 +53,7 @@ export const route: Route = {
 
 | 绳索知识 | 高尔夫 | 马术 | 户外摄影 | 羽毛球 |
 | -------- | ------ | ---- | -------- | ------ |
-| 968    | 969  | 970  | 973    | 971  |
+| 968      | 969    | 970  | 973      | 971    |
 
 | 游泳 | 溯溪 | 健身 | 瑜伽 |
 | ---- | ---- | ---- | ---- |
@@ -63,15 +63,15 @@ export const route: Route = {
 
 | 服装 | 冲锋衣 | 抓绒衣 | 皮肤衣 | 速干衣 |
 | ---- | ------ | ------ | ------ | ------ |
-| 209  | 923  | 924  | 925  | 926  |
+| 209  | 923    | 924    | 925    | 926    |
 
 | 羽绒服 | 软壳 | 户外鞋 | 登山鞋 | 徒步鞋 |
 | ------ | ---- | ------ | ------ | ------ |
-| 927  | 929  | 211  | 928  | 930  |
+| 927    | 929  | 211    | 928    | 930    |
 
 | 越野跑鞋 | 溯溪鞋 | 登山杖 | 帐篷 | 睡袋 |
 | -------- | ------ | ------ | ---- | ---- |
-| 933    | 932  | 220  | 208  | 212  |
+| 933      | 932    | 220    | 208  | 212  |
 
 | 炉具 | 灯具 | 水具 | 面料 | 背包 |
 | ---- | ---- | ---- | ---- | ---- |
@@ -79,13 +79,14 @@ export const route: Route = {
 
 | 防潮垫 | 电子导航 | 冰岩绳索 | 综合装备 |
 | ------ | -------- | -------- | -------- |
-| 214  | 216    | 215    | 223    |
+| 214    | 216      | 215      | 223      |
+
 </details>`,
 };
 
 async function handler(ctx) {
     const { id = '751' } = ctx.req.param();
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 30;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 30;
 
     const rootUrl = 'https://www.8264.com';
     const currentUrl = new URL(`list/${id}`, rootUrl).href;
@@ -102,20 +103,20 @@ async function handler(ctx) {
         .find('a')
         .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
-            const link = item.prop('href');
+            const link = $item.prop('href');
 
             return {
-                title: item.text(),
-                link: link.startsWith('http') ? link : new URL(link, rootUrl).href,
+                title: $item.text(),
+                link: link!.startsWith('http') ? link : new URL(link!, rootUrl).href,
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const { data: detailResponse } = await got(item.link, {
                     responseType: 'buffer',
                 });
@@ -126,13 +127,13 @@ async function handler(ctx) {
                 content('i.pstatus').remove();
                 content('div.crly').remove();
 
-                const pubDate = content('span.pub-time').text() || content('span.fby span').first().prop('title') || content('span.fby').first().text().split('发表于').pop().trim();
+                const pubDate = content('span.pub-time').text() || content('span.fby span').first().prop('title') || content('span.fby').first().text().split('发表于').pop()!.trim();
 
-                content('img').each(function () {
-                    content(this).replaceWith(
+                content('img').each((_, el) => {
+                    content(el).replaceWith(
                         renderToString(
                             <figure>
-                                <img src={content(this).prop('file')} alt={content(this).prop('alt')} />
+                                <img src={content(el).prop('file')} alt={content(el).prop('alt')} />
                             </figure>
                         )
                     );
@@ -144,7 +145,7 @@ async function handler(ctx) {
                 item.category = content('div.fl_dh a, div.site a')
                     .toArray()
                     .map((c) => content(c).text().trim());
-                item.pubDate = timezone(parseDate(pubDate, ['YYYY-MM-DD HH:mm', 'YYYY-M-D HH:mm']), +8);
+                item.pubDate = timezone(parseDate(pubDate, ['YYYY-MM-DD HH:mm', 'YYYY-M-D HH:mm']), 8);
 
                 return item;
             })
@@ -159,7 +160,7 @@ async function handler(ctx) {
         title: `${$('span.country, h2').text()} - ${description.split(',').pop()}`,
         link: currentUrl,
         description,
-        language: 'zh-cn',
+        language: 'zh-CN' as const satisfies Language,
         icon,
         logo: icon,
         subtitle: $('meta[name="keywords"]').prop('content').trim(),

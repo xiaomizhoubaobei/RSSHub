@@ -1,3 +1,5 @@
+import '@/utils/request-rewriter';
+
 import { http, HttpResponse } from 'msw';
 import { Cookie, CookieJar } from 'tough-cookie';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,16 +8,16 @@ import { config } from '@/config';
 import got from '@/utils/got';
 
 describe('got', () => {
-    it('no ua headers', async () => {
+    it('default ua', async () => {
         const { data } = await got('http://rsshub.test/headers');
-        expect(data['user-agent']).toBeUndefined();
+        expect(data['user-agent']).toMatch(/Macintosh.*Chrome/);
     });
 
     it('retry', async () => {
         const requestRun = vi.fn();
         const { default: server } = await import('@/setup.test');
         server.use(
-            http.get(`http://rsshub.test/retry-test`, () => {
+            http.get('http://rsshub.test/retry-test', () => {
                 requestRun();
                 return HttpResponse.error();
             })

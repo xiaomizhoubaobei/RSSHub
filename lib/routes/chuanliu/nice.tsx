@@ -3,7 +3,7 @@ import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 import MarkdownIt from 'markdown-it';
 
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -36,7 +36,7 @@ export const route: Route = {
 };
 
 async function handler(ctx) {
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 100;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 100;
 
     const rootUrl = 'https://chuanliu.org';
     const apiRootUrl = 'https://s.chuanliu.org';
@@ -60,9 +60,7 @@ async function handler(ctx) {
         const author = contents?.[3] ?? undefined;
         const isStar = (contents?.[5] && contents[5] === 'star') ?? false;
 
-        if (isStar) {
-            contents.splice(5, 1);
-        }
+        const body = isStar ? contents.toSpliced(5, 1) : contents;
 
         return {
             title: `${isStar ? '[STAR] ' : ''}${title}`,
@@ -70,7 +68,7 @@ async function handler(ctx) {
             description: renderToString(
                 <>
                     {item.resourceList.map((resource) => (resource.externalLink ? <figure>{resource.filename ? <img src={resource.externalLink} alt={resource.filename} /> : <img src={resource.externalLink} />}</figure> : null))}
-                    {raw(md.render(contents?.join('\n\n') ?? ''))}
+                    {raw(md.render(body.join('\n\n')))}
                 </>
             ),
             author,
@@ -85,14 +83,14 @@ async function handler(ctx) {
 
     const $ = load(currentResponse);
 
-    const icon = new URL($('link[rel="shortcut icon"]').prop('href'), currentUrl).href;
+    const icon = new URL($('link[rel="shortcut icon"]').prop('href')!, currentUrl).href;
 
     return {
         item: items,
         title: $('title').text(),
         link: currentUrl,
         description: $('span.rainbow-text').first().text(),
-        language: $('html').prop('lang'),
+        language: $('html').prop('lang') as Language,
         icon,
         logo: icon,
         subtitle: $('title').text(),

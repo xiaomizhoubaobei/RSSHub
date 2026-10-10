@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Element } from 'domhandler';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
@@ -13,19 +13,19 @@ import { renderDescription } from './templates/description';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { filter } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '100', 10);
+    const limit = Number(ctx.req.query('limit') ?? '100');
 
     const baseUrl = 'https://0xxx.ws';
     const targetUrl: string = new URL(filter ? `?${filter}` : '', baseUrl).href;
 
     const response = await ofetch(targetUrl);
     const $: CheerioAPI = load(response);
-    const language = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
 
     let items: DataItem[] = $('table#home-table tr:not(.gore)')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const $categoryEl: Cheerio<Element> = $el.find('td.category');
@@ -44,11 +44,11 @@ export const handler = async (ctx: Context): Promise<Data> => {
                           },
                       ]
                     : undefined,
-                category: $categoryEl.html(),
-                catalogue: $catalogueEl.html(),
+                category: $categoryEl.html() ?? undefined,
+                catalogue: $catalogueEl.html() ?? undefined,
                 title,
                 size: $el.find('td.size').text(),
-                date: $dateEl.html(),
+                date: $dateEl.html() ?? undefined,
             });
             const pubDateStr: string | undefined = $dateEl.text();
             const linkUrl: string | undefined = $el.find('td.title a').attr('href');
@@ -81,7 +81,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link);
+                const detailResponse = await ofetch(item.link!);
                 const $$: CheerioAPI = load(detailResponse);
 
                 const description: string | undefined =
@@ -108,6 +108,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
     );
 
     const title: string | undefined = $('title').text()?.split(/\|/).pop();
+    const logoSrc: string | undefined = $('div.logo img').attr('src');
 
     return {
         title: title ? `${title} - ${filter}` : filter,
@@ -115,7 +116,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
         link: targetUrl,
         item: items,
         allowEmpty: true,
-        image: $('div.logo img').attr('src') ? new URL($('div.logo img').attr('src') as string, baseUrl).href : undefined,
+        image: logoSrc ? new URL(logoSrc, baseUrl).href : undefined,
         author: $('meta[property="og:site_name"]').attr('content'),
         language,
         id: targetUrl,
@@ -134,10 +135,9 @@ export const route: Route = {
             description: 'Filter',
         },
     },
-    description: `:::tip
+    description: `::: tip
 To subscribe to [Movie HD 1080p](https://0xxx.ws?category=Movie-HD-1080p), where the source URL is \`https://0xxx.ws?category=Movie-HD-1080p\`, extract the certain parts from this URL to be used as parameters, resulting in the route as [\`/0xxx/category=Movie-HD-1080p\`](https://rsshub.app/0xxx/category=Movie-HD-1080p).
-:::
-`,
+:::`,
     categories: ['multimedia'],
     features: {
         requireConfig: false,
@@ -147,7 +147,7 @@ To subscribe to [Movie HD 1080p](https://0xxx.ws?category=Movie-HD-1080p), where
         supportBT: false,
         supportPodcast: false,
         supportScihub: false,
-        nfsw: true,
+        nsfw: true,
     },
     radar: [
         {

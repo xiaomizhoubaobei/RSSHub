@@ -50,7 +50,8 @@ type Block = {
 
 const applyAttributes = (content: JSX.Element | string, attributes?: BlockAttribute[]): JSX.Element | string => {
     let result: JSX.Element | string = content;
-    for (const attribute of attributes ?? []) {
+    const attributeList = attributes ?? [];
+    for (const attribute of attributeList) {
         switch (attribute) {
             case 'bold':
                 result = <strong>{result}</strong>;
@@ -294,10 +295,11 @@ const renderEmbedImages = (block: Block, index: number): JSX.Element | null => {
         const rawImageBlock = findBlocksByType(imageBlock.model?.blocks ?? imageBlock.blocks ?? imageBlock.items, 'rawImage')[0];
         const width = rawImageBlock?.model?.width;
 
-        if (width && width > maxWidth) {
-            maxWidth = width;
-            largestImage = imageBlock;
+        if (!(width && width > maxWidth)) {
+            continue;
         }
+        maxWidth = width;
+        largestImage = imageBlock;
     }
 
     if (!largestImage) {
@@ -355,7 +357,7 @@ export const extractInitialData = ($: CheerioAPI): any => {
     const initialDataText = JSON.parse(
         $('script:contains("window.__INITIAL_DATA__")')
             .text()
-            .match(/window\.__INITIAL_DATA__\s*=\s*(.*);/)?.[1] ?? '"{}"'
+            .match(/window\.__INITIAL_DATA__\s*=\s*(\S.*)?;/)?.[1] ?? '"{}"'
     );
 
     return JSON.parse(initialDataText);
@@ -375,7 +377,7 @@ const extractArticleWithInitialData = ($: CheerioAPI, item) => {
         };
     }
 
-    const article = Object.values(initialData.data).find((d) => d.name === 'article')?.data;
+    const article = Object.values<any>(initialData.data).find((d) => d.name === 'article')?.data;
     const topics = Array.isArray(article?.topics) ? article.topics : [];
     const blocks = article?.content?.model?.blocks;
 

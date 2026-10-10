@@ -1,18 +1,27 @@
 import { load } from 'cheerio';
 
+import InvalidParameterError from '@/errors/types/invalid-parameter';
 import type { Route } from '@/types';
 import got from '@/utils/got';
+import { isValidHost } from '@/utils/valid-host';
 
 const host = 'https://www.douban.com/explore/column/';
 export const route: Route = {
     path: '/explore/column/:id',
-    name: 'Unknown',
-    maintainers: [],
+    categories: ['social-media'],
+    example: '/douban/explore/column/2',
+    parameters: { id: '分栏目id' },
+    name: '浏览发现分栏目',
+    maintainers: ['LogicJake'],
     handler,
 };
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
+    if (!isValidHost(id)) {
+        throw new InvalidParameterError('Invalid id');
+    }
+
     const link = new URL(id, host).href;
     const response = await got.get(link);
     const $ = load(response.data);
@@ -28,13 +37,8 @@ async function handler(ctx) {
                 author: $(item).find('div.usr-pic a').text(),
             };
             return info;
-        });
-
-    for (let i = list.length - 1; i >= 0; i--) {
-        if (list[i].author === '[已注销]') {
-            list.splice(i, 1);
-        }
-    }
+        })
+        .filter((info) => info.author !== '[已注销]');
 
     const out = await Promise.all(
         list.map(async (info) => {

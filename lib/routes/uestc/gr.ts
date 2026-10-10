@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import type { Context } from 'hono';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -59,7 +59,7 @@ export const route: Route = {
 
 async function handler(ctx: Context): Promise<Data> {
     const type = ctx.req.param('type') || 'important';
-    if (type in typeUrlMap === false) {
+    if (!Object.hasOwn(typeUrlMap, type)) {
         throw new InvalidParameterError('type not supported');
     }
     const typeName = typeNameMap[type];
@@ -71,7 +71,7 @@ async function handler(ctx: Context): Promise<Data> {
 
     const items = entries.map(async (entry) => {
         const element = $(entry);
-        const newsTitle = element.find('a').text() ?? '';
+        const newsTitle = element.find('a').text();
         const newsLink = detailUrl + element.find('a').attr('href');
 
         const newsDetail = await cache.tryGet(newsLink, async () => {
@@ -84,7 +84,7 @@ async function handler(ctx: Context): Promise<Data> {
             return {
                 title: newsTitle,
                 link: newsLink,
-                pubDate: match ? timezone(parseDate(match[1]), +8) : null,
+                pubDate: match ? timezone(parseDate(match[1]), 8) : null,
                 description: content('div.content').html(),
             };
         });
@@ -98,6 +98,6 @@ async function handler(ctx: Context): Promise<Data> {
         title: `研究生院通知（${typeName}）`,
         link: baseUrl,
         description: `电子科技大学研究生院通知（${typeName}）`,
-        item: out as DataItem[],
+        item: out,
     };
 }

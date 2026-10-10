@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Route } from '@/types';
+import type { Language, Route } from '@/types';
 import got from '@/utils/got';
 import { isValidHost } from '@/utils/valid-host';
 
@@ -26,11 +26,11 @@ export const route: Route = {
     handler,
     description: `**\`language\`**
 
-  Refer to [Pornhub F.A.Qs](https://help.pornhub.com/hc/en-us/articles/360044327034-How-do-I-change-the-language-), English by default. For example:
+Refer to [Pornhub F.A.Qs](https://help.pornhub.com/hc/en-us/articles/360044327034-How-do-I-change-the-language-), English by default. For example:
 
-  -   \`cn\` (Chinese), for Pornhub in China [https://cn.pornhub.com](https://cn.pornhub.com)；
+- \`cn\` (Chinese), for Pornhub in China <https://cn.pornhub.com>；
 
-  -   \`jp\` (Japanese), for Pornhub in Japan [https://jp.pornhub.com](https://jp.pornhub.com) etc.`,
+- \`jp\` (Japanese), for Pornhub in Japan <https://jp.pornhub.com> etc.`,
 };
 
 async function handler(ctx) {
@@ -48,9 +48,9 @@ async function handler(ctx) {
         .map((e) => parseItems($(e), showImages));
 
     return {
-        title: $('title').first().text(),
+        title: $('title').text(),
         link,
-        language: $('html').attr('lang') as any,
+        language: $('html').attr('lang') as Language | undefined,
         item: items,
     };
 }

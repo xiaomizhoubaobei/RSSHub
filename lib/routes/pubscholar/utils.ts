@@ -12,7 +12,7 @@ export const uuidv4 = () => crypto.randomUUID();
 
 const generateNonce = (length: number): string => {
     if (!length) {
-        return null;
+        return null!;
     }
 
     let nonce = '';
@@ -27,24 +27,25 @@ const generateNonce = (length: number): string => {
 /**
  * Part of fingerprint2.js shim from uBlock Origin
  * Taken from https://github.com/gorhill/uBlock/blob/master/src/web_accessible_resources/fingerprint2.js
- * @param len
  * @returns
  */
-const hex32 = (len) =>
+const hex32 = () =>
     Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
         .toString(16)
-        .slice(-len)
-        .padStart(len, '0');
+        .slice(-8)
+        .padStart(8, '0');
 
 export const getSignedHeaders = () => {
     const nonce = generateNonce(6);
     const timestamp = Date.now().toString();
+    // server-validated signature relies on JS default codepoint sort; salt starts with digit, nonce can collide on first char with different case
+    // oxlint-disable-next-line unicorn-js/require-array-sort-compare
     const signature = sha1([salt, timestamp, nonce].toSorted().join(''));
     return {
         nonce,
         timestamp,
         signature,
-        'x-finger': `${hex32(8)}${hex32(8)}${hex32(8)}${hex32(8)}`,
+        'x-finger': `${hex32()}${hex32()}${hex32()}${hex32()}`,
     };
 };
 

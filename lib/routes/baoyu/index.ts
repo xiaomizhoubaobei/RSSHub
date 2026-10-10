@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { DataItem, Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
@@ -32,13 +32,16 @@ async function handler() {
     const items = await Promise.all(
         feed.items.map((item) => {
             const link = item.link;
+            if (!link) {
+                throw new Error(`baoyu: feed item "${item.title}" has no link`);
+            }
 
-            return cache.tryGet(link as string, async () => {
-                const response = await ofetch(link as string);
+            return cache.tryGet(link, async () => {
+                const response = await ofetch(link);
                 const $ = load(response);
 
                 const container = $('.container');
-                const content = container.find('.prose').html() || '';
+                const content = container.find('.prose').html();
 
                 return {
                     title: item.title,
@@ -46,7 +49,7 @@ async function handler() {
                     link,
                     pubDate: item.pubDate ? parseDate(item.pubDate) : undefined,
                     author: item.creator || '宝玉',
-                } as DataItem;
+                };
             });
         })
     );
@@ -54,6 +57,6 @@ async function handler() {
     return {
         title: '宝玉的博客',
         link: rootUrl,
-        item: items,
+        item: items.filter((item): item is typeof item & { title: string } => item.title !== undefined),
     };
 }

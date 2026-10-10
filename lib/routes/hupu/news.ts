@@ -7,11 +7,11 @@ import { NBA_TEAMS_ID_MAP } from './consts';
 import { getEntryDetails } from './utils';
 
 export const route: Route = {
-    path: ['/news/:team'],
+    path: '/news/:team',
     name: '队伍新闻',
     url: 'm.hupu.com',
     maintainers: ['hyoban'],
-    example: '/news/Spurs',
+    example: '/hupu/news/Spurs',
     parameters: {
         team: {
             description: '全小写的英文队名，例如：spurs, lakers, warriors 等等',
@@ -19,7 +19,7 @@ export const route: Route = {
     },
     categories: ['bbs'],
     handler: async (ctx): Promise<Data> => {
-        const team = NBA_TEAMS_ID_MAP[ctx.req.param('team')];
+        const team = NBA_TEAMS_ID_MAP[ctx.req.param('team')!];
         const teamId = team?.teamId;
         if (!teamId) {
             throw new Error('Invalid team name');
@@ -30,7 +30,7 @@ export const route: Route = {
             title: item.title,
             guid: item.tid,
             link: `https://m.hupu.com/bbs/${item.tid}`,
-            pubDate: timezone(parseDate(item.publishTime), +8),
+            pubDate: timezone(parseDate(item.publishTime), 8),
         }));
 
         items = await Promise.all(items.map((item) => getEntryDetails(item)));
@@ -39,6 +39,6 @@ export const route: Route = {
             title: `虎扑 - ${team.teamName} 新闻`,
             link: 'https://m.hupu.com',
             item: items,
-        } as Data;
+        };
     },
 };

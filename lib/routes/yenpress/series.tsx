@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import type { Context } from 'hono';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
@@ -32,23 +32,23 @@ async function handler(ctx: Context) {
     const link = `https://yenpress.com/series/${series}`;
 
     const response = await ofetch(link);
-    const $ = cheerio.load(response);
+    const $ = load(response);
 
     const list = $('.show-more-container .inline_block')
         .toArray()
-        .map((item) => {
+        .map((item): DataItem => {
             const $item = $(item);
             return {
                 title: $item.find('span').text().trim(),
                 link: new URL($item.find('a').attr('href')!, baseUrl).href,
             };
-        }) as DataItem[];
+        });
 
     const items = await Promise.all(
         list.map((item) =>
             cache.tryGet(item.link!, async () => {
                 const response = await ofetch(item.link!);
-                const $ = cheerio.load(response);
+                const $ = load(response);
 
                 item.category = $('.detail-labels.mobile-only')
                     .eq(0)

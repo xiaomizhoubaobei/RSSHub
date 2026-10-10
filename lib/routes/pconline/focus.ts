@@ -82,8 +82,7 @@ export const handler = async (ctx) => {
         .replaceAll("'", '"');
     const tinyData = resString.replaceAll(/[\n\r]/g, '');
     const dataString = tinyData.replaceAll(',}', '}');
-    const data = JSON.parse(dataString || '');
-    const { articleList } = data;
+    const { articleList } = JSON.parse(dataString || '');
     const list = articleList.map((item: Item) => ({
         id: item.id,
         title: item.title,
@@ -137,8 +136,10 @@ export const route: Route = {
     maintainers: ['CH563'],
     handler,
     description: `::: tip
-| 全部 | 科技 | 财经 | 生活 | 公司 | 人物 |
-| --- | --- | --- | --- | --- | --- |
-| all | tech | finance | life | company | character |
+
+| 全部 | 科技 | 财经    | 生活 | 公司    | 人物      |
+| ---- | ---- | ------- | ---- | ------- | --------- |
+| all  | tech | finance | life | company | character |
+
 :::`,
 };

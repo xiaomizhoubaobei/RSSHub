@@ -40,9 +40,7 @@ export default {
                         responseType: 'buffer',
                     });
                     const convert_data = iconv.decode(original_data.data, 'gbk');
-                    const description = load(convert_data, {
-                        decodeEntities: false,
-                    })('body > table > tbody > tr > td.oblog_t_2 > div > table > tbody > tr:nth-child(2) > td');
+                    const description = load(convert_data)('body > table > tbody > tr > td.oblog_t_2 > div > table > tbody > tr:nth-child(2) > td');
                     const pubInfo = description.find('span span.oblog_text').text().split('发布于');
                     description.find('table, .adsbygoogle').remove();
 
@@ -60,7 +58,7 @@ export default {
                         title: el.text(),
                         author: pubInfo[0].trim(),
                         description: description.html(),
-                        pubDate: timezone(parseDate(pubInfo[1]?.trim()), +8),
+                        pubDate: timezone(parseDate(pubInfo[1]?.trim()), 8),
                         link: url,
                     };
                     return single;

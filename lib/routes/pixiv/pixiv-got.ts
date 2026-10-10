@@ -19,9 +19,8 @@ async function dohResolve(name, jsonDohEndpoint) {
         });
         if (response.data.Status === 0) {
             return response.data.Answer.map((item) => item.data);
-        } else {
-            logger.error(`Error ${response.data.Status} when querying DoH endpoint ${jsonDohEndpoint}`);
         }
+        logger.error(`Error ${response.data.Status} when querying DoH endpoint ${jsonDohEndpoint}`);
     } catch (error) {
         logger.error(`Failed to resolve ${name}`);
         logger.debug(error);
@@ -36,10 +35,10 @@ const pixivGot = got.extend({
                 if (!config.pixiv.bypassCdn) {
                     return;
                 }
-                let hostname = null;
-                const isIP = ipRegex({ exact: true }).test(config.pixiv.bypassCdnHostname);
+                let hostname: string | null = null;
+                const isIP = ipRegex({ exact: true }).test(config.pixiv.bypassCdnHostname!);
                 if (isIP) {
-                    hostname = config.pixiv.bypassCdnHostname;
+                    hostname = config.pixiv.bypassCdnHostname!;
                 } else {
                     const addresses = await dohResolve(config.pixiv.bypassCdnHostname, config.pixiv.bypassCdnDoh);
                     if (addresses.length) {
@@ -48,17 +47,19 @@ const pixivGot = got.extend({
                         logger.warn(`No IPv4 address resolved from ${config.pixiv.bypassCdnHostname}`);
                     }
                 }
-                if (hostname) {
-                    const actualHost = options.url.host;
-                    options.headers = {
-                        ...options.headers,
-                        host: actualHost,
-                    };
-                    options.url.hostname = hostname;
-                    options.checkServerIdentity = function (host, certificate) {
-                        return tls.checkServerIdentity(actualHost, certificate);
-                    };
+                if (!hostname) {
+                    return;
                 }
+
+                const actualHost = options.url.host;
+                options.headers = {
+                    ...options.headers,
+                    host: actualHost,
+                };
+                options.url.hostname = hostname;
+                options.checkServerIdentity = function (host, certificate) {
+                    return tls.checkServerIdentity(actualHost, certificate);
+                };
             },
         ],
     },

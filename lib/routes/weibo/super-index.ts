@@ -40,8 +40,8 @@ export const route: Route = {
 | soul       | 精华             |
 | video      | 视频（暂不支持） |
 | album      | 相册（暂不支持） |
-| hot_sort  | 热门             |
-| sort_time | 最新帖子         |
+| hot\\_sort  | 热门             |
+| sort\\_time | 最新帖子         |
 | feed       | 最新评论         |`,
 };
 
@@ -49,12 +49,19 @@ interface Card {
     card_group?: Card[];
 }
 
+type ContainerData = {
+    cards?: Card[];
+    pageInfo?: {
+        page_title: string;
+    };
+};
+
 async function handler(ctx) {
     const id = ctx.req.param('id');
     const type = ctx.req.param('type') ?? 'feed';
 
-    const containerData = (await weiboUtils.tryWithCookies((cookies, verifier) =>
-        cache.tryGet(
+    const containerData = await weiboUtils.tryWithCookies((cookies, verifier) =>
+        cache.tryGet<ContainerData>(
             `weibo:super_index:container:${id}:${type}`,
             async () => {
                 const _r = await got('https://m.weibo.cn/api/container/getIndex', {
@@ -75,28 +82,25 @@ async function handler(ctx) {
             config.cache.routeExpire,
             false
         )
-    )) as {
-        cards?: Card[];
-        pageInfo?: {
-            page_title: string;
-        };
-    };
+    );
 
-    const resultItems = [];
+    const resultItems: Array<ReturnType<typeof weiboUtils.formatExtended>> = [];
 
-    function handleCard(ctx, card, resultItems) {
-        if (card.card_type === '9' && 'mblog' in card) {
-            const formatExtended = weiboUtils.formatExtended(ctx, card.mblog, undefined);
-            resultItems.push(formatExtended);
+    function handleCard(card) {
+        if (card.card_type !== '9' || !('mblog' in card)) {
+            return;
         }
+        const formatExtended = weiboUtils.formatExtended(ctx, card.mblog, undefined);
+        resultItems.push(formatExtended);
     }
-    for (const card of containerData?.cards ?? []) {
-        handleCard(ctx, card, resultItems);
+    const cards = containerData?.cards ?? [];
+    for (const card of cards) {
+        handleCard(card);
         if (!('card_group' in card)) {
             continue;
         }
         for (const mblogCard of card.card_group!) {
-            handleCard(ctx, mblogCard, resultItems);
+            handleCard(mblogCard);
         }
     }
 

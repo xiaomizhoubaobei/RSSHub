@@ -7,6 +7,12 @@ import ofetch from '@/utils/ofetch';
 
 export const baseUrl = 'https://www.capitalmind.in';
 
+interface PodcastData {
+    mediaUrl?: string;
+    itunes_duration?: number;
+    image?: string;
+}
+
 export async function fetchArticles(path) {
     const url = `${baseUrl}/${path}/page/1`;
     const response = await ofetch(url);
@@ -17,20 +23,20 @@ export async function fetchArticles(path) {
         .map(async (element) => {
             const $element = $(element);
             const link = baseUrl + $element.attr('href');
-            return await cache.tryGet(link, async () => {
+            return await cache.tryGet(link, async (): Promise<DataItem> => {
                 const title = $element.find('h3').text().trim();
                 const author = $element
                     .find(String.raw`div.text-[16px]`)
                     .text()
                     .trim();
                 const image = $element.find('img').attr('src');
-                const imageUrl = image?.startsWith('/_next/image') ? image.split('url=')[1].split('&')[0] : image;
+                const imageUrl = image?.startsWith('/_next/image') ? image.split('url=', 2)[1].split('&', 1)[0] : image;
                 const decodedImageUrl = imageUrl ? decodeURIComponent(imageUrl) : '';
 
                 // Fetch full article content
                 const articleResponse = await ofetch(link);
                 const $articlePage = load(articleResponse);
-                const $article = $articlePage('article').clone();
+                const $article = $articlePage('article');
 
                 // Extract tags from footer
                 const tags: string[] = $article
@@ -52,13 +58,13 @@ export async function fetchArticles(path) {
                     pubDate = $time.attr('datetime') || $time.text().trim();
                 }
 
-                const $content = $article.find('section[aria-label="Post content"]').clone();
+                const $content = $article.find('section[aria-label="Post content"]');
 
                 // Remove footer
                 $content.find('footer').remove();
 
                 // Process Libsyn podcast iframe (assuming only one)
-                let podcastData: { mediaUrl?: string; itunes_duration?: number; image?: string } = {};
+                let podcastData: PodcastData = {};
 
                 const $iframe = $content.find('iframe[src*="libsyn.com/embed/episode/id/"]');
                 if ($iframe.length) {
@@ -92,17 +98,18 @@ export async function fetchArticles(path) {
                     // Remove srcset attribute
                     $img.removeAttr('srcset');
 
-                    if (src && src.startsWith('/_next/image')) {
-                        // Extract the original URL from the Next.js image URL
-                        const urlMatch = src.match(/url=([^&]+)/);
-                        if (urlMatch && urlMatch[1]) {
-                            const originalUrl = decodeURIComponent(urlMatch[1]);
-                            $img.attr('src', originalUrl);
-                        } else if (src.startsWith('/')) {
-                            // Handle other relative URLs
-                            $img.attr('src', baseUrl + src);
-                        }
+                    if (!src?.startsWith('/_next/image')) {
+                        return;
                     }
+
+                    // Extract the original URL from the Next.js image URL
+                    const urlMatch = src.match(/url=([^&]+)/);
+                    if (!urlMatch?.[1]) {
+                        return;
+                    }
+
+                    const originalUrl = decodeURIComponent(urlMatch[1]);
+                    $img.attr('src', originalUrl);
                 });
                 return {
                     title,
@@ -113,10 +120,10 @@ export async function fetchArticles(path) {
                     itunes_item_image: podcastData?.image || decodedImageUrl,
                     category: tags,
                     pubDate,
-                    enclosure_url: podcastData?.mediaUrl || null,
-                    itunes_duration: podcastData?.itunes_duration || null,
-                    enclosure_type: podcastData?.mediaUrl ? 'audio/mpeg' : null,
-                } as DataItem;
+                    enclosure_url: podcastData?.mediaUrl,
+                    itunes_duration: podcastData?.itunes_duration,
+                    enclosure_type: podcastData?.mediaUrl ? 'audio/mpeg' : undefined,
+                };
             });
         });
 

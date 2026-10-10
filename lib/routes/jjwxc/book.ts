@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import iconv from 'iconv-lite';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
@@ -31,7 +31,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const id = ctx.req.param('id');
-    const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit'), 10) : 100;
+    const limit = ctx.req.query('limit') ? Number(ctx.req.query('limit')) : 100;
 
     const rootUrl = 'https://www.jjwxc.net';
     const currentUrl = new URL(`onebook.php?novelid=${id}`, rootUrl).href;
@@ -51,19 +51,19 @@ async function handler(ctx) {
 
     let items = $('tr[itemprop="chapter"]')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem & { link: string; isVip?: boolean; isLock: boolean } => {
+            const $item = $(item);
 
-            const chapterId = item.find('td').first().text().trim();
-            const chapterName = item.find('span[itemprop="headline"]').text().trim();
-            const chapterIntro = item.find('td').eq(2).text().trim();
+            const chapterId = $item.find('td').first().text().trim();
+            const chapterName = $item.find('span[itemprop="headline"]').text().trim();
+            const chapterIntro = $item.find('td').eq(2).text().trim();
             const chapterUrl = new URL(`onebook.php?novelid=${id}&chapterid=${chapterId}`, rootUrl).href;
-            const chapterWords = item.find('td[itemprop="wordCount"]').text();
-            const chapterClicks = item.find('td.chapterclick').text();
-            const chapterUpdatedTime = item.find('td').last().text().trim();
+            const chapterWords = $item.find('td[itemprop="wordCount"]').text();
+            const chapterClicks = $item.find('td.chapterclick').text();
+            const chapterUpdatedTime = $item.find('td').last().text().trim();
 
-            const isVip = item.find('span[itemprop="headline"] font').last().text() === '[VIP]';
-            const isLock = item.find('td').eq(1).last().text().trim() === '[锁]';
+            const isVip = $item.find('span[itemprop="headline"] font').last().text() === '[VIP]';
+            const isLock = $item.find('td').eq(1).last().text().trim() === '[锁]';
 
             return {
                 title: `${chapterName} ${chapterIntro}`,
@@ -78,40 +78,41 @@ async function handler(ctx) {
                     chapterUpdatedTime,
                 }),
                 author,
-                category: [isVip ? 'VIP' : undefined, ...(category?.split(/\s/) ?? [])].filter(Boolean),
+                category: [isVip ? 'VIP' : '', ...(category?.split(/\s/) ?? [])].filter(Boolean),
                 guid: `jjwxc-${id}#${chapterId}`,
-                pubDate: timezone(parseDate(chapterUpdatedTime), +8),
+                pubDate: timezone(parseDate(chapterUpdatedTime), 8),
                 isVip,
                 isLock,
             };
         });
 
-    items.reverse();
-
     items = await Promise.all(
-        items.slice(0, limit).map((item) =>
-            item.isLock
-                ? Promise.resolve(item)
-                : cache.tryGet(item.link, async () => {
-                      if (!item.isVip) {
-                          const { data: detailResponse } = await got(item.link, {
-                              responseType: 'buffer',
-                          });
+        items
+            .toReversed()
+            .slice(0, limit)
+            .map((item) =>
+                item.isLock
+                    ? Promise.resolve(item)
+                    : cache.tryGet(item.link, async () => {
+                          if (!item.isVip) {
+                              const { data: detailResponse } = await got(item.link, {
+                                  responseType: 'buffer',
+                              });
 
-                          const content = load(iconv.decode(detailResponse, 'gbk'));
+                              const content = load(iconv.decode(detailResponse, 'gbk'));
 
-                          content('span.favorite_novel').parent().remove();
+                              content('span.favorite_novel').parent().remove();
 
-                          item.description += renderBookDescription({
-                              description: content('div.novelbody').html() || undefined,
-                          });
-                      }
+                              item.description += renderBookDescription({
+                                  description: content('div.novelbody').html() || undefined,
+                              });
+                          }
 
-                      delete item.isVip;
+                          delete item.isVip;
 
-                      return item;
-                  })
-        )
+                          return item;
+                      })
+            )
     );
 
     const logoEl = $('div.logo a img');
@@ -123,7 +124,7 @@ async function handler(ctx) {
         title: `${logoEl.prop('alt').replace(/logo/, '')} | ${author}${keywords[0]}`,
         link: currentUrl,
         description: $('span[itemprop="description"]').text(),
-        language: 'zh',
+        language: 'zh' as const,
         image,
         icon,
         logo: icon,

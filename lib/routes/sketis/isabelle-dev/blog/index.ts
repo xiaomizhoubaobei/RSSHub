@@ -17,10 +17,8 @@ export const route: Route = {
     categories: ['programming'],
     example: '/sketis/isabelle-dev/blog/1',
     parameters: { blog: 'name of blog (1 for NEWS; 2 for Release)' },
-    description: `
-- Isabelle News: \`https://isabelle-dev.sketis.net/phame/blog/view/1/\`
-- Isabelle Release: \`https://isabelle-dev.sketis.net/phame/blog/view/2/\`
-`,
+    description: `- Isabelle News: \`https://isabelle-dev.sketis.net/phame/blog/view/1/\`
+- Isabelle Release: \`https://isabelle-dev.sketis.net/phame/blog/view/2/\``,
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -56,7 +54,11 @@ export const route: Route = {
                 const item = $(item_);
                 const title = item.find('.remarkup-header').first();
                 const subtitle = item.find('.phui-document-summary-subtitle').first();
-                const date = subtitle.find('strong').first()[0].nextSibling.data.slice(4); // parse starts after ' on '
+                const dateNode = subtitle.find('strong').first()[0].nextSibling;
+                if (dateNode?.nodeType !== 3) {
+                    throw new Error('Cannot find the post date in the blog summary');
+                }
+                const date = dateNode.data.slice(4); // parse starts after ' on '
                 return {
                     title: title.text(),
                     // We need an absolute URL for `link`, but `a.attr('href')` returns a relative URL.

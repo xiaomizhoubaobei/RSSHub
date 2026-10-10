@@ -36,7 +36,7 @@ async function handler(ctx: Context): Promise<Data> {
     const item = $('.newslist li')
         .toArray()
         .map((e) => ({
-            title: $('a', e).attr('title')?.trim() || '',
+            title: $('a', e).attr('title') || '',
             link: $('a', e).attr('href') || '',
             pubDate: ROCDate($('div p:nth-child(1)', e).text().replace('更新日期：', '').trim()),
             category: [$('div p:nth-child(2)', e).text().replace('分類：', '')],
@@ -56,7 +56,7 @@ export const route: Route = {
     name: '教務處公告',
     categories: ['university'],
     maintainers: ['simbafs'],
-    description: `|           名稱           | :id  |
+    description: `|           名稱           |  :id |
 | :----------------------: | :--: |
 |           全部           | 2652 |
 |          註冊組          | 2462 |

@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import type { Route } from '@/types';
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 
@@ -41,7 +41,7 @@ async function handler(ctx) {
         .first()
         .children()
         .toArray()
-        .map((item) => {
+        .map((item): DataItem => {
             const title = $(item).find('span').text();
             const link = rootUrl + $(item).find('a').attr('href');
 
@@ -56,7 +56,7 @@ async function handler(ctx) {
         .first()
         .children()
         .toArray()
-        .map((item) => {
+        .map((item): DataItem => {
             const title = $(item).find('span').text();
             const link = rootUrl + $(item).find('a').attr('href');
 
@@ -66,12 +66,11 @@ async function handler(ctx) {
             };
         });
 
-    const combinedList = [...list, ...otherList];
-    combinedList.reverse();
+    const combinedList = [...list, ...otherList].toReversed();
 
     const items = await Promise.all(
         combinedList.map((item) =>
-            cache.tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 const detailResponse = await got(item.link);
                 const $ = load(detailResponse.data);
                 item.description = renderToString(

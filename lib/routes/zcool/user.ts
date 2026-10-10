@@ -31,11 +31,11 @@ export const route: Route = {
         },
     ],
     name: '用户作品',
-    description: `  例如:
+    description: `例如:
 
-    站酷的个人主页 \`https://baiyong.zcool.com.cn\` 对应 rss 路径 \`/zcool/user/baiyong\`
+站酷的个人主页 \`https://baiyong.zcool.com.cn\` 对应 rss 路径 \`/zcool/user/baiyong\`
 
-    站酷的个人主页 \`https://www.zcool.com.cn/u/568339\` 对应 rss 路径 \`/zcool/user/568339\``,
+站酷的个人主页 \`https://www.zcool.com.cn/u/568339\` 对应 rss 路径 \`/zcool/user/568339\``,
     maintainers: ['junbaor'],
     handler,
 };
@@ -43,7 +43,7 @@ export const route: Route = {
 async function handler(ctx) {
     const uid = ctx.req.param('uid');
     let pageUrl = `https://www.zcool.com.cn/u/${uid}`;
-    if (Number.isNaN(uid)) {
+    if (Number.isNaN(Number(uid))) {
         if (!isValidHost(uid)) {
             throw new InvalidParameterError('Invalid uid');
         }
@@ -81,7 +81,7 @@ async function handler(ctx) {
     return {
         title: data.props.pageProps.seo.title,
         description: data.props.pageProps.seo.description,
-        image: data.props.pageProps.userInfo.avatar.includes('?x-oss-process') ? data.props.pageProps.userInfo.avatar.split('?')[0] : data.props.pageProps.userInfo.avatar,
+        image: data.props.pageProps.userInfo.avatar.includes('?x-oss-process') ? data.props.pageProps.userInfo.avatar.split('?', 1)[0] : data.props.pageProps.userInfo.avatar,
         link: pageUrl,
         item: items,
     };

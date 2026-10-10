@@ -6,7 +6,7 @@ import { parseDate } from '@/utils/parse-date';
 
 export const route: Route = {
     path: '/chrono',
-    categories: ['new-media'],
+    categories: ['sport'],
     example: '/lephoceen/chrono',
     parameters: {},
     features: {
@@ -31,7 +31,7 @@ export const route: Route = {
 
         // Récupération du fichier json
         const jsonRaw = $('script[id="__NEXT_DATA__"]').html();
-        const jsonData = JSON.parse(jsonRaw);
+        const jsonData = JSON.parse(jsonRaw ?? '');
 
         // Tableau des articles via le chemin identifié du fichier json
         // Structure: props -> pageProps -> data -> datas

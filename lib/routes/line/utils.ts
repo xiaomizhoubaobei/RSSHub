@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { FetchError } from 'ofetch';
 
 import cache from '@/utils/cache';
 import got from '@/utils/got';
@@ -20,7 +21,7 @@ const parseItems = (list) =>
     Promise.all(
         list.map((item) =>
             cache.tryGet(item.link, async () => {
-                const edition = item.link.match(/today\.line\.me\/(\w+?)\/v[23]\/.*$/)[1];
+                const edition = item.link.match(/today\.line\.me\/(\w+)\/v[23]\/.*$/)[1];
                 let data;
                 try {
                     const response = await got(`${baseUrl}/webapi/portal/page/setting/article`, {
@@ -32,7 +33,7 @@ const parseItems = (list) =>
                     });
                     data = response.data;
                 } catch (error) {
-                    if ((error.name === 'HTTPError' || error.name === 'FetchError') && error.response.statusCode === 404) {
+                    if (error instanceof FetchError && error.statusCode === 404) {
                         logger.error(`Error parsing article ${item.link}: ${error.message}`);
                         return item;
                     }

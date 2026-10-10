@@ -33,30 +33,35 @@ export const route: Route = {
     view: ViewType.Notifications,
 };
 
-async function handler() {
+async function handler(): Promise<Data> {
     const feed = await parser.parseURL('https://code.visualstudio.com/feed.xml');
+    if (!feed.title) {
+        throw new Error('VS Code blog feed has no title');
+    }
 
     const items = await Promise.all(
-        feed.items.map((item) =>
-            cache.tryGet(item.link as string, async () => {
-                const data = await ofetch(item.link as string);
+        feed.items.map((item) => {
+            const { link, title } = item;
+            if (!link || !title) {
+                throw new Error('VS Code blog feed item has no link or title');
+            }
+            return cache.tryGet(link, async (): Promise<DataItem> => {
+                const data = await ofetch(link);
                 const $ = load(data);
 
                 // remove title and time
-                $('main h1').first().remove();
+                $('main h1').remove();
                 $('main p').first().remove();
 
-                item.content = $('main').html() as string;
-
                 return {
-                    title: item.title,
-                    link: item.link,
-                    description: item.content,
+                    title,
+                    link,
+                    description: $('main').html(),
                     pubDate: item.pubDate,
                     author: item.creator,
-                } as DataItem;
-            })
-        )
+                };
+            });
+        })
     );
 
     return {
@@ -65,5 +70,5 @@ async function handler() {
         description: feed.description,
         item: items,
         language: 'en',
-    } as Data;
+    };
 }

@@ -15,13 +15,13 @@ function extractArticlesFromDOM($: CheerioAPI): DataItem[] {
         .map((article) => {
             const element = $(article);
 
-            const title = element.find('h2').text().trim();
+            const title = element.find('h2').text();
             const link = element.find('a').first().attr('href');
             const fullLink = link ? (link.startsWith('http') ? link : `${rootUrl}${link.startsWith('/') ? link : `/${link}`}`) : '';
 
             // Extract date and author with single regex
-            const metaText = element.find('.text-sm.text-slate-500').text().trim();
-            const metaMatch = metaText.match(/^([^•]+)\s*•\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/);
+            const metaText = element.find('.text-sm.text-slate-500').text();
+            const metaMatch = metaText.match(/^([^•]+)•\s*([A-Z]+\s+\d{1,2},?\s+\d{4})/i);
             const author = metaMatch ? metaMatch[1].trim() : 'Cline Team';
             const pubDate = metaMatch ? parseDate(metaMatch[2]) : undefined;
 
@@ -38,7 +38,7 @@ function extractArticlesFromDOM($: CheerioAPI): DataItem[] {
                   }
                 : null;
         })
-        .filter(Boolean) as DataItem[];
+        .filter((item) => item !== null);
 }
 
 async function handler() {

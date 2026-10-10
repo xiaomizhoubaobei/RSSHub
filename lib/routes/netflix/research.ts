@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 
 import type { Route } from '@/types';
+import { collapseWhitespace } from '@/utils/common-utils';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
@@ -20,11 +21,7 @@ export const route: Route = {
 };
 
 const resolveArticle = (data, store) => {
-    if (data === null) {
-        return data;
-    }
-
-    if (typeof data !== 'object') {
+    if (!(data instanceof Object)) {
         return data;
     }
 
@@ -38,7 +35,7 @@ const resolveArticle = (data, store) => {
         return target === undefined ? null : resolveArticle(target, store);
     }
 
-    const out = Array.isArray(data) ? [] : {};
+    const out = {};
     for (const [k, v] of Object.entries(data)) {
         out[k] = resolveArticle(v, store);
     }
@@ -72,6 +69,7 @@ async function handler() {
             title: item.title,
             description: item.description,
             link: item.link,
+            guid: collapseWhitespace(item.title) ?? undefined,
             pubDate: (item.date ?? item.startDate) ? parseDate(item.date ?? item.startDate) : undefined,
             category: item.tags?.json,
             image: item.image?.url,

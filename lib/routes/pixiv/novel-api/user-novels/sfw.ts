@@ -17,7 +17,7 @@ export async function getSFWUserNovels(id: string, fullContent: boolean = false,
 
     const novels = Object.keys(allData.body.novels)
         .toSorted((a, b) => Number(b) - Number(a))
-        .slice(0, Number.parseInt(String(limit), 10));
+        .slice(0, Number(String(limit)));
 
     if (novels.length === 0) {
         throw new Error('No novels found for this user, or is an R18 creator, fallback to ConfigNotFoundError');
@@ -28,12 +28,12 @@ export async function getSFWUserNovels(id: string, fullContent: boolean = false,
         searchParams.append('ids[]', novel);
     }
 
-    const { data } = (await got(`${baseUrl}/ajax/user/${id}/profile/novels`, {
+    const { data }: SFWNovelsResponse = await got(`${baseUrl}/ajax/user/${id}/profile/novels`, {
         headers: {
             referer: url,
         },
         searchParams,
-    })) as SFWNovelsResponse;
+    });
 
     const items = await Promise.all(
         Object.values(data.body.works).map(async (item) => {

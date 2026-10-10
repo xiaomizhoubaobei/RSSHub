@@ -25,11 +25,15 @@ export interface UserInfoResponse {
 }
 
 export interface PostListResponse {
-    body: PostItem[];
+    body: {
+        posts: PostItem[];
+    };
 }
 
 export interface PostDetailResponse {
-    body: PostDetail;
+    body: {
+        post: PostDetail;
+    };
 }
 
 export interface PostItem {
@@ -112,7 +116,11 @@ export interface ArticlePost extends BasicPost {
     body: {
         blocks: Block[];
         embedMap: {
-            [key: string]: unknown;
+            [key: string]: {
+                id: string;
+                serviceProvider: string;
+                contentId: string;
+            };
         };
         fileMap: {
             [key: string]: {

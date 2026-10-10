@@ -1,7 +1,7 @@
 import { renderToString } from 'hono/jsx/dom/server';
 
 import type { Route } from '@/types';
-import got from '@/utils/got';
+import ofetch from '@/utils/ofetch';
 
 const renderDescription = (image, description, src) =>
     renderToString(
@@ -31,10 +31,17 @@ export const route: Route = {
         requireConfig: false,
         requirePuppeteer: false,
         antiCrawler: false,
+        supportRadar: true,
         supportBT: false,
         supportPodcast: false,
         supportScihub: false,
     },
+    radar: [
+        {
+            source: ['music.163.com/user/home'],
+            target: '/music/user/playlist/:id',
+        },
+    ],
     name: '用户歌单',
     maintainers: ['DIYgod'],
     handler,
@@ -43,22 +50,20 @@ export const route: Route = {
 async function handler(ctx) {
     const uid = ctx.req.param('uid');
 
-    const response = await got.post('https://music.163.com/api/user/playlist', {
-        headers: {
-            Referer: 'https://music.163.com/',
-        },
-        form: {
+    const response = await ofetch.raw('https://music.163.com/api/user/playlist', {
+        method: 'POST',
+        body: new URLSearchParams({
             uid,
-            limit: 1000,
-            offset: 0,
-        },
+            limit: '1000',
+            offset: '0',
+        }),
+        // The API responds with text/plain
+        responseType: 'json',
     });
 
-    const playlist = response.data.playlist || [];
+    const playlist = response._data.playlist || [];
 
-    const creator = (playlist[0] || {}).creator;
-
-    const { nickname, signature, avatarUrl } = creator;
+    const { nickname, signature, avatarUrl } = (playlist[0] || {}).creator;
 
     return {
         title: `${nickname} 的所有歌单`,
@@ -66,7 +71,7 @@ async function handler(ctx) {
         subtitle: signature,
         description: signature,
         author: nickname,
-        updated: response.headers.date,
+        updated: response.headers.get('date') ?? undefined,
         icon: avatarUrl,
         image: avatarUrl,
         item: playlist.map((pl) => {

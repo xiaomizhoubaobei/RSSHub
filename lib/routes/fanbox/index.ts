@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Data, Route } from '@/types';
+import type { Data, DataItem, Route } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { isValidHost } from '@/utils/valid-host';
 
@@ -13,7 +13,7 @@ export const route: Route = {
     categories: ['social-media'],
     example: '/fanbox/official',
     parameters: { creator: 'fanbox user name' },
-    maintainers: ['KarasuShin'],
+    maintainers: ['KarasuShin', 'pseudoyu'],
     name: 'Creator',
     handler,
     features: {
@@ -24,6 +24,7 @@ export const route: Route = {
                 optional: true,
             },
         ],
+        requirePuppeteer: false,
         nsfw: true,
     },
 };
@@ -42,9 +43,9 @@ async function handler(ctx: Context): Promise<Data> {
 
     try {
         const userApi = `https://api.fanbox.cc/creator.get?creatorId=${creator}`;
-        const userInfoResponse = (await ofetch(userApi, {
+        const userInfoResponse = await ofetch<UserInfoResponse>(userApi, {
             headers: getHeaders(),
-        })) as UserInfoResponse;
+        });
         title = `Fanbox - ${userInfoResponse.body.user.name}`;
         description = userInfoResponse.body.description;
         image = userInfoResponse.body.user.iconUrl;
@@ -52,8 +53,9 @@ async function handler(ctx: Context): Promise<Data> {
         // ignore
     }
 
-    const postListResponse = (await ofetch(`https://api.fanbox.cc/post.listCreator?creatorId=${creator}&limit=20`, { headers: getHeaders() })) as PostListResponse;
-    const items = await Promise.all(postListResponse.body.map((i) => parseItem(i)));
+    const postListResponse = await ofetch<PostListResponse>(`https://api.fanbox.cc/post.listCreator?creatorId=${creator}&limit=20&withPinned=true`, { headers: getHeaders() });
+
+    const items: DataItem[] = await Promise.all(postListResponse.body.posts.map((i) => parseItem(i)));
 
     return {
         title,

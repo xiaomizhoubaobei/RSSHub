@@ -8,7 +8,7 @@ export const route: Route = {
     path: '/channel/:type?/:language?',
     name: '栏目',
     url: 'theinitium.com',
-    maintainers: ['prnake', 'mintyfrankie'],
+    maintainers: ['prnake', 'mintyfrankie', 'pseudoyu'],
     parameters: {
         type: '栏目，缺省为最新（latest）',
         language: '语言，简体`zh-hans`，繁体`zh-hant`，缺省为不限',
@@ -42,11 +42,11 @@ export const route: Route = {
     categories: ['new-media'],
     description: `Type 栏目（对应 Ghost 标签）：
 
-| 最新   | 速递     | 评论    | 国际          | 大陆     | 香港     | 台湾   | 科技       | 专题   | 日报        | 周报   |
-| ------ | -------- | ------- | ------------- | -------- | -------- | ------ | ---------- | ------ | ----------- | ------ |
+| 最新   | 速递     | 评论    | 国际          | 大陆     | 香港     | 台湾   | 科技       | 专题    | 日报        | 周报   |
+| ------ | -------- | ------- | ------------- | -------- | -------- | ------ | ---------- | ------- | ----------- | ------ |
 | latest | whatsnew | opinion | international | mainland | hongkong | taiwan | technology | feature | daily-brief | weekly |
 
-:::tip
+::: tip
 设置环境变量 \`INITIUM_MEMBER_COOKIE\` 可获取付费文章全文。
 :::`,
 };

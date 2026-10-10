@@ -58,12 +58,12 @@ export const route: Route = {
         const configTarget = urlMap[type] || urlMap.tzgg;
         const response = await ofetch(configTarget.url);
         const $ = load(response);
-        const list = $('.lunwen dl dd').toArray().slice(0, 10);
+        const list = $('.lunwen dl dd').slice(0, 10).toArray();
 
         const items = await Promise.all(
             list.map((item) => {
                 const $item = $(item);
-                const $link = $item.find('a').first();
+                const $link = $item.find('a');
                 const link = new URL($link.attr('href') || '', configTarget.url).href;
 
                 const pubDate = parseDate($item.find('.spani').text());
@@ -73,7 +73,7 @@ export const route: Route = {
                     try {
                         const detailResponse = await ofetch(link);
                         const $$ = load(detailResponse);
-                        const description = $$('.v_news_content').html() || $$('#vsb_content').html() || '';
+                        const description = $$('.v_news_content').html() || $$('#vsb_content').html();
 
                         return {
                             title,

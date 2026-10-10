@@ -7,19 +7,19 @@ import { parseDate } from '@/utils/parse-date';
 
 import { CONFIG_OPTIONS, getClient, parsePost, postFilter } from './utils';
 
-const handler = async (ctx: Context) => {
-    const limit = Number.parseInt(ctx.req.query('limit') ?? '20', 10);
+const handler = async (ctx: Context): Promise<Data> => {
+    const limit = Number(ctx.req.query('limit') ?? '20');
     const name = ctx.req.param('name');
     const mediaOnly = ctx.req.param('media') === 'media';
 
-    if (!name.startsWith('@')) {
+    if (!name!.startsWith('@')) {
         throw new InvalidParameterError('ユーザー名は@で始まる必要があります');
     }
 
     const client = getClient();
 
     const userInfo = await client.getPersonaByName({
-        name: name.slice(1),
+        name: name!.slice(1),
     });
 
     const persona = userInfo.persona;
@@ -42,7 +42,7 @@ const handler = async (ctx: Context) => {
                 author: persona?.name,
                 link: `https://mixi.social/@${persona?.name}/posts/${post.postId}`,
             })) ?? [],
-    } as Data;
+    };
 };
 
 export const route: Route = {

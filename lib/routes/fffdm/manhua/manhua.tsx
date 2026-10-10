@@ -47,14 +47,14 @@ async function handler(ctx) {
     const id = ctx.req.param('id');
     const count = ctx.req.query('limit') || 99999;
     const cdnNum = ctx.req.param('cdn') || 5;
-    const cdn = !Number.isNaN(Number.parseInt(cdnNum)) && 1 <= Number.parseInt(cdnNum) && Number.parseInt(cdnNum) <= 5 ? `https://p${cdnNum}.fzacg.com` : `https://p5.fzacg.com`;
+    const cdn = !Number.isNaN(Number.parseInt(cdnNum)) && 1 <= Number.parseInt(cdnNum) && Number.parseInt(cdnNum) <= 5 ? `https://p${cdnNum}.fzacg.com` : 'https://p5.fzacg.com';
 
     // 获取漫画清单
     const response = await got(`${host}/api/manhua/${id}`);
     const data = response.data;
 
     const chapter_detail = await Promise.all(
-        data.mhlist.splice(0, count).map((item) => {
+        data.mhlist.slice(0, count).map((item) => {
             const url = `${host}/api/manhua/${id}/${item.url}`;
             return cache.tryGet(url, async () => {
                 const picContent = await get_pic(url);

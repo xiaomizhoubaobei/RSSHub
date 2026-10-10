@@ -38,7 +38,7 @@ export const route: Route = {
             {
                 name: 'BILIBILI_COOKIE_*',
                 optional: true,
-                description: `如果没有此配置，那么必须开启 puppeteer 支持；BILIBILI_COOKIE_{uid}: 用于用户关注动态系列路由，对应 uid 的 b 站用户登录后的 Cookie 值，\`{uid}\` 替换为 uid，如 \`BILIBILI_COOKIE_2267573\`，获取方式：
+                description: `如果没有此配置，那么必须开启 Playwright 支持；BILIBILI_COOKIE_{uid}: 用于用户关注动态系列路由，对应 uid 的 b 站用户登录后的 Cookie 值，\`{uid}\` 替换为 uid，如 \`BILIBILI_COOKIE_2267573\`，获取方式：
 1.  打开 [https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/dynamic_new?uid=0&type=8](https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/dynamic_new?uid=0&type=8)
 2.  打开控制台，切换到 Network 面板，刷新
 3.  点击 dynamic_new 请求，找到 Cookie
@@ -287,11 +287,11 @@ async function handler(ctx) {
 
     let body: BilibiliWebDynamicResponse;
 
-    const cookie = (await cacheIn.getCookie()) as string;
+    const cookie = await cacheIn.getCookie();
     body = await getDynamic(cookie);
 
     if (body?.code === -352) {
-        const cookie = (await cacheIn.getCookie(true)) as string;
+        const cookie = await cacheIn.getCookie(true);
         body = await getDynamic(cookie);
 
         if (body?.code === -352) {
@@ -299,7 +299,7 @@ async function handler(ctx) {
             throw new CaptchaError('遇到源站风控校验，请稍后再试');
         }
     }
-    const items = (body as BilibiliWebDynamicResponse)?.data?.items;
+    const items = body?.data?.items;
 
     let author = items[0]?.modules?.module_author?.name;
     let face = items[0]?.modules?.module_author?.face;
@@ -346,19 +346,15 @@ async function handler(ctx) {
                             const emoji = node.emoji;
                             description = description.replaceAll(
                                 emoji.text,
-                                `<img alt="${emoji.text}" src="${emoji.icon_url}" style="margin: -1px 1px 0px; display: inline-block; width: 20px; height: 20px; vertical-align: text-bottom;" title="" referrerpolicy="no-referrer">`
+                                () => `<img alt="${emoji.text}" src="${emoji.icon_url}" style="margin: -1px 1px 0px; display: inline-block; width: 20px; height: 20px; vertical-align: text-bottom;" title="">`
                             );
                         }
                         // 处理转发带图评论的情况
                         if (node?.pics?.length) {
                             const { pics, text } = node;
-                            description = description.replaceAll(
-                                text,
+                            description = description.replaceAll(text, () =>
                                 pics
-                                    .map(
-                                        (pic) =>
-                                            `<img alt="${text}" src="${pic.src}" style="margin: 0px 0px 0px; display: inline-block; width: ${pic.width}px; height: ${pic.height}px; vertical-align: text-bottom;" title="" referrerpolicy="no-referrer">`
-                                    )
+                                    .map((pic) => `<img alt="${text}" src="${pic.src}" style="margin: 0px 0px 0px; display: inline-block; width: ${pic.width}px; height: ${pic.height}px; vertical-align: text-bottom;" title="">`)
                                     .join('<br>')
                             );
                         }

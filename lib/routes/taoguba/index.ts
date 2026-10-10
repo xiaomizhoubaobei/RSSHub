@@ -34,21 +34,21 @@ async function handler(ctx) {
         .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 70)
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
 
-            const a = item.find('.middle-list-tittle a');
+            const a = $item.find('.middle-list-tittle a');
 
             return {
                 title: a.text().trim(),
                 link: `${rootUrl}/${a.attr('href')}`,
-                author: item.find('.middle-list-user a').text().trim(),
+                author: $item.find('.middle-list-user a').text().trim(),
             };
         });
 
     items = await Promise.all(items.map(async (item) => await renderPostDetail(item)));
 
     return {
-        title: $('head title').text().trim().split('_')[0],
+        title: $('head title').text().trim().split('_', 1)[0],
         link: currentUrl,
         item: items,
     };

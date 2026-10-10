@@ -3,7 +3,7 @@ import zlib from 'node:zlib';
 import { raw } from 'hono/html';
 import { renderToString } from 'hono/jsx/dom/server';
 
-import got from '@/utils/got';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
 const constants = {
@@ -26,25 +26,26 @@ const icon = new URL('foresight.ico', rootUrl).href;
 const image = new URL('vertical_logo.png', imgRootUrl).href;
 
 const processItems = async (apiUrl, limit, ...parameters) => {
-    let searchParams = {
+    const searchParams = {
         size: limit,
     };
     for (const param of parameters) {
-        searchParams = {
-            ...searchParams,
-            ...param,
-        };
+        Object.assign(searchParams, param);
     }
 
     const info = {
         column: '',
     };
 
-    const { data: response } = await got(apiUrl, {
-        searchParams,
-    });
+    const requestUrl = new URL(apiUrl);
+    for (const [key, value] of Object.entries(searchParams)) {
+        requestUrl.searchParams.set(key, String(value));
+    }
 
-    let items = JSON.parse(String(zlib.inflateSync(Buffer.from(response.data?.list ?? response.data, 'base64'))));
+    const response = await ofetch(requestUrl.href);
+
+    const buffer = Buffer.from(response.data?.list ?? response.data, 'base64');
+    let items = JSON.parse(String(zlib.inflateSync(buffer)));
 
     items = (items?.list ?? items).slice(0, limit).map((item) => {
         const sourceType = item.source_type ?? (item.source_link ? (item.column?.title ? 'article' : 'news') : item.event_type ? 'event' : constants.defaultType);
@@ -52,7 +53,7 @@ const processItems = async (apiUrl, limit, ...parameters) => {
         item = item.source_type ? item[item.source_type] : item;
 
         const column = item.column?.title;
-        info.column = info.column || column;
+        info.column ||= column;
 
         const categories = [
             column,
@@ -80,12 +81,12 @@ const processItems = async (apiUrl, limit, ...parameters) => {
                     ) : null}
                     {item.img ? (
                         <figure>
-                            <img src={item.img.split('?')[0]} />
+                            <img src={item.img.split('?', 1)[0]} />
                         </figure>
                     ) : null}
                 </>
             ),
-            author: item.column?.title ?? item.author?.username ?? undefined,
+            author: item.column?.title ?? item.author?.username,
             category: categories,
             guid: `foresightnews-${sourceType}#${item.id}`,
             pubDate: item.published_at ? parseDate(item.published_at * 1000) : undefined,

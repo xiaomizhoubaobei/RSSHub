@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import type { Context } from 'hono';
 
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, Route } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
@@ -31,13 +31,13 @@ async function handler(ctx: Context): Promise<Data> {
             description: $('thetext').text(),
             pubDate: parseDate($('bug_when').text()),
             author: $('who').attr('name'),
-        } as DataItem;
+        };
     });
     return { title: $('short_desc').text(), link, item: items.toArray() };
 }
 
-function markdownFrom(instances: Map<string, string>, separator: string = ', '): string {
-    return [...instances.entries()].map(([k, v]) => `[\`${k}\`](https://${v})`).join(separator);
+function markdownFrom(separator: string = ', '): string {
+    return [...INSTANCES].map(([k, v]) => `[\`${k}\`](https://${v})`).join(separator);
 }
 
 export const route: Route = {
@@ -50,12 +50,12 @@ export const route: Route = {
         site: 'site identifier',
         bugId: 'numeric identifier of the bug in the site',
     },
-    description: `Supported site identifiers: ${markdownFrom(INSTANCES)}.`,
+    description: `Supported site identifiers: ${markdownFrom()}.`,
     categories: ['programming'],
 
     // Radar is infeasible, because it needs access to URL parameters.
     zh: {
         name: 'bugs',
-        description: `支持的站点标识符：${markdownFrom(INSTANCES, '、')}。`,
+        description: `支持的站点标识符：${markdownFrom('、')}。`,
     },
 };

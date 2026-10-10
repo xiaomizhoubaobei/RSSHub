@@ -50,9 +50,7 @@ export const route: Route = {
 };
 
 async function handler() {
-    const response = await ofetch<BlogApiResponse>('https://huggingface.co/api/blog');
-
-    const { allBlogs } = response;
+    const { allBlogs } = await ofetch<BlogApiResponse>('https://huggingface.co/api/blog');
 
     const lists = allBlogs.map((blog) => ({
         title: blog.title,
@@ -62,7 +60,7 @@ async function handler() {
             name: author.fullname || author.name,
         })),
         upvotes: blog.upvotes,
-        image: blog.thumbnail ? new URL(blog.thumbnail, 'https://huggingface.co').toString() : undefined,
+        image: blog.thumbnail ? new URL(blog.thumbnail, 'https://huggingface.co').href : undefined,
         category: blog.tags,
     }));
 
@@ -74,7 +72,7 @@ async function handler() {
                 $('.mb-4, .mb-6, .not-prose, h1').remove();
                 return {
                     ...item,
-                    description: $('.blog-content').html() ?? undefined,
+                    description: $('.blog-content').html(),
                 };
             })
         )

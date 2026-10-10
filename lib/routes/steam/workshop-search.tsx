@@ -27,9 +27,7 @@ Language Parameter:
 
 | English | 简体中文 | 繁體中文 | 日本語   | 한국어  | ภาษาไทย | български | čeština | dansk  | Deutsch | español | latam | ελληνικά | français | italiano | Bahasa Indonesia | magyar    | Nederlands | norsk     | polski | português  | brasileiro | română   | русский | suomi   | svenska | Türkçe  | Tiếng Việt | українська |
 | ------- | -------- | -------- | -------- | ------- | ------- | --------- | ------- | ------ | ------- | ------- | ----- | -------- | -------- | -------- | ---------------- | --------- | ---------- | --------- | ------ | ---------- | ---------- | -------- | ------- | ------- | ------- | ------- | ---------- | ---------- |
-| english | schinese | tchinese | japanese | koreana | thai    | bulgarian | czech   | danish | german  | spanish | latam | greek    | french   | italian  | indonesian       | hungarian | dutch      | norwegian | polish | portuguese | brazilian  | romanian | russian | finnish | swedish | turkish | vietnamese | ukrainian  |
-
-`,
+| english | schinese | tchinese | japanese | koreana | thai    | bulgarian | czech   | danish | german  | spanish | latam | greek    | french   | italian  | indonesian       | hungarian | dutch      | norwegian | polish | portuguese | brazilian  | romanian | russian | finnish | swedish | turkish | vietnamese | ukrainian  |`,
     name: 'Community Workshop Search',
     maintainers: ['NyaaaDoge'],
 
@@ -47,15 +45,15 @@ Language Parameter:
         const items = $('div.workshopBrowseItems .workshopItem')
             .toArray()
             .map((item) => {
-                item = $(item);
-                const publishedFileId = item.find('a').first().attr('data-publishedfileid');
-                const entryTitle = item.find('.workshopItemTitle').first().text();
-                const authorNickName = item.find('.workshop_author_link').first().text();
-                const previewImage = item.find('.workshopItemPreviewImage').first().attr('src');
-                const ratingImage = item.find('.fileRating').first().attr('src');
+                const $item = $(item);
+                const publishedFileId = $item.find('a').first().attr('data-publishedfileid');
+                const entryTitle = $item.find('.workshopItemTitle').first().text();
+                const authorNickName = $item.find('.workshop_author_link').first().text();
+                const previewImage = $item.find('.workshopItemPreviewImage').first().attr('src');
+                const ratingImage = $item.find('.fileRating').first().attr('src');
                 // Some items are flaged as 'accepted for game' and 'incompatible item'
                 const checkMarkImages: string[] = [];
-                $(item)
+                $($item)
                     .find('.workshop_checkmark')
                     .each((index, element) => {
                         const checkMarkElement = $(element);
@@ -67,8 +65,8 @@ Language Parameter:
                     });
                 // const script_tag = item.next('script');
                 // console.log(`script_tag:${script_tag.text()}`);
-                const hoverContent = item.next('script').text();
-                const regex = /SharedFileBindMouseHover\(\s*"sharedfile_\d+",\s*(?:true|false),\s*({.*?})\s*\);/;
+                const hoverContent = $item.next('script').text();
+                const regex = /SharedFileBindMouseHover\(\s*"sharedfile_\d+",\s*(?:true|false),\s*(\{.*?\})\s*\);/;
                 const match = hoverContent.match(regex);
 
                 let entryDescription = '';

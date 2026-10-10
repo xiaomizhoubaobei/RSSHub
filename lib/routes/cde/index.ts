@@ -94,13 +94,13 @@ export const route: Route = {
     name: '首页',
     maintainers: ['Fatpandac'],
     handler,
-    description: `-   频道
+    description: `- 频道
 
 | 新闻中心 | 政策法规 |
 | :------: | :------: |
 |   news   |  policy  |
 
-  -   类别
+- 类别
 
 | 新闻中心 | 政务新闻 | 要闻导读 | 图片新闻 | 工作动态 |
 | :------: | :------: | :------: | :------: | :------: |
@@ -121,7 +121,7 @@ async function handler(ctx) {
         method: 'post',
         url,
         headers: {
-            cookie: await utils.getCookie(ctx),
+            cookie: await utils.getCookie(),
         },
         form: requestData[channel][cate],
     });
@@ -143,7 +143,7 @@ async function handler(ctx) {
             cache.tryGet(item.link, async () => {
                 const detailResponse = await got(item.link, {
                     headers: {
-                        cookie: await utils.getCookie(ctx),
+                        cookie: await utils.getCookie(),
                     },
                 });
                 const $ = load(detailResponse.data);

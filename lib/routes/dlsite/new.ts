@@ -133,7 +133,7 @@ async function handler(ctx) {
         title,
         link,
         description,
-        language: 'ja-jp',
+        language: 'ja' as const,
         item,
     };
 }

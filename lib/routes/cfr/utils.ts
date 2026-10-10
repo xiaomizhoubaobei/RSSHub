@@ -14,7 +14,7 @@ export function getDataItem(href: string) {
     const link = `${origin}${href}`;
 
     return cache.tryGet(link, async () => {
-        const prefix = href?.split('/')[1];
+        const prefix = href?.split('/', 2)[1];
         const res = await ofetch(link);
         const $ = load(res);
 
@@ -59,7 +59,7 @@ export function getDataItem(href: string) {
             ...dataItem,
             link,
         };
-    }) as Promise<DataItem>;
+    });
 }
 
 function parseArticle($: CheerioAPI): DataItem {
@@ -232,7 +232,8 @@ function parseDefault($): DataItem {
 
 function parseLinkData($: CheerioAPI) {
     try {
-        const data = (JSON.parse($('script[type="application/ld+json"]').text()) as LinkData)['@graph'][0];
+        const linkData: LinkData = JSON.parse($('script[type="application/ld+json"]').text());
+        const data = linkData['@graph'][0];
 
         return {
             title: data.name,
@@ -245,14 +246,18 @@ function parseLinkData($: CheerioAPI) {
 
 function getVideoIframe($ele: Cheerio<Element>) {
     const setup = $ele.find('video').data('setup') as VideoSetup;
-    if (setup) {
-        const youtubeSource = setup.sources.find((i) => i.type === 'video/youtube');
-        if (youtubeSource) {
-            const videoId = youtubeSource.src.match(/\?v=([^&]+)/)?.[1];
-            if (videoId) {
-                return `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}" width="640" height="360" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
-            }
-        }
+    if (!setup) {
+        return;
+    }
+
+    const youtubeSource = setup.sources.find((i) => i.type === 'video/youtube');
+    if (!youtubeSource) {
+        return;
+    }
+
+    const videoId = youtubeSource.src.match(/\?v=([^&]+)/)?.[1];
+    if (videoId) {
+        return `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}" width="640" height="360" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
     }
 }
 

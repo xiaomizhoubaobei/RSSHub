@@ -46,22 +46,20 @@ async function fetchCollection(collectionID, limit, offset = 0) {
         link: data.blogInfo.homePageUrl || 'https://www.lofter.com/',
         description: data.collection.description || 'No description provided.',
         items: data.items,
-    } as object;
+    };
 }
 
 async function handler(ctx) {
     const collectionID = ctx.req.param('collectionID');
     const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : '50';
 
-    const response = await cache.tryGet(collectionID, () => fetchCollection(collectionID, Number(limit)), config.cache.routeExpire, false);
-
-    const { title, link, description, items } = response;
+    const { title, link, description, items } = await cache.tryGet(collectionID, () => fetchCollection(collectionID, Number(limit)), config.cache.routeExpire, false);
 
     const itemsArray = items.map((item) => ({
         title: item.post.title || item.post.noticeLinkTitle,
         link: item.post.blogPageUrl,
         description:
-            JSON.parse(item.post.photoLinks || `[]`)
+            JSON.parse(item.post.photoLinks || '[]')
                 .map((photo) => {
                     if (photo.raw?.match(/\/\/nos\.netease\.com\//)) {
                         photo.raw = `https://${photo.raw.match(/(imglf\d)/)[0]}.lf127.net${photo.raw.match(/\/\/nos\.netease\.com\/imglf\d(.*)/)[1]}`;
@@ -69,7 +67,7 @@ async function handler(ctx) {
                     return `<img src='${photo.raw || photo.orign}'>`;
                 })
                 .join('') +
-            JSON.parse(item.post.embed ? `[${item.post.embed}]` : `[]`)
+            JSON.parse(item.post.embed ? `[${item.post.embed}]` : '[]')
                 .map((video) => `<video src='${video.originUrl}' poster='${video.video_img_url}' controls='controls'></video>`)
                 .join('') +
             item.post.content,

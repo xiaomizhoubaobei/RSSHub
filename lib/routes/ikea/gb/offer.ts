@@ -37,22 +37,21 @@ async function handler() {
     const carousel = $('.pub__carousel-slide')
         .toArray()
         .map((e) => {
-            e = $(e);
-            const title = e.find('h3');
-            const img = e.find('.pub__image').each((_, e) => {
-                e.attribs.src = e.attribs.src.split('?')[0];
+            const $e = $(e);
+            const title = $e.find('h3');
+            const img = $e.find('.pub__image').each((_, e) => {
+                e.attribs.src = e.attribs.src.split('?', 1)[0];
                 delete e.attribs.srcset;
             });
-            const link = new URL(e.find('pub-hide-empty-link a').attr('href'));
-            const { searchParams, href } = link;
+            const { searchParams, href } = new URL($e.find('pub-hide-empty-link a').attr('href')!);
             searchParams.delete('itm_content');
             searchParams.delete('itm_element');
             searchParams.delete('itm_campaign');
             return {
                 title: title.text(),
                 description: renderOffer({
-                    img: img.parent().html(),
-                    desc: title.next().parent().html(),
+                    img: img.parent().html() ?? undefined,
+                    desc: title.next().parent().html() ?? undefined,
                 }),
                 link: href,
                 guid: `${href}#${title.text()}`,
@@ -62,24 +61,23 @@ async function handler() {
     const banner = $('div[data-pub-type="banner"]')
         .toArray()
         .map((e) => {
-            e = $(e);
-            const title = e.find('h2');
+            const $e = $(e);
+            const title = $e.find('h2');
             const next = title.next();
-            const img = e.find('.pub__image').each((_, e) => {
-                e.attribs.src = e.attribs.src.split('?')[0];
+            const img = $e.find('.pub__image').each((_, e) => {
+                e.attribs.src = e.attribs.src.split('?', 1)[0];
                 delete e.attribs.srcset;
             });
 
-            const link = new URL(next.find('a').attr('href'));
-            const { searchParams, href } = link;
+            const { searchParams, href } = new URL(next.find('a').attr('href')!);
             searchParams.delete('itm_content');
             searchParams.delete('itm_element');
             searchParams.delete('itm_campaign');
             return {
                 title: title.text(),
                 description: renderOffer({
-                    img: img.parent().html(),
-                    desc: title.parent().html(),
+                    img: img.parent().html() ?? undefined,
+                    desc: title.parent().html() ?? undefined,
                 }),
                 link: href,
                 guid: `${href}#${title.text()}`,

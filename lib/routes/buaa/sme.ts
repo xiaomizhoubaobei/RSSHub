@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { Route } from '@/types';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -46,7 +46,7 @@ export const route: Route = {
     },
 };
 
-async function handler(ctx) {
+async function handler(ctx): Promise<Data> {
     const { path = 'tzgg' } = ctx.req.param();
     const url = `${BASE_URL}/${path}.htm`;
     const { title, list } = await getList(url);
@@ -66,8 +66,8 @@ async function getList(url) {
     const { data } = await got(url);
     const $ = load(data);
     const title = $('.nytit .fr a')
-        .toArray()
         .slice(1)
+        .toArray()
         .map((item) => $(item).text().trim())
         .join(' - ');
     const list = $("div[class='Newslist'] > ul > li")
@@ -79,7 +79,7 @@ async function getList(url) {
             return {
                 title: item.find('a').text(),
                 link: link?.startsWith('http') ? link : `${BASE_URL}/${link}`, // 有些链接是相对路径
-                pubDate: timezone(parseDate(item.find('span').text()), +8),
+                pubDate: timezone(parseDate(item.find('span').text()), 8),
             };
         });
     return {

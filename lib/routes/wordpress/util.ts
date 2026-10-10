@@ -10,11 +10,11 @@ interface Filter {
     slug: string;
 }
 
-const filterKeys: Record<string, string> = {
+const filterKeys = {
     search: 's',
 };
 
-const filterApiKeys: Record<string, string | undefined> = {
+const filterApiKeys = {
     category: 'categories',
     tag: 'tags',
     search: undefined,
@@ -98,7 +98,7 @@ const bakeFiltersWithPair = async (filters: Record<string, string[]>, rootUrl: s
         const filter = await getFilterByKeyAndKeyword(key, keyword, rootUrl);
 
         return [
-            ...(filter?.id && filter?.slug
+            ...(filter?.id && filter.slug
                 ? [
                       {
                           id: filter.id,

@@ -8,6 +8,25 @@ import { parseDate } from '@/utils/parse-date';
 
 const baseUrl = 'https://news.google.com';
 
+const getPublisherUrl = (metadata: string | undefined, fallback: string) => {
+    const encoded = metadata?.match(/(?:^|;)\s*5:\s*([^;]+)/)?.[1];
+    if (!encoded) {
+        return fallback;
+    }
+    try {
+        const values: unknown = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+        if (Array.isArray(values)) {
+            const url = values.find((value) => typeof value === 'string' && /^https?:\/\//.test(value));
+            if (url && new URL(url).hostname !== 'news.google.com') {
+                return url as string;
+            }
+        }
+    } catch {
+        // Google may change click metadata; preserve the working News link.
+    }
+    return fallback;
+};
+
 export const route: Route = {
     path: '/news/:category/:locale',
     categories: ['new-media'],
@@ -36,27 +55,27 @@ async function handler(ctx) {
         const $ = load(front_data);
         return [
             ...$('a.brSCsc')
-                .toArray()
                 .slice(3) // skip Home, For you and Following
+                .toArray()
                 .map((item) => {
-                    item = $(item);
+                    const $item = $(item);
                     return {
-                        category: item.text(),
-                        url: new URL(item.attr('href'), baseUrl).href,
+                        category: $item.text(),
+                        url: new URL($item.attr('href')!, baseUrl).href,
                     };
                 }),
             ...$('a.aqvwYd') // Home
                 .toArray()
                 .map((item) => {
-                    item = $(item);
+                    const $item = $(item);
                     return {
-                        category: item.text(),
-                        url: new URL(item.attr('href'), baseUrl).href,
+                        category: $item.text(),
+                        url: new URL($item.attr('href')!, baseUrl).href,
                     };
                 }),
         ];
     });
-    const categoryUrl = categoryUrls.find((item) => item.category === category).url;
+    const categoryUrl = categoryUrls.find((item) => item.category === category || (category === 'Top stories' && item.category === 'Home'))!.url;
 
     const data = await ofetch(categoryUrl);
     const $ = load(data);
@@ -64,11 +83,13 @@ async function handler(ctx) {
     const list = [...$('.UwIKyb'), ...$('.IBr9hb'), ...$('.IFHyqb')]; // 3 rows of news, 3-rows-wide news, single row news
 
     const items = list.map((item) => {
-        item = $(item);
+        const $item = $(item);
 
-        const title = item.find('.gPFEn').text();
+        const title = $item.find('.gPFEn').text();
+        const anchor = $item.find('a.WwrzSb').first();
+        const newsUrl = new URL(anchor.attr('href')!, baseUrl).href;
 
-        const authorText = item.find('.bInasb span').text();
+        const authorText = $item.find('.bInasb span').text();
         const authors = authorText
             ? authorText
                   .replace(/^By\s+/i, '') // Handle 'By' case-insensitively
@@ -81,17 +102,18 @@ async function handler(ctx) {
                           return false;
                       }
                       const suffixes = ['et al', 'et al.'];
-                      return !suffixes.some((suffix) => author.toLowerCase().endsWith(suffix));
+                      return suffixes.every((suffix) => !author.toLowerCase().endsWith(suffix));
                   })
                   .map((author) => ({ name: author }))
             : [];
 
         return {
             title,
-            description: renderDescription(item.find('img.Quavad').attr('src'), title),
-            pubDate: parseDate(item.find('time').attr('datetime')),
+            description: renderDescription($item.find('img.Quavad').attr('src'), title),
+            pubDate: parseDate($item.find('time').attr('datetime')!),
             author: authors,
-            link: new URL(item.find('a.WwrzSb').first().attr('href'), baseUrl).href,
+            link: getPublisherUrl(anchor.attr('jslog'), newsUrl),
+            guid: newsUrl,
         };
     });
 

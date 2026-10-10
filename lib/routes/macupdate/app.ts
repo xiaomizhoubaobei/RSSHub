@@ -59,6 +59,6 @@ async function handler(ctx) {
         logo: appData.logo.source,
         icon: appData.logo.source,
         item: [item],
-        language: 'en',
+        language: 'en' as const,
     };
 }

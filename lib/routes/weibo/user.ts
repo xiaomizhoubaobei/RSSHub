@@ -49,7 +49,7 @@ export const route: Route = {
     maintainers: ['DIYgod', 'iplusx', 'Rongronggg9', 'Konano'],
     handler,
     description: `::: warning
-  部分博主仅登录可见，未提供 Cookie 的情况下不支持订阅，可以通过打开 \`https://m.weibo.cn/u/:uid\` 验证
+部分博主仅登录可见，未提供 Cookie 的情况下不支持订阅，可以通过打开 \`https://m.weibo.cn/u/:uid\` 验证
 :::`,
 };
 
@@ -126,10 +126,7 @@ async function handler(ctx) {
                 if (item.mblog === undefined) {
                     return false;
                 }
-                if (showRetweeted === '0' && item.mblog.retweeted_status) {
-                    return false;
-                }
-                return true;
+                return !(showRetweeted === '0' && item.mblog.retweeted_status);
             })
             .map(async (item) => {
                 // TODO: unify cache key and let weiboUtils.getShowData() handle the cache? It seems safe to do so.
@@ -137,13 +134,14 @@ async function handler(ctx) {
                 // TODO: getShowData() on demand? The API seems to return most things we need since 2022/05/21.
                 //       Need more investigation, pending for now since the current version works fine.
                 let { bid } = item.mblog;
-                const { retweeted_status, created_at } = item.mblog;
+                let { retweeted_status } = item.mblog;
+                const { created_at } = item.mblog;
                 if (bid === '') {
                     const url = new URL(item.scheme);
                     bid = url.searchParams.get('mblogid');
                     item.mblog.bid = bid;
                 }
-                const key = `weibo:user:${bid}`;
+                const key = `weibo:user:complete:${bid}`;
                 const data = await cache.tryGet(key, () => weiboUtils.getShowData(uid, bid));
 
                 if (data && data.text) {
@@ -151,17 +149,22 @@ async function handler(ctx) {
                     item.mblog.created_at = parseDate(data.created_at);
                     item.mblog.pics = data.pics;
                     if (retweeted_status && data.retweeted_status) {
-                        retweeted_status.created_at = data.retweeted_status.created_at;
+                        retweeted_status = {
+                            ...retweeted_status,
+                            ...data.retweeted_status,
+                            created_at: parseDate(data.retweeted_status.created_at),
+                        };
+                        item.mblog.retweeted_status = retweeted_status;
                     }
                 } else {
-                    item.mblog.created_at = timezone(created_at, +8);
+                    item.mblog.created_at = timezone(created_at, 8);
                 }
 
                 // 转发的长微博处理
                 const retweet = retweeted_status;
                 if (retweet && retweet.isLongText) {
                     // TODO: unify cache key and ...
-                    const retweetData = await cache.tryGet(`weibo:retweeted:${retweet.user.id}:${retweet.bid}`, () => weiboUtils.getShowData(retweet.user.id, retweet.bid));
+                    const retweetData = await cache.tryGet(`weibo:retweeted:complete:${retweet.user.id}:${retweet.bid}`, () => weiboUtils.getShowData(retweet.user.id, retweet.bid));
                     if (retweetData !== undefined && retweetData.text) {
                         retweeted_status.text = retweetData.text;
                     }

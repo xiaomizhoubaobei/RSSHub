@@ -30,10 +30,10 @@ export const route: Route = {
     handler,
     description: `专题 id 和 子分类 id 皆可在浏览器地址栏中找到，下面是一个例子。
 
-  访问 “邱毅看平潭” 专题，会跳转到 \`https://www.52hrtt.com/global/n/w/symposium/F1626082387819\`。其中 \`F1626082387819\` 即为 **专题 id** 对应的地区代码。
+访问 “邱毅看平潭” 专题，会跳转到 \`https://www.52hrtt.com/global/n/w/symposium/F1626082387819\`。其中 \`F1626082387819\` 即为 **专题 id** 对应的地区代码。
 
 ::: tip
-  更多的专题可以点击 [这里](https://www.52hrtt.com/global/n/w/symposium)
+更多的专题可以点击 [这里](https://www.52hrtt.com/global/n/w/symposium)
 :::`,
 };
 
@@ -62,7 +62,7 @@ async function handler(ctx) {
         .map((item) => ({
             title: item.infoTitle,
             author: item.quoteFrom,
-            pubDate: timezone(parseDate(item.infoStartTime), +8),
+            pubDate: timezone(parseDate(item.infoStartTime), 8),
             link: `${rootUrl}/global/n/w/info/${item.infoCentreId}`,
         }));
 

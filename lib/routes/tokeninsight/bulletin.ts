@@ -10,8 +10,7 @@ const title = 'TokenInsight';
 const link = 'https://www.tokeninsight.com/';
 const get_articles = async () => {
     const url = `${baseURL}api/bulletin/selectBulletinList`;
-    const response = (await got.get(url)).data;
-    const { data } = response;
+    const { data } = (await got.get(url)).data;
     return data;
 };
 
@@ -35,7 +34,7 @@ export const route: Route = {
         },
     ],
     name: 'Latest',
-    maintainers: [],
+    maintainers: ['fuergaosi233'],
     handler,
 };
 
@@ -48,7 +47,7 @@ async function handler(ctx) {
         const description = await cache.tryGet(articleUrl, async () => {
             const res = await got(articleUrl);
             const $ = load(res.data);
-            return $('.detail_html_box').html();
+            return $('.detail_html_box').html() ?? '';
         });
         return {
             // 文章标题

@@ -31,7 +31,7 @@ export const route: Route = {
     name: 'User Sheets',
     maintainers: ['Freddd13'],
     handler,
-    description: `Please refer to [Wikipedia](https://en.wikipedia.org/wiki/ISO_4217#Active_codes) for ISO 4217.`,
+    description: 'Please refer to [Wikipedia](https://en.wikipedia.org/wiki/ISO_4217#Active_codes) for ISO 4217.',
 };
 
 async function handler(ctx) {
@@ -40,8 +40,8 @@ async function handler(ctx) {
     const exchangeRateUrl = 'https://payport.pd.mapia.io/v2/currency';
     const { username, iso = 'USD', freeOnly } = ctx.req.param();
 
-    const rates = (await cache.tryGet('mymusicfive:exchangeRate', () =>
-        ofetch(exchangeRateUrl, {
+    const rates = await cache.tryGet('mymusicfive:exchangeRate', () =>
+        ofetch<Record<string, string>>(exchangeRateUrl, {
             query: {
                 serviceProvider: 'mms',
                 'ngsw-bypass': true,
@@ -49,58 +49,59 @@ async function handler(ctx) {
                 skipHeaders: true,
             },
         })
-    )) as Record<string, string>;
+    );
 
     const artistDetail = await cache.tryGet(`mymusicfive:artistInfo:${username}`, () =>
         ofetch(graphqlUrl, {
             method: 'POST',
             body: {
                 operationName: 'ArtistDetailLoadUser',
-                query: `
-              query ArtistDetailLoadUser($artistUrl: String!) {
-                user(artistUrl: $artistUrl) {
-                  coverUrl
-                  coverImageMeta {
-                    isDark
-                    isLight
-                    startRgba: rgba(opacity: 1)
-                    endRgba: rgba(opacity: 0.24)
-                  }
-                  createdAt
-                  instruments
-                  userId
-                  name
-                  profileUrl
-                  iamUuid
-                  artistUrl
-                  profileImageMeta {
-                    startRgba: rgba(opacity: 1)
-                    endRgba: rgba(opacity: 0.24)
-                    hex
-                    isDark
-                  }
-                  social {
-                    type
-                    url
-                  }
-                  sheetsCount
-                  isArtist
-                  isOfficial
-                  likes
-                  seoInfo {
-                    title
-                    description
-                    keywords
-                    imageUrl
-                  }
-                  uploadedInstrumentGroups {
-                    name
-                    instruments {
-                      name
+                query: /* GraphQL */ `
+                    query ArtistDetailLoadUser($artistUrl: String!) {
+                        user(artistUrl: $artistUrl) {
+                            coverUrl
+                            coverImageMeta {
+                                isDark
+                                isLight
+                                startRgba: rgba(opacity: 1)
+                                endRgba: rgba(opacity: 0.24)
+                            }
+                            createdAt
+                            instruments
+                            userId
+                            name
+                            profileUrl
+                            iamUuid
+                            artistUrl
+                            profileImageMeta {
+                                startRgba: rgba(opacity: 1)
+                                endRgba: rgba(opacity: 0.24)
+                                hex
+                                isDark
+                            }
+                            social {
+                                type
+                                url
+                            }
+                            sheetsCount
+                            isArtist
+                            isOfficial
+                            likes
+                            seoInfo {
+                                title
+                                description
+                                keywords
+                                imageUrl
+                            }
+                            uploadedInstrumentGroups {
+                                name
+                                instruments {
+                                    name
+                                }
+                            }
+                        }
                     }
-                  }
-                }
-              }`,
+                `,
                 variables: {
                     artistUrl: username,
                 },
@@ -113,38 +114,39 @@ async function handler(ctx) {
         method: 'POST',
         body: {
             operationName: 'loadArtistSheets',
-            query: `
-          query loadArtistSheets($data: SheetSearchInput!) {
-            sheetSearch(data: $data) {
-              list {
-                productId
-                productType
-                metaSong
-                metaMaker
-                metaMusician
-                metaMemo
-                instruments
-                createdAt
-                level
-                price
-                sheetId
-                status
-                author {
-                  name
-                  artistUrl
-                  profileUrl
+            query: /* GraphQL */ `
+                query loadArtistSheets($data: SheetSearchInput!) {
+                    sheetSearch(data: $data) {
+                        list {
+                            productId
+                            productType
+                            metaSong
+                            metaMaker
+                            metaMusician
+                            metaMemo
+                            instruments
+                            createdAt
+                            level
+                            price
+                            sheetId
+                            status
+                            author {
+                                name
+                                artistUrl
+                                profileUrl
+                            }
+                            youtubeId
+                            title
+                            supportCountry
+                            excludeCountries
+                            __typename
+                        }
+                        total
+                        current
+                        listNum
+                    }
                 }
-                youtubeId
-                title
-                supportCountry
-                excludeCountries
-                __typename
-              }
-              total
-              current
-              listNum
-            }
-          }`,
+            `,
             variables: {
                 data: {
                     listNum: 10,
@@ -169,12 +171,12 @@ async function handler(ctx) {
 
     const items = response.data.sheetSearch.list.map((item) => {
         let finalPrice = 'Unknown';
-        const price = Number.parseFloat(item.price);
+        const price = Number(item.price);
 
         if (item.price === 0) {
             finalPrice = 'Free';
         } else if (!Number.isNaN(price) && Number.isFinite(price)) {
-            const rate = Number.parseFloat(rates[iso]);
+            const rate = Number(rates[iso]);
             if (rate) {
                 finalPrice = `${(price * rate).toFixed(2)} ${iso}`;
             }

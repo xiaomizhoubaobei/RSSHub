@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import { load } from 'cheerio';
 import type { Context } from 'hono';
 
-import type { Data, DataItem, Route } from '@/types';
+import type { Data, DataItem, Language, Route } from '@/types';
 import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 
@@ -10,14 +10,14 @@ import { baseUrl, ProcessItems } from './util';
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { id = '0' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '30', 10);
+    const limit = Number(ctx.req.query('limit') ?? '30');
 
     const targetUrl: string = new URL('news', baseUrl).href;
     const apiUrl: string = new URL(`news/getNewsIndexList/${id}`, baseUrl).href;
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'zh-CN';
+    const language = ($('html').attr('lang') ?? 'zh-CN') as Language;
 
     const response = await ofetch(apiUrl);
 
@@ -26,12 +26,12 @@ export const handler = async (ctx: Context): Promise<Data> => {
     const title: string | undefined = $(`div.whale_news_index-content-tab li[data_id="${id}"]`).text();
 
     return {
-        title: `${$('title').text().trim().split(/\s/)[0]}${title ? ` - ${title}` : id}`,
+        title: `${$('title').text().trim().split(/\s/, 1)[0]}${title ? ` - ${title}` : id}`,
         description: $('meta[name="description"]').attr('content'),
         link: targetUrl,
         item: items,
         allowEmpty: true,
-        author: $('meta[name="keywords"]').attr('content')?.split(/,/)[0] ?? undefined,
+        author: $('meta[name="keywords"]').attr('content')?.split(/,/, 1)[0] ?? undefined,
         language,
         id: targetUrl,
     };
@@ -67,14 +67,13 @@ export const route: Route = {
             ],
         },
     },
-    description: `:::tip
+    description: `::: tip
 订阅 [最新](https://www.dgtle.com/news)，其对应分类 ID 为 \`0\`，此时路由为 [\`/dgtle/news/0\`](https://rsshub.app/dgtle/news/0)。
 :::
 
 | 最新 | 直播 | 资讯 | 每日一言 |
 | ---- | ---- | ---- | -------- |
-| 0    | 395  | 396  | 388      |
-`,
+| 0    | 395  | 396  | 388      |`,
     categories: ['new-media'],
     features: {
         requireConfig: false,

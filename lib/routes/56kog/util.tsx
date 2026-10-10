@@ -2,13 +2,20 @@ import { load } from 'cheerio';
 import { renderToString } from 'hono/jsx/dom/server';
 import iconv from 'iconv-lite';
 
+import type { DataItem, Language } from '@/types';
+import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
 const rootUrl = 'https://www.56kog.com';
 
-const fetchItems = async (limit, currentUrl, tryGet) => {
+interface Detail {
+    label: string;
+    value: any;
+}
+
+const fetchItems = async (limit, currentUrl) => {
     const { data: response } = await got(currentUrl, {
         responseType: 'buffer',
     });
@@ -17,21 +24,21 @@ const fetchItems = async (limit, currentUrl, tryGet) => {
 
     let items = $('p.line')
         .toArray()
-        .map((item) => {
-            item = $(item);
+        .map((item): DataItem => {
+            const $item = $(item);
 
-            const a = item.find('a');
+            const a = $item.find('a');
 
             return {
                 title: a.text(),
-                link: new URL(a.prop('href'), rootUrl).href,
-                author: item.find('span').last().text(),
+                link: new URL(a.prop('href')!, rootUrl).href,
+                author: $item.find('span').last().text(),
             };
         });
 
     items = await Promise.all(
         items.map((item) =>
-            tryGet(item.link, async () => {
+            cache.tryGet(item.link!, async () => {
                 try {
                     const { data: detailResponse } = await got(item.link, {
                         responseType: 'buffer',
@@ -41,16 +48,16 @@ const fetchItems = async (limit, currentUrl, tryGet) => {
 
                     const details = content('div.mohe-content p')
                         .toArray()
-                        .map((detail) => {
-                            detail = content(detail);
-                            const as = detail.find('a');
+                        .map((detail): Detail => {
+                            const $detail = content(detail);
+                            const as = $detail.find('a');
 
                             return {
-                                label: detail.find('span.c-l-depths').text().split(/：/)[0],
+                                label: $detail.find('span.c-l-depths').text().split(/：/, 1)[0],
                                 value:
                                     as.length === 0
                                         ? content(
-                                              detail
+                                              $detail
                                                   .contents()
                                                   .toArray()
                                                   .find((c) => c.nodeType === 3)
@@ -58,28 +65,28 @@ const fetchItems = async (limit, currentUrl, tryGet) => {
                                               .text()
                                               .trim()
                                         : {
-                                              href: new URL(as.first().prop('href'), rootUrl).href,
+                                              href: new URL(as.first().prop('href')!, rootUrl).href,
                                               text: as.first().text().trim(),
                                           },
                             };
                         });
 
-                    const pubDate = details.find((detail) => detail.label === '更新').value;
+                    const pubDate = details.find((detail) => detail.label === '更新')!.value;
 
                     item.title = content('h1').contents().first().text();
                     item.description = renderDescription({
                         images: [
                             {
-                                src: new URL(content('a.mohe-imgs img').prop('src'), rootUrl).href,
+                                src: new URL(content('a.mohe-imgs img').prop('src')!, rootUrl).href,
                                 alt: item.title,
                             },
                         ],
                         details,
                     });
-                    item.author = details.find((detail) => detail.label === '作者').value;
-                    item.category = [details.find((detail) => detail.label === '状态').value, details.find((detail) => detail.label === '类型').value.text].filter(Boolean);
-                    item.guid = `56kog-${item.link.match(/\/(\d+)\.html$/)[1]}#${pubDate}`;
-                    item.pubDate = timezone(parseDate(pubDate), +8);
+                    item.author = details.find((detail) => detail.label === '作者')!.value;
+                    item.category = [details.find((detail) => detail.label === '状态')!.value, details.find((detail) => detail.label === '类型')!.value.text].filter(Boolean);
+                    item.guid = `56kog-${item.link!.match(/\/(\d+)\.html$/)![1]}#${pubDate}`;
+                    item.pubDate = timezone(parseDate(pubDate), 8);
                 } catch {
                     // no-empty
                 }
@@ -96,7 +103,7 @@ const fetchItems = async (limit, currentUrl, tryGet) => {
         title: $('title').text(),
         link: currentUrl,
         description: $('meta[name="description"]').prop('content'),
-        language: $('html').prop('lang'),
+        language: $('html').prop('lang') as Language,
         icon,
         logo: icon,
         subtitle: $('meta[name="keywords"]').prop('content'),
@@ -105,7 +112,7 @@ const fetchItems = async (limit, currentUrl, tryGet) => {
     };
 };
 
-const renderDescription = ({ images, details }: { images?: Array<{ src?: string; alt?: string }>; details?: Array<{ label: string; value: any }> }): string =>
+const renderDescription = ({ images, details }: { images?: Array<{ src?: string; alt?: string }>; details?: Detail[] }): string =>
     renderToString(
         <>
             {images?.map((image, index) =>
@@ -121,7 +128,7 @@ const renderDescription = ({ images, details }: { images?: Array<{ src?: string;
                         {details.map((detail, index) => (
                             <tr key={`${detail.label}-${index}`}>
                                 <th>{detail.label}</th>
-                                <td>{detail.value?.href && detail.value?.text ? <a href={detail.value.href}>{detail.value.text}</a> : detail.value}</td>
+                                <td>{detail.value?.href && detail.value.text ? <a href={detail.value.href}>{detail.value.text}</a> : detail.value}</td>
                             </tr>
                         ))}
                     </tbody>

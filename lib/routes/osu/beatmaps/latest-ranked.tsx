@@ -189,7 +189,7 @@ async function handler(ctx): Promise<Data> {
     const modeInTitle = searchParams.get('modeInTitle') ?? 'true'; // show mode name in title, default to true.
 
     // fetch beatmap JSON info from website within cache
-    let beatmapsetList = (await cache.tryGet(
+    let beatmapsetList = await cache.tryGet<BeatmapsetInfo[]>(
         'https://osu.ppy.sh/beatmapsets:JSON',
         async () => {
             const link = 'https://osu.ppy.sh/beatmapsets';
@@ -210,7 +210,7 @@ async function handler(ctx): Promise<Data> {
         },
         config.cache.routeExpire,
         false
-    )) as BeatmapsetInfo[];
+    );
 
     // Sort beatmap by difficultyRate.desc
     // This step is necessary even if difficultyLimit not enabled, since we want the beatmap
@@ -232,9 +232,9 @@ async function handler(ctx): Promise<Data> {
     if (difficultyLimits && difficultyLimits.length > 0 && difficultyLimits.length < 2) {
         for (const dfLimit of difficultyLimits) {
             if (dfLimit.startsWith('U')) {
-                upperLimit = Number.parseFloat(dfLimit.slice(1));
+                upperLimit = Number(dfLimit.slice(1));
             } else if (dfLimit.startsWith('L')) {
-                lowerLimit = Number.parseFloat(dfLimit.slice(1));
+                lowerLimit = Number(dfLimit.slice(1));
             }
         }
 
@@ -242,10 +242,7 @@ async function handler(ctx): Promise<Data> {
             if (item.beatmaps.at(0)!.difficulty_rating > upperLimit) {
                 return false;
             }
-            if (item.beatmaps.at(-1)!.difficulty_rating < lowerLimit) {
-                return false;
-            }
-            return true;
+            return item.beatmaps.at(-1)!.difficulty_rating >= lowerLimit;
         };
 
         beatmapsetList = beatmapsetList.filter((item) => difficultyRateFilterFunc(item));
@@ -315,7 +312,7 @@ async function handler(ctx): Promise<Data> {
                     </li>
                 </ul>
                 <h3>Difficulties</h3>
-                <table border="1">
+                <table border={1}>
                     <thead>
                         <tr>
                             <th>Version</th>
@@ -343,7 +340,7 @@ async function handler(ctx): Promise<Data> {
         );
 
         return {
-            title: `${modeInTitle === 'true' ? `[${modeLiteralToDisplayNameMap[beatmapset.beatmaps[0].mode]}] ` : ``}${beatmapset.title_unicode ?? beatmapset.title}`,
+            title: `${modeInTitle === 'true' ? `[${modeLiteralToDisplayNameMap[beatmapset.beatmaps[0].mode]}] ` : ''}${beatmapset.title_unicode ?? beatmapset.title}`,
             description,
             pubDate,
             link: `https://osu.ppy.sh/beatmapsets/${beatmapset.id}`,

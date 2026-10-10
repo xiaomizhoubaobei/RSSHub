@@ -1,11 +1,17 @@
 import querystring from 'node:querystring';
 
+import pMap from 'p-map';
+
 import { config } from '@/config';
 import type { Route } from '@/types';
 import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
+import md5 from '@/utils/md5';
+import { parseDateInTimezone } from '@/utils/parse-date-in-timezone';
 import { fallback, queryToBoolean, queryToInteger } from '@/utils/readable-social';
+
+import { getIpLocations } from '../ip-location';
 
 export const route: Route = {
     path: '/people/:userid/status/:routeParams?',
@@ -15,12 +21,15 @@ export const route: Route = {
     parameters: { userid: '整数型用户 id', routeParams: '额外参数；见下' },
     name: '用户广播',
     maintainers: ['alfredcai'],
+    features: { requireConfig: [{ name: 'DOUBAN_COOKIE', optional: true, description: '仅登录可见的广播或IP属地详情需要本人豆瓣 Cookie。' }] },
     handler,
-    description: `
-::: tip
--   **目前只支持整数型 id**
--   字母型的 id，可以通过头像图片链接来找到其整数型 id，图片命名规则\`ul[userid]-*.jpg\`或\`u[userid]-*.jpg\`，即取文件名中间的数字
--   例如：用户 id: \`MovieL\`他的头像图片链接：\`https://img1.doubanio.com/icon/ul1128221-98.jpg\`他的整数型 id: \`1128221\`
+    description: `::: tip
+
+- **目前只支持整数型 id**
+- 源详情页显示的作者 IP 属地和首屏回帖 IP 属地分别放入 \`IP属地：…\` 和 \`回帖IP属地：…\` 分类，可使用通用过滤参数。没有提供该字段的广播不添加；个人资料所在地不作为 IP。
+- 字母型的 id，可以通过头像图片链接来找到其整数型 id，图片命名规则\`ul[userid]-*.jpg\`或\`u[userid]-*.jpg\`，即取文件名中间的数字
+- 例如：用户 id: \`MovieL\`他的头像图片链接：\`https://img1.doubanio.com/icon/ul1128221-98.jpg\`他的整数型 id: \`1128221\`
+
 :::
 
 对于豆瓣用户广播内容，在 \`routeParams\` 参数中以 query string 格式设置如下选项可以控制输出的样式
@@ -41,16 +50,14 @@ export const route: Route = {
 | heightOfPics               | 广播配图高（生效取决于阅读器）                                 | 不指定 / 数字  | 不指定 |
 | sizeOfAuthorAvatar         | 作者头像大小                                                   | 数字           | 48     |
 
-  指定更多与默认值不同的参数选项可以改善 RSS 的可读性，如
+指定更多与默认值不同的参数选项可以改善 RSS 的可读性，如
 
-  [https://rsshub.app/douban/people/113894409/status/readable=1&authorNameBold=1&showAuthorInTitle=1&showAuthorInDesc=1&showAuthorAvatarInDesc=1&showEmojiForRetweet=1&showRetweetTextInTitle=1&addLinkForPics=1&showTimestampInDescription=1&showComments=1&widthOfPics=100](https://rsshub.app/douban/people/113894409/status/readable=1&authorNameBold=1&showAuthorInTitle=1&showAuthorInDesc=1&showAuthorAvatarInDesc=1&showEmojiForRetweet=1&showRetweetTextInTitle=1&addLinkForPics=1&showTimestampInDescription=1&showComments=1&widthOfPics=100)
+<https://rsshub.app/douban/people/113894409/status/readable=1&authorNameBold=1&showAuthorInTitle=1&showAuthorInDesc=1&showAuthorAvatarInDesc=1&showEmojiForRetweet=1&showRetweetTextInTitle=1&addLinkForPics=1&showTimestampInDescription=1&showComments=1&widthOfPics=100>
 
-  的效果为
+的效果为
 
   <img loading="lazy" src="/img/readable-douban.png" alt="豆瓣读书的可读豆瓣广播 RSS" />`,
 };
-
-const headers = { Referer: `https://m.douban.com/` };
 
 function tryFixStatus(status) {
     let result = { isFixSuccess: true, why: '' };
@@ -100,7 +107,7 @@ function tryFixStatus(status) {
     }
 
     if (status.sharing_url) {
-        status.sharing_url = status.sharing_url.split('&')[0];
+        status.sharing_url = status.sharing_url.split('&', 1)[0];
     }
 
     if (!result.isFixSuccess) {
@@ -112,7 +119,24 @@ function tryFixStatus(status) {
     return result;
 }
 
-function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
+interface ContentParams {
+    readable?: boolean;
+    authorNameBold?: boolean;
+    showAuthorInTitle?: boolean;
+    showAuthorInDesc?: boolean;
+    showAuthorAvatarInDesc?: boolean;
+    showEmojiForRetweet?: boolean;
+    showRetweetTextInTitle?: boolean;
+    addLinkForPics?: boolean;
+    showTimestampInDescription?: boolean;
+    showComments?: boolean;
+    showColonInDesc?: boolean;
+    widthOfPics?: number;
+    heightOfPics?: number;
+    sizeOfAuthorAvatar?: number;
+}
+
+function getContentByActivity(ctx, item, params: ContentParams = {}, picsPrefixes: string[] = []) {
     const routeParams = querystring.parse(ctx.req.param('routeParams'));
 
     const mergedParams = {
@@ -134,8 +158,6 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
         sizeOfAuthorAvatar: fallback(params.sizeOfAuthorAvatar, queryToInteger(routeParams.sizeOfAuthorAvatar), 48),
     };
 
-    params = mergedParams;
-
     const {
         readable,
         authorNameBold,
@@ -153,7 +175,7 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
         widthOfPics,
         heightOfPics,
         sizeOfAuthorAvatar,
-    } = params;
+    } = mergedParams;
 
     function prepareImages(imageUrls: Array<string | undefined>) {
         if (!imageUrls.length) {
@@ -222,20 +244,20 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
                 activityInDesc += `<a href="${status.reshared_status.author.url}" target="_blank" rel="noopener noreferrer">`;
             }
             if (authorNameBold) {
-                activityInDesc += `<strong>`;
+                activityInDesc += '<strong>';
             }
             activityInDesc += status.reshared_status.author.name;
             if (authorNameBold) {
-                activityInDesc += `</strong>`;
+                activityInDesc += '</strong>';
             }
             if (readable) {
-                activityInDesc += `</a>`;
+                activityInDesc += '</a>';
             }
-            activityInDesc += ` 的广播`;
+            activityInDesc += ' 的广播';
             activityInTitle = `转发 ${status.reshared_status.author.name} 的广播`;
         } else {
-            activityInDesc = `转发广播`;
-            activityInTitle = `转发广播`;
+            activityInDesc = '转发广播';
+            activityInTitle = '转发广播';
         }
     } else {
         activityInDesc = status.activity;
@@ -251,16 +273,16 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
             usernameAndAvatar += `<img width="${sizeOfAuthorAvatar}" height="${sizeOfAuthorAvatar}" src="${status.author.avatar}" ${readable ? 'hspace="8" vspace="8" align="left"' : ''} />`;
         }
         if (authorNameBold) {
-            usernameAndAvatar += `<strong>`;
+            usernameAndAvatar += '<strong>';
         }
         usernameAndAvatar += status.author.name;
         if (authorNameBold) {
-            usernameAndAvatar += `</strong>`;
+            usernameAndAvatar += '</strong>';
         }
         if (readable) {
-            usernameAndAvatar += `</a>`;
+            usernameAndAvatar += '</a>';
         }
-        usernameAndAvatar += `&ensp;`;
+        usernameAndAvatar += '&ensp;';
         description += usernameAndAvatar + activityInDesc + (showColonInDesc ? ': ' : '');
     }
 
@@ -275,7 +297,7 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
 
     let text = status.text;
     let lastIndex = 0;
-    const replacedTextSegements = [];
+    const replacedTextSegements: any[] = [];
     for (const entity of status.entities) {
         replacedTextSegements.push(
             text.slice(lastIndex, entity.start),
@@ -299,7 +321,7 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
     }
 
     if (status.images && status.images.length) {
-        description += readable ? `<br clear="both" /><div style="clear: both"></div>` : `<br>`;
+        description += readable ? '<br clear="both" /><div style="clear: both"></div>' : '<br>';
 
         // 一些RSS Reader会识别所有<img>标签作为内含图片显示，我们不想要头像也作为内含图片之一
         // 让所有配图在description的最前面再次出现一次，但宽高设为0
@@ -312,15 +334,12 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
         }
         picsPrefixes.push(picsPrefix);
 
-        const imageUrls: Array<string | undefined> = [];
-        for (const image of status.images) {
-            imageUrls.push(image?.large?.url);
-        }
+        const imageUrls: Array<string | undefined> = Array.from(status.images, (image: any) => image?.large?.url);
         description += prepareImages(imageUrls);
     }
 
     if (status.video_info) {
-        description += readable ? `<br clear="both" /><div style="clear: both"></div>` : `<br>`;
+        description += readable ? '<br clear="both" /><div style="clear: both"></div>' : '<br>';
         const videoCover = status.video_info.cover_url;
         const videoSrc = status.video_info.video_url;
         if (videoSrc) {
@@ -350,16 +369,16 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
                 usernameAndAvatar += `<a href="${status.parent_status.author.url}">`;
             }
             if (authorNameBold) {
-                usernameAndAvatar += `<strong>`;
+                usernameAndAvatar += '<strong>';
             }
             usernameAndAvatar += status.parent_status.author.name;
             if (authorNameBold) {
-                usernameAndAvatar += `</strong>`;
+                usernameAndAvatar += '</strong>';
             }
             if (readable) {
-                usernameAndAvatar += `</a>`;
+                usernameAndAvatar += '</a>';
             }
-            usernameAndAvatar += `:&ensp;`;
+            usernameAndAvatar += ':&ensp;';
             description += usernameAndAvatar + status.parent_status.text;
             if (showRetweetTextInTitle) {
                 title += status.parent_status.author.name + ': ' + status.parent_status.text;
@@ -376,8 +395,8 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
     if (status.card) {
         if (description) {
             description += readable
-                ? `<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">`
-                : `<br>`;
+                ? '<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">'
+                : '<br>';
         }
         if (!status.card.images_block && status.card.image) {
             description += `<img src="${status.card.image.large.url}" ${readable ? 'vspace="0" hspace="12" align="left" height="75" style="height: 75px;"' : ''} />`;
@@ -408,20 +427,17 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
         }
         description += cardContents.join('<br>');
         if (readable) {
-            description += `<br clear="both" /><div style="clear: both"></div></blockquote>`;
+            description += '<br clear="both" /><div style="clear: both"></div></blockquote>';
         }
         if (status.card.images_block) {
-            const imageUrls: Array<string | undefined> = [];
-            for (const image of status.card.images_block.images) {
-                imageUrls.push(image.image?.large?.url);
-            }
+            const imageUrls: Array<string | undefined> = Array.from(status.card.images_block.images, (image: any) => image.image?.large?.url);
             description += prepareImages(imageUrls);
         }
     }
 
     // video_card
     if (status.video_card) {
-        description += readable ? `<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">` : `<br>`;
+        description += readable ? '<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">' : '<br>';
         const videoCover = status.video_card.video_info && status.video_card.video_info.cover_url;
         const videoSrc = status.video_card.video_info && status.video_card.video_info.video_url;
 
@@ -431,13 +447,13 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
 
         description += `${videoSrc ? `<video src="${videoSrc}" ${videoCover ? `poster="${videoCover}"` : ''}></video>` : ''}<br>${status.video_card.title ? `<a href="${status.video_card.url}">${status.video_card.title}</a>` : ''}`;
         if (readable) {
-            description += `</blockquote>`;
+            description += '</blockquote>';
         }
     }
 
     // reshared_status
     if (status.reshared_status) {
-        description += readable ? `<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">` : `<br>`;
+        description += readable ? '<br clear="both" /><div style="clear: both"></div><blockquote style="background: #80808010;border-top:1px solid #80808030;border-bottom:1px solid #80808030;margin:0;padding:5px 20px;">' : '<br>';
 
         if (showRetweetTextInTitle) {
             title += ' | ';
@@ -484,43 +500,35 @@ function getContentByActivity(ctx, item, params = {}, picsPrefixes = []) {
     return { title, description };
 }
 
-async function getFullTextItems(items) {
-    const prefix = 'https://m.douban.com/rexxar/api/v2/status/';
+interface FullTextStatus {
+    id: string | number;
+    text: string;
+    reshared_status?: FullTextStatus;
+}
 
-    await Promise.all(
-        items.map(async (item) => {
-            let url = prefix + item.status.id;
-            let cacheResult = await cache.get(url);
-            if (cacheResult) {
-                item.status.text = cacheResult;
-            } else {
-                const {
-                    data: { text },
-                } = await got({ url, headers });
-                cache.set(url, text);
-                item.status.text = text;
-            }
-            // retweet
-            if (!item.status.reshared_status) {
+function getStatusText(id: FullTextStatus['id']) {
+    const url = `https://m.douban.com/rexxar/api/v2/status/${id}`;
+    return cache.tryGet(`douban:status-text:${id}:${md5(config.douban.cookie || 'visitor')}`, async () => {
+        const { data } = await got(url, { headers: { Cookie: config.douban.cookie } });
+        return data.text;
+    });
+}
+
+async function getFullTextItems(items: Array<{ status: FullTextStatus }>) {
+    await pMap(
+        items,
+        async (item) => {
+            item.status.text = await getStatusText(item.status.id);
+            if (!item.status.reshared_status || !tryFixStatus(item.status.reshared_status).isFixSuccess) {
                 return;
             }
-            url = prefix + item.status.reshared_status.id;
-            cacheResult = await cache.get(url);
-            if (cacheResult) {
-                item.status.reshared_status.text = cacheResult;
-            } else if (tryFixStatus(item.status.reshared_status).isFixSuccess) {
-                try {
-                    // 存在reshared_status字段正常，但尝试获取时返回403的情况。比如原po被炸号就可能这样。
-                    const {
-                        data: { text },
-                    } = await got({ url, headers });
-                    cache.set(url, text);
-                    item.status.reshared_status.text = text;
-                } catch {
-                    item.status.reshared_status.text += '\n[获取原动态失败]';
-                }
+            try {
+                item.status.reshared_status.text = await getStatusText(item.status.reshared_status.id);
+            } catch {
+                item.status.reshared_status.text += '\n[获取原动态失败]';
             }
-        })
+        },
+        { concurrency: 3 }
     );
 }
 
@@ -528,15 +536,18 @@ async function handler(ctx) {
     const userid = ctx.req.param('userid');
     const url = `https://m.douban.com/rexxar/api/v2/status/user_timeline/${userid}`;
     const items = await cache.tryGet(
-        url,
+        `douban:timeline:${userid}:${md5(config.douban.cookie || 'visitor')}`,
         async () => {
-            const _r = await got({ url, headers });
+            const _r = await got(url, { headers: { Cookie: config.douban.cookie } });
             return _r.data.items;
         },
         config.cache.routeExpire,
         false
     );
 
+    if (!Array.isArray(items) || !items.length) {
+        throw new TypeError('The Douban timeline returned no accessible posts. Verify the user ID and DOUBAN_COOKIE.');
+    }
     if (items) {
         await getFullTextItems(items);
     }
@@ -544,18 +555,20 @@ async function handler(ctx) {
     return {
         title: `豆瓣广播 - ${items ? items[0].status.author.name : userid}`,
         link: `https://m.douban.com/people/${userid}/statuses`,
-        item:
-            items &&
-            items
-                .filter((item) => !item.deleted)
-                .map((item) => {
-                    const r = getContentByActivity(ctx, item);
-                    return {
-                        title: r.title,
-                        link: item.status.sharing_url.replace(/\?_i=(.*)/, ''),
-                        pubDate: new Date(Date.parse(item.status.create_time + ' GMT+0800')).toUTCString(),
-                        description: r.description,
-                    };
-                }),
+        item: await pMap(
+            items.filter((item) => !item.deleted),
+            async (item) => {
+                const r = getContentByActivity(ctx, item);
+                const link = item.status.url || item.status.sharing_url;
+                return {
+                    title: r.title,
+                    link: link.replace(/\?_i=(.*)/, ''),
+                    pubDate: item.status.create_time ? parseDateInTimezone(item.status.create_time, 8) : undefined,
+                    description: r.description,
+                    category: await getIpLocations(link),
+                };
+            },
+            { concurrency: 3 }
+        ),
     };
 }

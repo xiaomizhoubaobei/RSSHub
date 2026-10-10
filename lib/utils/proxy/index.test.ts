@@ -11,6 +11,8 @@ const loadProxy = async (env: Record<string, string>) => {
     return (await import('@/utils/proxy')).default;
 };
 
+const requestTlsOf = (dispatcher: ProxyAgent) => dispatcher[Object.getOwnPropertySymbols(dispatcher).find((s) => s.description === 'request tls settings')!];
+
 describe('proxy', () => {
     afterEach(() => {
         vi.clearAllTimers();
@@ -44,7 +46,7 @@ describe('proxy', () => {
         const current = proxy.getCurrentProxy();
         expect(current).not.toBeNull();
         expect(proxy.getDispatcherForProxy(current!)).toBeInstanceOf(ProxyAgent);
-        expect(proxy.getAgentForProxy({ uri: 'socks5://proxy.local:1080' } as any)).toBeInstanceOf(SocksProxyAgent);
+        expect(proxy.getAgentForProxy({ uri: 'socks5://proxy.local:1080', isActive: true, failureCount: 0 })).toBeInstanceOf(SocksProxyAgent);
 
         proxy.markProxyFailed(current!.uri);
         const next = proxy.getCurrentProxy();
@@ -73,8 +75,32 @@ describe('proxy', () => {
         });
 
         expect(proxy.agent).toBeInstanceOf(SocksProxyAgent);
-        expect(proxy.dispatcher).toBeNull();
+        expect(proxy.dispatcher).toBeInstanceOf(ProxyAgent);
         expect(proxy.getCurrentProxy()?.uri).toBe('socks5://proxy.local:1080');
+        expect(requestTlsOf(proxy.dispatcher!).ALPNProtocols).toEqual(['h2', 'http/1.1']);
+    });
+
+    it('prefers h2 on the http proxy dispatcher', async () => {
+        const proxy = await loadProxy({
+            PROXY_URI: 'http://proxy.local:8080',
+            PROXY_URIS: '',
+            PAC_URI: '',
+        });
+
+        expect(proxy.dispatcher).toBeInstanceOf(ProxyAgent);
+        expect(requestTlsOf(proxy.dispatcher!).preferH2).toBe(true);
+    });
+
+    it('applies minVersion to the proxy dispatcher request tls', async () => {
+        const proxy = await loadProxy({
+            PROXY_URI: 'http://proxy.local:8080',
+            PROXY_URIS: '',
+            PAC_URI: '',
+        });
+
+        const dispatcher = proxy.getDispatcherForProxy(proxy.getCurrentProxy()!, 'TLSv1.3')!;
+        expect(requestTlsOf(dispatcher).minVersion).toBe('TLSv1.3');
+        expect(requestTlsOf(proxy.dispatcher!).minVersion).toBeUndefined();
     });
 
     it('returns null agent for unsupported proxy protocol', async () => {
@@ -84,6 +110,6 @@ describe('proxy', () => {
             PAC_URI: '',
         });
 
-        expect(proxy.getAgentForProxy({ uri: 'ftp://proxy.local:21' } as any)).toBeNull();
+        expect(proxy.getAgentForProxy({ uri: 'ftp://proxy.local:21', isActive: true, failureCount: 0 })).toBeNull();
     });
 });

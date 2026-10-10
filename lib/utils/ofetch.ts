@@ -1,5 +1,6 @@
+import type { SecureVersion } from 'node:tls';
+
 import type { HeaderGeneratorOptions } from 'header-generator';
-import { register } from 'node-network-devtools';
 import { createFetch } from 'ofetch';
 
 import { config } from '@/config';
@@ -8,31 +9,47 @@ import logger from '@/utils/logger';
 declare module 'ofetch' {
     interface FetchOptions {
         headerGeneratorOptions?: Partial<HeaderGeneratorOptions>;
+        /**
+         * Set to false to disable undici 8's HTTP/2
+         * @default true
+         */
+        allowH2?: boolean;
+        /**
+         * Minimum TLS version of the connection
+         * @default tls.DEFAULT_MIN_VERSION ('TLSv1.2')
+         */
+        minVersion?: SecureVersion;
     }
 }
 
-config.enableRemoteDebugging && process.env.NODE_ENV === 'dev' && register();
+if (config.enableRemoteDebugging && process.env.NODE_ENV === 'dev') {
+    const { register } = await import('node-network-devtools');
+    register();
+}
 
-const rofetch = createFetch().create({
+const rofetch = createFetch({ fetch: (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => fetch(input, init) }).create({
     retryStatusCodes: [400, 408, 409, 425, 429, 500, 502, 503, 504],
     retry: config.requestRetry,
     retryDelay: 1000,
     // timeout: config.requestTimeout,
     onResponseError({ request, response, options }) {
-        if (options.retry) {
-            logger.warn(`Request ${request} with error ${response.status} remaining retry attempts: ${options.retry}`);
-            if (!options.headers) {
-                (options as any).headers = {};
-            }
-            if (options.headers instanceof Headers) {
-                options.headers.set('x-prefer-proxy', '1');
-            } else {
-                ((options as any).headers as Record<string, string>)['x-prefer-proxy'] = '1';
-            }
+        if (!options.retry) {
+            return;
         }
+
+        logger.warn(`Request ${request} with error ${response.status} remaining retry attempts: ${options.retry}`);
+        if (!(options.headers instanceof Headers)) {
+            options.headers = new Headers(options.headers || {});
+        }
+        options.headers.set('x-prefer-proxy', '1');
     },
     onRequestError({ request, error }) {
         logger.error(`Request ${request} fail: ${error.cause} ${error}`);
+        for (let cause: unknown = error.cause; cause instanceof Error; cause = cause.cause) {
+            if (cause.message) {
+                error.message += ` (${cause.message})`;
+            }
+        }
     },
     onResponse({ request, response }) {
         if (response.redirected) {

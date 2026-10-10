@@ -58,7 +58,7 @@ async function handler(ctx) {
                     .text()
                     .match(/window\._rcState_ = (.*);/)?.[1];
 
-                item.description = rcState ? parseDescriptionFromState(rcState) : ($(`div[data-testid="newsStoryMedia"]`).html() ?? '') + ($('article > main').html() ?? '');
+                item.description = rcState ? parseDescriptionFromState(rcState) : ($('div[data-testid="newsStoryMedia"]').html() ?? '') + ($('article > main').html() ?? '');
 
                 return item;
             })
@@ -72,9 +72,32 @@ async function handler(ctx) {
     };
 }
 
-const parseDescriptionFromState = (rcState) => {
-    const rcStateJson = JSON.parse(rcState);
-    const news = Object.values(rcStateJson?.pages?.pages ?? {})[0] as any;
+type RadioCanadaPicture = {
+    pattern?: string;
+    alt?: string;
+    legend?: string;
+};
+
+type RadioCanadaPage = {
+    data?: {
+        newsStory?: {
+            headerMultimediaItem?: { picture?: RadioCanadaPicture };
+            primer?: string;
+            body?: {
+                html?: string;
+                attachments?: Array<{ picture?: RadioCanadaPicture; dimensionRatio?: string }>;
+            };
+        };
+    };
+};
+
+type RadioCanadaState = {
+    pages?: { pages?: Record<string, RadioCanadaPage | undefined> };
+};
+
+const parseDescriptionFromState = (rcState: string) => {
+    const rcStateJson: RadioCanadaState | null = JSON.parse(rcState);
+    const news = Object.values(rcStateJson?.pages?.pages ?? {})[0];
 
     const headerImg = news?.data?.newsStory?.headerMultimediaItem?.picture;
     const headerImgUrl = headerImg?.pattern ? headerImg?.pattern.replace('/q_auto,w_{width}', '').replace('{ratio}', '16x9') : '';
@@ -82,11 +105,12 @@ const parseDescriptionFromState = (rcState) => {
     const primer = news?.data?.newsStory?.primer?.replaceAll(String.raw`\n`, '') ?? '';
     const body = news?.data?.newsStory?.body?.html?.replaceAll(String.raw`\n`, '') ?? '';
     let bodyWithImg = body;
-    for (const [index, attachment] of (news?.data?.newsStory?.body?.attachments ?? []).entries()) {
+    const attachments = news?.data?.newsStory?.body?.attachments ?? [];
+    for (const [index, attachment] of attachments.entries()) {
         const placeholder = `<!--body:attachment:${index}-->`;
         const picture = attachment?.picture;
-        const imageUrl = picture?.pattern ? picture?.pattern.replace('/q_auto,w_{width}', '').replace('{ratio}', attachment?.dimensionRatio ?? '16x9') : '';
-        bodyWithImg = bodyWithImg.replace(placeholder, `<figure><picture><img src="${imageUrl}" alt="${picture?.alt ?? ''}"></picture><figcaption>${picture?.legend ?? ''}</figcaption></figure>`);
+        const imageUrl = picture?.pattern ? picture?.pattern.replace('/q_auto,w_{width}', '').replace('{ratio}', () => attachment?.dimensionRatio ?? '16x9') : '';
+        bodyWithImg = bodyWithImg.replace(placeholder, () => `<figure><picture><img src="${imageUrl}" alt="${picture?.alt ?? ''}"></picture><figcaption>${picture?.legend ?? ''}</figcaption></figure>`);
     }
     return header + primer + bodyWithImg;
 };

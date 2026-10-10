@@ -40,11 +40,10 @@ export const route: Route = {
 };
 
 async function handler() {
-    const allProductSummaries = [];
+    const allProductSummaries: any[] = [];
 
-    const loadMoreRequest = async ({ moreToken }) => {
-        const response = await request({ moreToken });
-        const { data } = response;
+    const loadMoreRequest = async ({ moreToken }: { moreToken?: string }) => {
+        const { data } = await request({ moreToken });
         allProductSummaries.push(data.productSummaries);
         if (data.moreToken) {
             await loadMoreRequest({ moreToken: data.moreToken });

@@ -3,9 +3,8 @@ import type { Context } from 'hono';
 import { renderToString } from 'hono/jsx/dom/server';
 
 import type { Data, DataItem, Route } from '@/types';
-import logger from '@/utils/logger';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import puppeteer from '@/utils/puppeteer';
 
 export const route: Route = {
     name: '漏洞',
@@ -22,7 +21,7 @@ export const route: Route = {
         },
     ],
     features: {
-        requirePuppeteer: true,
+        requirePuppeteer: false,
     },
     handler,
     description: `| 缺省   | all  | closed | disclosed | patching |
@@ -46,21 +45,7 @@ async function handler(ctx: Context): Promise<Data> {
         url += `/${status}`;
     }
 
-    const browser = await puppeteer();
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
-
-    page.on('request', (request) => {
-        request.resourceType() === 'document' ? request.continue() : request.abort();
-    });
-
-    logger.http(`Requesting ${url}`);
-    await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-    });
-
-    const response = await page.evaluate(() => document.documentElement.innerHTML);
-    await browser.close();
+    const response = await ofetch(url);
 
     const $ = load(response);
     const items: DataItem[] = $('.zdui-strip-list>li')
@@ -71,9 +56,7 @@ async function handler(ctx: Context): Promise<Data> {
             const code = vulData
                 .find('.code')
                 .contents()
-                .filter(function () {
-                    return this.nodeType === 3;
-                })
+                .filter((_, el) => el.nodeType === 3)
                 .text();
             const risk = vulData.find('.risk span').eq(1).text();
             const vender = vulData.find('.vender').find('.v-name-full').text();

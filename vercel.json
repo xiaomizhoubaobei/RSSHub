@@ -4,7 +4,7 @@
     "outputDirectory": "src",
     "functions": {
         "src/server.mjs": {
-            "includeFiles": "./src/templates/**/*.art"
+            "includeFiles": "node_modules/.pnpm/patchright-core@*/node_modules/patchright-core/**"
         }
     },
     "rewrites": [
@@ -12,5 +12,8 @@
             "source": "/favicon.ico",
             "destination": "/favicon.png"
         }
-    ]
+    ],
+    "github": {
+        "silent": true
+    }
 }
